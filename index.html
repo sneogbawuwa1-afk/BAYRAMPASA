@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>5 Günlük Antrenman Programı</title>
+<title>5 Günlük Antrenman Programı — Kusursuz 1RM Hesaplamalı</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
@@ -16,7 +16,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a12;color:#e2
 
 /* Geri Sayım Sayacı Stili */
 .timer-banner {background:#101026;border-bottom:2px solid #ff9800;padding:10px 16px;display:none;position:sticky;top:125px;z-index:99;box-shadow:0 4px 10px rgba(0,0,0,0.3)}
-.timer-container {max-width:680px;margin:0 auto;display:flex;align-items:center;justify-content:between;gap:12px}
+.timer-container {max-width:680px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .timer-text {font-size:13px;font-weight:700;color:#ff9800;display:flex;align-items:center;gap:6px;flex:1}
 .timer-bar-bg {flex:2;background:#1a1a35;height:6px;border-radius:3px;overflow:hidden;margin:0 10px}
 .timer-bar-fill {height:100%;background:#ff9800;width:100%;transition:width 1s linear}
@@ -52,7 +52,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a12;color:#e2
 
 .exercise-card{background:#0f0f1c;border:1px solid #1e1e30;border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .2s}
 .exercise-card.done{opacity:.85;border-color:#223322}
-.ex-main{padding:13px 14px;display:flex;align-items:center;gap:12px}
+.ex-main{padding:13px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .ex-check{width:22px;height:22px;border-radius:7px;border:2px solid #2a2a3a;background:transparent;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:#000;font-weight:800;transition:all .15s}
 .ex-info{flex:1;min-width:0}
 .ex-name{font-size:13px;font-weight:700;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -60,13 +60,27 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a12;color:#e2
 .badges{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
 .badge{border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700}
 .badge-1rm{background:#3b82f620;color:#60a5fa;border:1px dashed #3b82f650;font-size:10px;padding:1px 6px;border-radius:5px;font-weight:700}
+
+/* Set Satırları Alanı */
+.sets-container {width:100%;margin-top:12px;border-top:1px dashed #1e1e30;padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.set-row {display:flex;align-items:center;gap:8px;background:#141424;padding:4px 8px;border-radius:8px}
+.set-num {font-size:11px;font-weight:800;color:#555;width:24px}
+.set-inputs {display:flex;gap:12px;align-items:center;flex:1;justify-content:flex-end}
+
 .ex-controls{display:flex;gap:8px;align-items:center;flex-shrink:0}
-.weight-box{display:flex;flex-direction:column;align-items:center;gap:2px}
+.weight-box{display:flex;flex-direction:row;align-items:center;gap:6px}
 .weight-label{font-size:9px;color:#444;text-transform:uppercase;letter-spacing:1px}
-.weight-input{width:52px;height:36px;background:#16161f;border:1px solid #2a2a3a;border-radius:8px;color:#888;font-size:15px;font-weight:800;text-align:center;outline:none;-webkit-appearance:none;-moz-appearance:textfield;font-family:inherit}
+.weight-input{width:68px;height:30px;background:#16161f;border:1px solid #2a2a3a;border-radius:8px;color:#888;font-size:12px;font-weight:800;text-align:center;outline:none;-webkit-appearance:none;-moz-appearance:textfield;font-family:inherit}
 .weight-input:focus{border-color:#555;color:#fff}
-.rpe-box{display:flex;flex-direction:column;align-items:center;gap:2px}
-.rpe-select{width:42px;height:36px;background:#16161f;border:1px solid #2a2a3a;border-radius:8px;color:#888;font-size:12px;font-weight:700;text-align:center;outline:none;cursor:pointer;font-family:inherit}
+.weight-input::placeholder{font-size:9px;color:#444;font-weight:normal}
+
+/* Yeni Eklenen Tekrar Giriş Kutusu Stili */
+.rep-input{width:50px;height:30px;background:#16161f;border:1px solid #2a2a3a;border-radius:8px;color:#888;font-size:12px;font-weight:800;text-align:center;outline:none;-webkit-appearance:none;-moz-appearance:textfield;font-family:inherit}
+.rep-input:focus{border-color:#555;color:#fff}
+
+.rpe-box{display:flex;flex-direction:row;align-items:center;gap:6px}
+.rpe-select{width:60px;height:30px;background:#16161f;border:1px solid #2a2a3a;border-radius:8px;color:#888;font-size:11px;font-weight:700;text-align:center;outline:none;cursor:pointer;font-family:inherit}
+
 .ex-footer{padding:9px 14px;border-top:1px solid #141420;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
 .machine-label{font-size:10px;color:#444;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ex-expand{background:#0c0c18;border-top:1px solid #141420}
@@ -220,56 +234,72 @@ let data = {};
 let timerInterval = null;
 
 try {
-  data = JSON.parse(localStorage.getItem("gym_tracker_data_v2")) || {};
+  data = JSON.parse(localStorage.getItem("gym_tracker_data_v3")) || {};
 } catch(e) {
   data = {};
 }
 let progressionWeek = 0;
 let selectedExChart = 0;
 
-function getKey(week, dayId, exIdx, field){return `W${week}_${dayId}_${exIdx}_${field}`;}
+function getKey(week, dayId, exIdx, field, setIdx = 0){
+  if(field === "weight" || field === "reps_done" || field === "rpe") {
+    return `W${week}_${dayId}_${exIdx}_S${setIdx}_${field}`;
+  }
+  return `W${week}_${dayId}_${exIdx}_${field}`;
+}
 
-function getData(week, dayId, exIdx, field, def=""){
-  const k=getKey(week, dayId, exIdx, field);
+function getData(week, dayId, exIdx, field, def="", setIdx = 0){
+  const k=getKey(week, dayId, exIdx, field, setIdx);
   return data[k] !== undefined ? data[k] : def;
 }
-function setData(week, dayId, exIdx, field, val){
-  data[getKey(week, dayId, exIdx, field)]=val;
+function setData(week, dayId, exIdx, field, val, setIdx = 0){
+  data[getKey(week, dayId, exIdx, field, setIdx)]=val;
 }
 
-/* RPE Tabanlı Tahmini 1RM Hesaplama Fonksiyonu */
-function calculateEstimated1RM(weight, rpe, targetRepsStr) {
+// MATEMATİKSEL OLARAK DOĞRULANMIŞ YENİ 1RM FORMÜLÜ (Epley + Gerçek RIR)
+function calculateEstimated1RM(weight, rpe, repsDone) {
   weight = parseFloat(weight);
+  repsDone = parseInt(repsDone);
   rpe = parseFloat(rpe);
-  if (!weight || isNaN(weight) || !rpe || isNaN(rpe)) return 0;
   
-  // Hedef tekrar aralığından ortalama bir baz tekrar sayısı alıyoruz (Örn: "6-8" -> 7 tekrar)
-  let baseReps = 8;
-  if(targetRepsStr.includes('-')) {
-    let parts = targetRepsStr.split('-');
-    baseReps = (parseInt(parts[0]) + parseInt(parts[1])) / 2;
-  } else {
-    baseReps = parseInt(targetRepsStr) || 8;
-  }
+  if (!weight || isNaN(weight) || !repsDone || isNaN(repsDone)) return 0;
+  if (!rpe || isNaN(rpe)) rpe = 10; // RPE girilmemişse tükeniş say
 
-  // RPE'ye göre potansiyel maksimum tekrar (Tükenişe kalan tekrar mantığı)
-  let rir = 10 - rpe; // RPE 8 ise RIR 2'dir.
-  let totalSimulatedReps = baseReps + rir; 
+  // RIR (Cepte kalan tekrar sayısı) = 10 - RPE
+  let rir = 10 - rpe;
   
-  if (totalSimulatedReps <= 0) totalSimulatedReps = 1;
+  // Toplam potansiyel tekrar sayısı = Yapılan gerçek tekrar + Cepte kalan tekrar
+  let totalEffectiveReps = repsDone + rir;
+  if (totalEffectiveReps <= 0) totalEffectiveReps = 1;
 
-  // Brzycki Formülü ile Tahmini 1RM Hesaplama
-  let e1rm = weight / (1.0278 - (0.0278 * totalSimulatedReps));
+  // Bilimsel Saf Epley Formülü: Ağırlık * (1 + (Toplam Tekrar / 30))
+  // Bu mantıkla: 30kg x 5 tkr (RPE 10) -> ~35.0 kg çıkarken, 30kg x 8 tkr (RPE 10) -> ~38.0 kg çıkar. Tam olması gerektiği gibi!
+  let e1rm = weight * (1 + (totalEffectiveReps / 30));
   return +e1rm.toFixed(1);
 }
 
-/* Dinlenme Sayacı Fonksiyonu */
+function getBestSetStats(week, dayId, exIdx, totalSets) {
+  let max1RM = 0;
+  let maxWeight = 0;
+  for(let s=0; s<totalSets; s++) {
+    const w = parseFloat(getData(week, dayId, exIdx, "weight", 0, s)) || 0;
+    const rpe = parseFloat(getData(week, dayId, exIdx, "rpe", 0, s)) || 0;
+    const reps = parseInt(getData(week, dayId, exIdx, "reps_done", 0, s)) || 0;
+    
+    if(w > maxWeight) maxWeight = w;
+    if(w && reps > 0) {
+      const current1RM = calculateEstimated1RM(w, rpe, reps);
+      if(current1RM > max1RM) max1RM = current1RM;
+    }
+  }
+  return { max1RM, maxWeight };
+}
+
 function startRestTimer(){
   clearInterval(timerInterval);
   const banner = document.getElementById("timerBanner");
   const textVal = document.getElementById("timerCountdown");
   const barFill = document.getElementById("timerBarFill");
-  
   if(!banner || !textVal || !barFill) return;
   
   let timeLeft = 90;
@@ -281,7 +311,6 @@ function startRestTimer(){
     timeLeft--;
     textVal.innerText = timeLeft;
     barFill.style.width = (timeLeft / 90 * 100) + "%";
-    
     if(timeLeft <= 0) {
       clearInterval(timerInterval);
       banner.style.display = "none";
@@ -295,14 +324,12 @@ document.getElementById("timerCloseBtn").onclick = function(){
   document.getElementById("timerBanner").style.display = "none";
 };
 
-function getPastPerformance(dayId, exIdx, targetRepsStr) {
+function getPastPerformance(dayId, exIdx, totalSets) {
   let perfList = [];
   for(let w = 0; w < 12; w++) {
-    const weight = getData(w, dayId, exIdx, "weight", "");
-    const rpe = getData(w, dayId, exIdx, "rpe", "");
-    if(weight) {
-      const e1rm = calculateEstimated1RM(weight, rpe, targetRepsStr);
-      perfList.push({ week: w + 1, weight, rpe, e1rm });
+    const stats = getBestSetStats(w, dayId, exIdx, totalSets);
+    if(stats.maxWeight > 0) {
+      perfList.push({ week: w + 1, weight: stats.maxWeight, e1rm: stats.max1RM });
     }
   }
   return perfList;
@@ -383,14 +410,51 @@ function renderMain(){
 function renderWorkout(day){
   return day.exercises.map((ex,i)=>{
     const isDone = getData(currentTrackingWeek, day.id,i,"done")==="1";
-    const w = getData(currentTrackingWeek, day.id,i,"weight","");
-    const rpe = getData(currentTrackingWeek, day.id,i,"rpe","");
     const note = getData(currentTrackingWeek, day.id,i,"note","");
     const isOpen = expandedEx===i;
-    const pastPerformance = getPastPerformance(day.id, i, ex.reps);
-    
-    // Anlık Kart Üzerinde Tahmini 1RM Hesaplama
-    const estimated1RM = calculateEstimated1RM(w, rpe, ex.reps);
+    const pastPerformance = getPastPerformance(day.id, i, ex.sets);
+    const stats = getBestSetStats(currentTrackingWeek, day.id, i, ex.sets);
+
+    let setRowsHtml = "";
+    for(let s = 0; s < ex.sets; s++) {
+      const w = getData(currentTrackingWeek, day.id, i, "weight", "", s);
+      const repsDone = getData(currentTrackingWeek, day.id, i, "reps_done", "", s);
+      const rpe = getData(currentTrackingWeek, day.id, i, "rpe", "", s);
+      
+      let placeholderWeight = "—";
+      let prevDetails = "";
+      if (currentTrackingWeek > 0) {
+        const prevW = getData(currentTrackingWeek - 1, day.id, i, "weight", "", s);
+        const prevReps = getData(currentTrackingWeek - 1, day.id, i, "reps_done", "", s);
+        const prevR = getData(currentTrackingWeek - 1, day.id, i, "rpe", "", s);
+        if (prevW) {
+          placeholderWeight = `${prevW}kg`;
+          prevDetails = `Önceki: ${prevW}kg x ${prevReps || '?'}tk${prevR ? ' RPE'+prevR : ''}`;
+        }
+      }
+
+      setRowsHtml += `
+      <div class="set-row">
+        <div class="set-num">S${s+1}</div>
+        <div class="set-inputs">
+          ${prevDetails ? `<div style="font-size:8px;color:#555;margin-right:auto">${prevDetails}</div>` : ''}
+          <div class="weight-box">
+            <input class="weight-input" id="w_${i}_s${s}" type="number" placeholder="${placeholderWeight}" value="${w}" min="0" max="500" step="0.5" style="border-color:${w?day.color+"60":"#2a2a3a"};color:${w?day.color:"#ccc"}">
+            <div class="weight-label">KG</div>
+          </div>
+          <div class="weight-box">
+            <input class="rep-input" id="rep_${i}_s${s}" type="number" placeholder="${ex.reps}" value="${repsDone}" min="0" max="100" style="border-color:${repsDone?day.color+"60":"#2a2a3a"};color:${repsDone?day.color:"#ccc"}">
+            <div class="weight-label">TKR</div>
+          </div>
+          <div class="rpe-box">
+            <select class="rpe-select" id="rpe_${i}_s${s}" style="border-color:${rpe?day.color+"60":"#2a2a3a"};color:${rpe?day.color:"#ccc"}">
+              <option value="">RPE</option>
+              ${[6,7,7.5,8,8.5,9,9.5,10].map(r=>`<option${rpe==r?" selected":""}>${r}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+      </div>`;
+    }
 
     return `
     <div class="exercise-card${isDone?" done":""}" id="excard_${i}">
@@ -402,24 +466,16 @@ function renderWorkout(day){
           <div class="ex-name">${ex.name}</div>
           <div class="badges">
             <span class="badge" style="background:${day.color}20;color:${day.color}">${ex.sets} SET</span>
-            <span class="badge" style="background:#1e1e2e;color:#aaa">${ex.reps} TK</span>
+            <span class="badge" style="background:#1e1e2e;color:#aaa">Hedef: ${ex.reps} TK</span>
             <span class="badge" style="background:#1e1e2e;color:#666">${ex.target}</span>
-            ${estimated1RM > 0 ? `<span class="badge-1rm" title="Tahmini Maksimum Güç">1RM: ~${estimated1RM} kg</span>` : ''}
+            ${stats.max1RM > 0 ? `<span class="badge-1rm" title="Bu haftaki en yüksek bilimsel e1RM değeri">Haftalık e1RM: ~${stats.max1RM} kg</span>` : ''}
           </div>
         </div>
-        <div class="ex-controls">
-          <div class="weight-box">
-            <div class="weight-label">KG</div>
-            <input class="weight-input" id="w_${i}" type="number" placeholder="—" value="${w}" min="0" max="500" step="0.5" style="border-color:${w?day.color+"60":"#2a2a3a"};color:${w?day.color:"#555"}">
-          </div>
-          <div class="rpe-box">
-            <div class="weight-label">RPE</div>
-            <select class="rpe-select" id="rpe_${i}" style="border-color:${rpe?day.color+"60":"#2a2a3a"};color:${rpe?day.color:"#555"}">
-              <option value="">—</option>
-              ${[6,7,7.5,8,8.5,9,9.5,10].map(r=>`<option${rpe==r?" selected":""}>${r}</option>`).join("")}
-            </select>
-          </div>
+        
+        <div class="sets-container">
+          ${setRowsHtml}
         </div>
+
       </div>
       <div class="ex-footer" id="expand_${i}">
         <i class="ti ti-tool" style="color:#444;font-size:13px" aria-hidden="true"></i>
@@ -438,14 +494,14 @@ function renderWorkout(day){
         </div>
         
         <div class="history-box">
-          <div class="history-title"><i class="ti ti-history" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> 12 Haftalık Giriş & e1RM Geçmişi</div>
+          <div class="history-title"><i class="ti ti-history" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> 12 Haftalık Giriş & En İyi e1RM Geçmişi</div>
           <div class="history-list">
             ${pastPerformance.length === 0 ? '<div style="font-size:11px;color:#444;text-align:center">Henüz girilmiş hafta verisi yok.</div>' : 
               pastPerformance.map(p => `
                 <div class="history-row" style="${p.week === currentTrackingWeek + 1 ? 'font-weight:bold;color:#fff;' : ''}">
                   <span>Hafta ${p.week}</span>
-                  <span>${p.weight} KG (RPE: ${p.rpe || '—'})</span>
-                  <span style="color:#60a5fa">${p.e1rm > 0 ? `e1RM: ~${p.e1rm} kg` : '—'}</span>
+                  <span>En Ağır Kilo: ${p.weight} KG</span>
+                  <span style="color:#60a5fa">${p.e1rm > 0 ? `En İyi e1RM: ~${p.e1rm} kg` : '—'}</span>
                 </div>
               `).join('')
             }
@@ -471,44 +527,39 @@ function bindWorkout(day){
         const cur = getData(currentTrackingWeek, day.id,i,"done")==="1";
         const targetState = cur ? "0" : "1";
         setData(currentTrackingWeek, day.id,i,"done", targetState);
-        localStorage.setItem("gym_tracker_data_v2", JSON.stringify(data));
-        
-        if(targetState === "1"){
-          startRestTimer();
-        }
-        
+        localStorage.setItem("gym_tracker_data_v3", JSON.stringify(data));
+        if(targetState === "1") startRestTimer();
         render(); 
       };
     }
 
-    const wInp = document.getElementById(`w_${i}`);
-    if(wInp) {
-      wInp.oninput=function(){
-        setData(currentTrackingWeek, day.id,i,"weight",this.value);
-        this.style.borderColor=this.value?day.color+"60":"#2a2a3a";
-        this.style.color=this.value?day.color:"#555";
-        localStorage.setItem("gym_tracker_data_v2", JSON.stringify(data));
-        
-        // Karttaki e1RM rozetini anlık güncellemek için tetikleme
-        const card1rm = document.querySelector(`#excard_${i} .badge-1rm`);
-        const rpeVal = document.getElementById(`rpe_${i}`).value;
-        const fresh1RM = calculateEstimated1RM(this.value, rpeVal, ex.reps);
-        if(card1rm) {
-          if(fresh1RM > 0) card1rm.innerText = `1RM: ~${fresh1RM} kg`;
-          else card1rm.remove();
-        } else if (fresh1RM > 0) {
-          render(); // Rozeti sıfırdan eklemek için yeniden çizim yapıyoruz
-        }
-      };
-    }
+    for(let s = 0; s < ex.sets; s++) {
+      const wInp = document.getElementById(`w_${i}_s${s}`);
+      if(wInp) {
+        wInp.oninput=function(){
+          setData(currentTrackingWeek, day.id, i, "weight", this.value, s);
+          localStorage.setItem("gym_tracker_data_v3", JSON.stringify(data));
+        };
+        wInp.onchange=function(){ render(); };
+      }
 
-    const rpeSel = document.getElementById(`rpe_${i}`);
-    if(rpeSel) {
-      rpeSel.onchange=function(){
-        setData(currentTrackingWeek, day.id,i,"rpe",this.value);
-        localStorage.setItem("gym_tracker_data_v2", JSON.stringify(data));
-        render();
-      };
+      const rInp = document.getElementById(`rep_${i}_s${s}`);
+      if(rInp) {
+        rInp.oninput=function(){
+          setData(currentTrackingWeek, day.id, i, "reps_done", this.value, s);
+          localStorage.setItem("gym_tracker_data_v3", JSON.stringify(data));
+        };
+        rInp.onchange=function(){ render(); };
+      }
+
+      const rpeSel = document.getElementById(`rpe_${i}_s${s}`);
+      if(rpeSel) {
+        rpeSel.onchange=function(){
+          setData(currentTrackingWeek, day.id, i, "rpe", this.value, s);
+          localStorage.setItem("gym_tracker_data_v3", JSON.stringify(data));
+          render(); 
+        };
+      }
     }
 
     const expBtn = document.getElementById(`expand_${i}`);
@@ -524,7 +575,7 @@ function bindWorkout(day){
       if(noteTxt) {
         noteTxt.oninput=function(){
           setData(currentTrackingWeek, day.id,i,"note",this.value);
-          localStorage.setItem("gym_tracker_data_v2", JSON.stringify(data));
+          localStorage.setItem("gym_tracker_data_v3", JSON.stringify(data));
         };
       }
     }
@@ -533,23 +584,23 @@ function bindWorkout(day){
   const saveBtn = document.getElementById("saveBtn");
   if(saveBtn) {
     saveBtn.onclick=()=>{
-      localStorage.setItem("gym_tracker_data_v2", JSON.stringify(data));
+      localStorage.setItem("gym_tracker_data_v3", JSON.stringify(data));
       const toast=document.getElementById("toast");
       if(toast) {
         toast.style.background=day.color;
         toast.style.display="block";
         setTimeout(()=>toast.style.display="none",2000);
       }
+      render();
     };
   }
 }
 
 function renderProgress(day){
   const exOptions = day.exercises.map((ex,i)=>`<option value="${i}"${i===selectedExChart?" selected":""}>${ex.name}</option>`).join("");
-
   return `
   <div class="chart-wrap">
-    <div class="chart-title">Tahmini 1RM Güç Eğrisi (12 Hafta)</div>
+    <div class="chart-title">En İyi Setin Tahmini 1RM Güç Eğrisi (12 Hafta)</div>
     <select class="ex-select" id="exChartSelect">${exOptions}</select>
     <div style="position:relative;height:220px"><canvas id="progressChart"></canvas></div>
   </div>
@@ -573,17 +624,8 @@ function renderProgressCharts(day){
   const labels=[]; const vals=[];
   for(let w=0; w<12; w++){
     labels.push(`H${w+1}`);
-    const weightVal = parseFloat(getData(w, day.id, exIdx, "weight", 0)) || null;
-    const rpeVal = parseFloat(getData(w, day.id, exIdx, "rpe", 0)) || null;
-    
-    // Grafikte artık girdiğimiz düz kilo değil, hesaplanan 1RM değeri listeleniyor
-    let calculated1RM = null;
-    if(weightVal && rpeVal) {
-      calculated1RM = calculateEstimated1RM(weightVal, rpeVal, targetEx.reps);
-    } else if (weightVal) {
-      calculated1RM = weightVal; // RPE yoksa en kötü ihtimal düz kiloyu baz al
-    }
-    vals.push(calculated1RM);
+    const stats = getBestSetStats(w, day.id, exIdx, targetEx.sets);
+    vals.push(stats.max1RM > 0 ? stats.max1RM : null);
   }
 
   const c1=document.getElementById("progressChart");
@@ -592,7 +634,7 @@ function renderProgressCharts(day){
     c1._chart=new Chart(c1,{
       type:"line",
       data:{labels,datasets:[{
-        label:"Tahmini Max Güç (e1RM)",data:vals,
+        label:"En İyi Tahmini Max Güç (e1RM)",data:vals,
         borderColor:"#3b82f6",borderWidth:2,pointRadius:4,
         pointBackgroundColor:"#3b82f6",pointBorderColor:"#0a0a12",pointBorderWidth:2,
         fill:true,backgroundColor:"rgba(59, 130, 246, 0.1)",tension:0.1,
@@ -648,8 +690,8 @@ function renderProgression(day){
   </div>`;
 
   const tableRows = day.exercises.map((ex,i)=>{
-    const curWeekWeight = parseFloat(getData(progressionWeek, day.id, i, "weight", 0)) || 0;
-    const prevWeekWeight = progressionWeek > 0 ? (parseFloat(getData(progressionWeek - 1, day.id, i, "weight", 0)) || 0) : 0;
+    const curWeekWeight = getBestSetStats(progressionWeek, day.id, i, ex.sets).maxWeight;
+    const prevWeekWeight = progressionWeek > 0 ? getBestSetStats(progressionWeek - 1, day.id, i, ex.sets).maxWeight : 0;
     
     let diffText = "<span class='same'>—</span>";
     if (progressionWeek > 0 && curWeekWeight && prevWeekWeight) {
@@ -657,7 +699,6 @@ function renderProgression(day){
       if (diff > 0) diffText = `<span class="up-arrow">+${diff} kg</span>`;
       else if (diff < 0) diffText = `<span style="color:#f44">${diff} kg</span>`;
     }
-
     const isPR = curWeekWeight > 0 && (progressionWeek === 0 || (prevWeekWeight > 0 && curWeekWeight > prevWeekWeight));
 
     return `<tr>
@@ -672,7 +713,7 @@ function renderProgression(day){
   return `
   ${weeksHtml}
   <div class="chart-wrap">
-    <div class="chart-title">Hafta ${progressionWeek+1} — Girdiğiniz Gerçek Ağırlıklar</div>
+    <div class="chart-title">Hafta ${progressionWeek+1} — Setler Arasındaki En Yüksek Gerçek Ağırlıklar</div>
     <table class="progression-table">
       <thead><tr>
         <th>Egzersiz</th><th>Önceki H.</th><th>Bu Hafta</th><th>Değişim</th><th></th>
@@ -718,7 +759,7 @@ function bindOverview(){
   if(resetBtn){
     resetBtn.onclick = function(){
       if(confirm("DİKKAT! Girdiğiniz tüm haftalara ait kilolar, notlar ve tamamlanma bilgileri kalıcı olarak silinecektir. Emin misiniz?")){
-        localStorage.removeItem("gym_tracker_data_v2");
+        localStorage.removeItem("gym_tracker_data_v3");
         data = {};
         currentTrackingWeek = 0;
         activeDay = 0;
