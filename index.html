@@ -14,11 +14,18 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a12;color:#e2
 .nav-title{font-size:11px;letter-spacing:3px;color:#666;text-transform:uppercase;margin-bottom:4px}
 .nav-sub{font-size:19px;font-weight:700;color:#fff;margin-bottom:14px}
 
-/* Ana Sayfa Butonu Stili */
+/* Geri Sayım Sayacı Stili */
+.timer-banner {background:#101026;border-bottom:2px solid #ff9800;padding:10px 16px;display:none;position:sticky;top:125px;z-index:99;box-shadow:0 4px 10px rgba(0,0,0,0.3)}
+.timer-container {max-width:680px;margin:0 auto;display:flex;align-items:center;justify-content:between;gap:12px}
+.timer-text {font-size:13px;font-weight:700;color:#ff9800;display:flex;align-items:center;gap:6px;flex:1}
+.timer-bar-bg {flex:2;background:#1a1a35;height:6px;border-radius:3px;overflow:hidden;margin:0 10px}
+.timer-bar-fill {height:100%;background:#ff9800;width:100%;transition:width 1s linear}
+.timer-close {background:none;border:none;color:#555;cursor:pointer;font-size:16px;padding:2px 6px}
+.timer-close:hover {color:#fff}
+
 .home-btn {position:absolute;top:0;right:0;background:#161625;border:1px solid #222235;border-radius:8px;padding:6px 12px;color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;text-decoration:none;transition:background .15s}
 .home-btn:hover {background:#1e1e33}
 
-/* Hafta Seçici Stilleri */
 .week-selector-title {font-size:10px;letter-spacing:1px;color:#555;text-transform:uppercase;margin-bottom:6px;font-weight:700}
 .week-nav-tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:8px;margin-bottom:8px;scrollbar-width:none}
 .week-nav-tabs::-webkit-scrollbar{display:none}
@@ -89,12 +96,6 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a12;color:#e2
 .chart-title{font-size:12px;color:#888;margin-bottom:10px;font-weight:600}
 .ex-select{width:100%;background:#16161f;border:1px solid #2a2a3a;border-radius:8px;color:#e2e2e8;font-size:12px;padding:7px 10px;outline:none;margin-bottom:12px;font-family:inherit;cursor:pointer}
 
-.progress-pct-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
-.pct-card{background:#0f0f1c;border:1px solid #1e1e30;border-radius:10px;padding:10px;text-align:center}
-.pct-label{font-size:10px;color:#555;margin-bottom:4px}
-.pct-val{font-size:18px;font-weight:800}
-.pct-sub{font-size:10px;color:#444;margin-top:2px}
-
 .progression-table{width:100%;border-collapse:collapse;font-size:12px}
 .progression-table th{color:#444;font-weight:600;text-align:left;padding:6px 8px;border-bottom:1px solid #1e1e30}
 .progression-table td{padding:7px 8px;border-bottom:1px solid #141420;color:#888}
@@ -105,6 +106,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a12;color:#e2
 
 .save-btn{width:100%;margin-top:14px;background:#fff;border:none;border-radius:12px;padding:14px;cursor:pointer;font-size:13px;font-weight:800;color:#000;letter-spacing:1px;font-family:inherit;transition:opacity .15s}
 .save-btn:hover{opacity:.85}
+
+/* Reset Butonu */
+.danger-btn{width:100%;margin-top:14px;background:#ff3b3020;border:1px solid #ff3b3050;border-radius:12px;padding:12px;cursor:pointer;font-size:11px;font-weight:700;color:#ff3b30;letter-spacing:1px;font-family:inherit;transition:all .15s}
+.danger-btn:hover{background:#ff3b3035}
 
 .weekly-overview{margin-top:20px}
 .overview-title{font-size:10px;letter-spacing:2px;color:#333;text-transform:uppercase;margin-bottom:10px;font-weight:700}
@@ -120,6 +125,14 @@ input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-
 </head>
 <body>
 <div class="toast" id="toast">✓ Kaydedildi</div>
+
+<div class="timer-banner" id="timerBanner">
+  <div class="timer-container">
+    <div class="timer-text"><i class="ti ti-alarm-text"></i> Dinlenme: <span id="timerCountdown">90</span>s</div>
+    <div class="timer-bar-bg"><div class="timer-bar-fill" id="timerBarFill"></div></div>
+    <button class="timer-close" id="timerCloseBtn">×</button>
+  </div>
+</div>
 
 <div class="nav">
 <div class="nav-header">
@@ -196,15 +209,13 @@ const DAYS = [
     ]},
 ];
 
-const PROG_RULES = [
-  { label:"Serbest Giriş Takibi", desc:"Ağırlıklar tamamen sizin girdiğiniz haftalık verilere göre listelenir.", pct:0, weeks:[1,2,3,4,5,6,7,8,9,10,11,12] }
-];
-
 let currentTrackingWeek = 0;
 let activeDay = 0;
 let activeSection = "workout";
 let expandedEx = null;
 let data = {};
+let timerInterval = null;
+
 try {
   data = JSON.parse(localStorage.getItem("gym_tracker_data_v2")) || {};
 } catch(e) {
@@ -222,6 +233,38 @@ function getData(week, dayId, exIdx, field, def=""){
 function setData(week, dayId, exIdx, field, val){
   data[getKey(week, dayId, exIdx, field)]=val;
 }
+
+/* Dinlenme Sayacı Fonksiyonu */
+function startRestTimer(){
+  clearInterval(timerInterval);
+  const banner = document.getElementById("timerBanner");
+  const textVal = document.getElementById("timerCountdown");
+  const barFill = document.getElementById("timerBarFill");
+  
+  if(!banner || !textVal || !barFill) return;
+  
+  let timeLeft = 90;
+  banner.style.display = "block";
+  textVal.innerText = timeLeft;
+  barFill.style.width = "100%";
+  
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    textVal.innerText = timeLeft;
+    barFill.style.width = (timeLeft / 90 * 100) + "%";
+    
+    if(timeLeft <= 0) {
+      clearInterval(timerInterval);
+      banner.style.display = "none";
+      if(navigator.vibrate) navigator.vibrate(200); // Destekleyen cihazlarda hafif titreşim
+    }
+  }, 1000);
+}
+
+document.getElementById("timerCloseBtn").onclick = function(){
+  clearInterval(timerInterval);
+  document.getElementById("timerBanner").style.display = "none";
+};
 
 function getPastPerformance(dayId, exIdx) {
   let perfList = [];
@@ -392,8 +435,15 @@ function bindWorkout(day){
     if(chkEl) {
       chkEl.onclick=()=>{
         const cur = getData(currentTrackingWeek, day.id,i,"done")==="1";
-        setData(currentTrackingWeek, day.id,i,"done",cur?"0":"1");
+        const targetState = cur ? "0" : "1";
+        setData(currentTrackingWeek, day.id,i,"done", targetState);
         localStorage.setItem("gym_tracker_data_v2", JSON.stringify(data));
+        
+        // Egzersiz tamamlandığında (Check edildiğinde) sayacı başlat
+        if(targetState === "1"){
+          startRestTimer();
+        }
+        
         render(); 
       };
     }
@@ -599,6 +649,7 @@ function renderWeeklyOverview(){
       }).join("")}
     </div>
   </div>
+  <button class="danger-btn" id="resetAllBtn"><i class="ti ti-trash"></i> TÜM 12 HAFTALIK VERİLERİ SIFIRLA</button>
   <div style="margin-top:14px;font-size:11px;color:#2a2a3a;text-align:center;padding-bottom:20px">Veriler yerel depolamada saklanır</div>`;
 }
 
@@ -607,6 +658,23 @@ function bindOverview(){
     const el=document.getElementById(`ov_${i}`);
     if(el) el.onclick=()=>{activeDay=i;expandedEx=null;activeSection="workout";render();};
   });
+  
+  // Sıfırlama Butonu Tetikleyicisi
+  const resetBtn = document.getElementById("resetAllBtn");
+  if(resetBtn){
+    resetBtn.onclick = function(){
+      if(confirm("DİKKAT! Girdiğiniz tüm haftalara ait kilolar, notlar ve tamamlanma bilgileri kalıcı olarak silinecektir. Emin misiniz?")){
+        localStorage.removeItem("gym_tracker_data_v2");
+        data = {};
+        currentTrackingWeek = 0;
+        activeDay = 0;
+        activeSection = "workout";
+        expandedEx = null;
+        render();
+        alert("Tüm veriler başarıyla sıfırlandı.");
+      }
+    };
+  }
 }
 
 const homeBtn = document.getElementById("homeBtn");
