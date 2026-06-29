@@ -30,7 +30,6 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a12;color:#e2
 .day-tab.active{color:#fff}
 .main{max-width:680px;margin:0 auto;padding:14px 16px 0}
 
-/* Hatalı tırnak işareti düzeltildi */
 .day-banner {border-radius:12px;padding:14px 16px;margin-bottom:12px;border-left:3px solid;display:flex;align-items:center;gap:14px}
 .day-banner-text{flex:1}
 .day-focus{font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:3px}
@@ -70,7 +69,6 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a12;color:#e2
 .yt-title{font-size:12px;font-weight:700;color:#ff4444;margin-bottom:1px}
 .yt-sub{font-size:10px;color:#555}
 
-/* Geçmiş Performans Tablosu Stilleri */
 .history-box{padding:0 14px 12px}
 .history-title{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700}
 .history-list{display:flex;flex-direction:column;gap:4px;background:#131322;border-radius:8px;padding:8px}
@@ -199,9 +197,7 @@ const DAYS = [
 ];
 
 const PROG_RULES = [
-  { label:"Doğrusal Artış", desc:"Her başarılı sette +2.5kg", pct:2.5, weeks:[1,2,3,4,5,6,7,8,9,10,11,12] },
-  { label:"%5 Kural", desc:"Her 2 haftada %5 artış", pct:5, weeks:[1,1,2,2,3,3,4,4,5,5,6,6] },
-  { label:"Deload Haftası", desc:"4 haftada 1 %20 azalt, sonra devam", pct:-20, weeks:[1,2,3,-1,4,5,6,-1,7,8,9,-1,10,11,12,-1] },
+  { label:"Serbest Giriş Takibi", desc:"Ağırlıklar tamamen sizin girdiğiniz haftalık verilere göre listelenir.", pct:0, weeks:[1,2,3,4,5,6,7,8,9,10,11,12] }
 ];
 
 let currentTrackingWeek = 0;
@@ -237,16 +233,6 @@ function getPastPerformance(dayId, exIdx) {
     }
   }
   return perfList;
-}
-
-function getWeekWeight(dayId, exIdx, week){
-  const base = parseFloat(getData(currentTrackingWeek, dayId,exIdx,"weight",0))||0;
-  if(!base) return null;
-  let w = base;
-  for(let i=0;i<week;i++){
-    w = +(w * 1.025).toFixed(1);
-  }
-  return w;
 }
 
 function renderWeekSelector(){
@@ -293,8 +279,8 @@ function renderMain(){
   </div>
   <div class="tabs-secondary">
     <div class="tab-sec${activeSection==="workout"?" active":""}" style="${activeSection==="workout"?`color:${day.color};border-color:${day.color}40`:""}">Antrenman</div>
-    <div class="tab-sec${activeSection==="progress"?" active":""}" style="${activeSection==="progress"?`color:${day.color};border-color:${day.color}40`:""}">İlerleme</div>
-    <div class="tab-sec${activeSection==="progression"?" active":""}" style="${activeSection==="progression"?`color:${day.color};border-color:${day.color}40`:""}">Ağırlık Artış</div>
+    <div class="tab-sec${activeSection==="progress"?" active":""}" style="${activeSection==="progress"?`color:${day.color};border-color:${day.color}40`:""}">İlerleme Grafiği</div>
+    <div class="tab-sec${activeSection==="progression"?" active":""}" style="${activeSection==="progression"?`color:${day.color};border-color:${day.color}40`:""}">Ağırlık Artış Matrisi</div>
   </div>`;
 
   if(activeSection==="workout"){
@@ -375,9 +361,9 @@ function renderWorkout(day){
         </div>
         
         <div class="history-box">
-          <div class="history-title"><i class="ti ti-history" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Geçmiş Performanslar</div>
+          <div class="history-title"><i class="ti ti-history" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> 12 Haftalık Giriş Geçmişi</div>
           <div class="history-list">
-            ${pastPerformance.length === 0 ? '<div style="font-size:11px;color:#444;text-align:center">Henüz geçmiş veri yok.</div>' : 
+            ${pastPerformance.length === 0 ? '<div style="font-size:11px;color:#444;text-align:center">Henüz girilmiş hafta verisi yok.</div>' : 
               pastPerformance.map(p => `
                 <div class="history-row" style="${p.week === currentTrackingWeek + 1 ? 'font-weight:bold;color:#fff;' : ''}">
                   <span>Hafta ${p.week}</span>
@@ -400,7 +386,6 @@ function renderWorkout(day){
   <button class="save-btn" id="saveBtn" style="background:${day.color}">DEĞİŞİKLİKLERİ KAYDET</button>`;
 }
 
-/* Siyah Ekranı Önleyen Güvenli Bind (Element Kontrollü) ve Anlık Kayıt */
 function bindWorkout(day){
   day.exercises.forEach((_,i)=>{
     const chkEl = document.getElementById(`chk_${i}`);
@@ -408,7 +393,6 @@ function bindWorkout(day){
       chkEl.onclick=()=>{
         const cur = getData(currentTrackingWeek, day.id,i,"done")==="1";
         setData(currentTrackingWeek, day.id,i,"done",cur?"0":"1");
-        // ANLIK KAYIT TETİKLEYİCİSİ
         localStorage.setItem("gym_tracker_data_v2", JSON.stringify(data));
         render(); 
       };
@@ -420,7 +404,6 @@ function bindWorkout(day){
         setData(currentTrackingWeek, day.id,i,"weight",this.value);
         this.style.borderColor=this.value?day.color+"60":"#2a2a3a";
         this.style.color=this.value?day.color:"#555";
-        // ANLIK KAYIT TETİKLEYİCİSİ
         localStorage.setItem("gym_tracker_data_v2", JSON.stringify(data));
       };
     }
@@ -429,7 +412,6 @@ function bindWorkout(day){
     if(rpeSel) {
       rpeSel.onchange=function(){
         setData(currentTrackingWeek, day.id,i,"rpe",this.value);
-        // ANLIK KAYIT TETİKLEYİCİSİ
         localStorage.setItem("gym_tracker_data_v2", JSON.stringify(data));
       };
     }
@@ -447,7 +429,6 @@ function bindWorkout(day){
       if(noteTxt) {
         noteTxt.oninput=function(){
           setData(currentTrackingWeek, day.id,i,"note",this.value);
-          // ANLIK KAYIT TETİKLEYİCİSİ
           localStorage.setItem("gym_tracker_data_v2", JSON.stringify(data));
         };
       }
@@ -469,49 +450,11 @@ function bindWorkout(day){
 }
 
 function renderProgress(day){
-  const allWeights = day.exercises.map((ex,i)=>{
-    const weeks=[];
-    for(let w=0;w<8;w++){
-      const ww=getWeekWeight(day.id,i,w);
-      weeks.push(ww);
-    }
-    return {name:ex.name, weeks};
-  });
-  const exWithWeights = allWeights.filter(e=>e.weeks[0]!==null);
-
-  let statsHtml="";
-  if(exWithWeights.length>0){
-    const e=exWithWeights[0];
-    const base=e.weeks[0]||0;
-    const w12=+(base*Math.pow(1.025,12)).toFixed(1);
-    const diff=+(w12-base).toFixed(1);
-    const pct=+((diff/base)*100).toFixed(1);
-    statsHtml=`
-    <div class="progress-pct-grid">
-      <div class="pct-card">
-        <div class="pct-label">Bu hafta</div>
-        <div class="pct-val" style="color:${day.color}">${base} kg</div>
-        <div class="pct-sub">Başlangıç</div>
-      </div>
-      <div class="pct-card">
-        <div class="pct-label">4. hafta</div>
-        <div class="pct-val" style="color:#60a5fa">${+(base*Math.pow(1.025,4)).toFixed(1)} kg</div>
-        <div class="pct-sub">+${+((base*Math.pow(1.025,4)-base)).toFixed(1)} kg</div>
-      </div>
-      <div class="pct-card">
-        <div class="pct-label">12. hafta</div>
-        <div class="pct-val" style="color:#34d399">${w12} kg</div>
-        <div class="pct-sub">+${pct}%</div>
-      </div>
-    </div>`;
-  }
-
   const exOptions = day.exercises.map((ex,i)=>`<option value="${i}"${i===selectedExChart?" selected":""}>${ex.name}</option>`).join("");
 
   return `
-  ${statsHtml}
   <div class="chart-wrap">
-    <div class="chart-title">Ağırlık Tahmini (12 Hafta)</div>
+    <div class="chart-title">Gerçekleşen Gelişim Grafiği (12 Hafta)</div>
     <select class="ex-select" id="exChartSelect">${exOptions}</select>
     <div style="position:relative;height:220px"><canvas id="progressChart"></canvas></div>
   </div>
@@ -530,11 +473,12 @@ function bindProgress(day){
 function renderProgressCharts(day){
   if(typeof Chart === 'undefined') return;
   const exIdx = selectedExChart;
-  const base = parseFloat(getData(currentTrackingWeek, day.id,exIdx,"weight",0))||60;
+  
   const labels=[]; const vals=[];
-  for(let w=0; w<=12; w++){
-    labels.push(`H${w}`);
-    vals.push(+(base*Math.pow(1.025,w)).toFixed(1));
+  for(let w=0; w<12; w++){
+    labels.push(`H${w+1}`);
+    const weightVal = parseFloat(getData(w, day.id, exIdx, "weight", 0)) || null;
+    vals.push(weightVal);
   }
 
   const c1=document.getElementById("progressChart");
@@ -543,13 +487,14 @@ function renderProgressCharts(day){
     c1._chart=new Chart(c1,{
       type:"line",
       data:{labels,datasets:[{
-        label:"Tahmin (kg)",data:vals,
-        borderColor:day.color,borderWidth:2,pointRadius:3,
+        label:"Girdiğin Ağırlık (kg)",data:vals,
+        borderColor:day.color,borderWidth:2,pointRadius:4,
         pointBackgroundColor:day.color,pointBorderColor:"#0a0a12",pointBorderWidth:2,
-        fill:true,backgroundColor:day.color+"18",tension:0.3
+        fill:true,backgroundColor:day.color+"18",tension:0.1,
+        spanGaps: true
       }]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`${v.raw} kg`}}},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>v.raw ? `${v.raw} kg` : 'Veri yok'}}},
         scales:{
           x:{ticks:{color:"#555",font:{size:10}},grid:{color:"#1a1a28"}},
           y:{ticks:{color:"#555",font:{size:10},callback:v=>`${v}kg`},grid:{color:"#1a1a28"}}
@@ -598,42 +543,38 @@ function renderProgression(day){
   </div>`;
 
   const tableRows = day.exercises.map((ex,i)=>{
-    const base=parseFloat(getData(currentTrackingWeek, day.id,i,"weight",0))||0;
-    const prev=progressionWeek>0?+(base*Math.pow(1.025,progressionWeek-1)).toFixed(1):null;
-    const cur=base?+(base*Math.pow(1.025,progressionWeek)).toFixed(1):null;
-    const diff=prev&&cur?+(cur-prev).toFixed(1):null;
-    const isPR=cur&&base&&cur>base;
+    const curWeekWeight = parseFloat(getData(progressionWeek, day.id, i, "weight", 0)) || 0;
+    const prevWeekWeight = progressionWeek > 0 ? (parseFloat(getData(progressionWeek - 1, day.id, i, "weight", 0)) || 0) : 0;
+    
+    let diffText = "<span class='same'>—</span>";
+    if (progressionWeek > 0 && curWeekWeight && prevWeekWeight) {
+      const diff = +(curWeekWeight - prevWeekWeight).toFixed(1);
+      if (diff > 0) diffText = `<span class="up-arrow">+${diff} kg</span>`;
+      else if (diff < 0) diffText = `<span style="color:#f44">${diff} kg</span>`;
+    }
+
+    const isPR = curWeekWeight > 0 && (progressionWeek === 0 || (prevWeekWeight > 0 && curWeekWeight > prevWeekWeight));
+
     return `<tr>
       <td>${ex.name.length>22?ex.name.slice(0,20)+"…":ex.name}</td>
-      <td>${base?`${base} kg`:"<span style='color:#333'>—</span>"}</td>
-      <td style="color:${day.color}">${cur?`${cur} kg`:"<span style='color:#333'>—</span>"}</td>
-      <td class="up-arrow">${diff?`+${diff} kg`:"<span class='same'>—</span>"}</td>
-      <td>${isPR?`<span class="pr-badge">PR</span>`:""}</td>
+      <td>${prevWeekWeight ? `${prevWeekWeight} kg` : "<span style='color:#333'>—</span>"}</td>
+      <td style="color:${day.color}">${curWeekWeight ? `${curWeekWeight} kg` : "<span style='color:#333'>Veri Yok</span>"}</td>
+      <td>${diffText}</td>
+      <td>${isPR ? `<span class="pr-badge">PR</span>` : ""}</td>
     </tr>`;
   }).join("");
-
-  const rules=`
-  <div class="chart-wrap">
-    <div class="chart-title" style="margin-bottom:8px">Artış Protokolleri</div>
-    ${PROG_RULES.map((r,i)=>`
-    <div style="padding:10px 12px;border:1px solid #1e1e30;border-radius:8px;margin-bottom:6px;background:#0c0c18">
-      <div style="font-size:12px;font-weight:700;color:#e2e2e8;margin-bottom:2px">${r.label}</div>
-      <div style="font-size:11px;color:#555">${r.desc}</div>
-    </div>`).join("")}
-  </div>`;
 
   return `
   ${weeksHtml}
   <div class="chart-wrap">
-    <div class="chart-title">Hafta ${progressionWeek+1} — Hedef Ağırlıklar (%2.5 artış)</div>
+    <div class="chart-title">Hafta ${progressionWeek+1} — Girdiğiniz Gerçek Ağırlıklar</div>
     <table class="progression-table">
       <thead><tr>
-        <th>Egzersiz</th><th>Başlangıç</th><th>Hedef</th><th>Artış</th><th></th>
+        <th>Egzersiz</th><th>Önceki H.</th><th>Bu Hafta</th><th>Değişim</th><th></th>
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table>
-  </div>
-  ${rules}`;
+  </div>`;
 }
 
 function bindProgression(day){
@@ -668,14 +609,13 @@ function bindOverview(){
   });
 }
 
-/* Ana Sayfa Butonu Fonksiyonu */
 const homeBtn = document.getElementById("homeBtn");
 if(homeBtn) {
   homeBtn.onclick = function() {
-    currentTrackingWeek = 0; // Hafta 1'e dön
-    activeDay = 0;           // Pazartesi'ye dön
-    activeSection = "workout"; // Antrenman sekmesine al
-    expandedEx = null;       // Açık detay pencerelerini kapat
+    currentTrackingWeek = 0;
+    activeDay = 0;
+    activeSection = "workout";
+    expandedEx = null;
     render();
   };
 }
