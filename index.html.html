@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5 Günlük Antrenman Programı</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a12;color:#e2e2e8;min-height:100vh;padding-bottom:60px}
+.nav{background:#0d0d1a;border-bottom:1px solid #1e1e30;padding:14px 16px 0;position:sticky;top:0;z-index:100}
+.nav-header{max-width:680px;margin:0 auto}
+.nav-title{font-size:11px;letter-spacing:3px;color:#444;text-transform:uppercase;margin-bottom:4px}
+.nav-sub{font-size:19px;font-weight:700;color:#fff;margin-bottom:14px}
+.day-tabs{display:flex;gap:2px;border-top:1px solid #1e1e30;margin:0 -16px}
+.day-tab{flex:1;background:none;border:none;border-bottom:2px solid transparent;padding:10px 4px 10px;color:#444;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .15s;font-family:inherit}
+.day-tab.active{color:#fff}
+.main{max-width:680px;margin:0 auto;padding:14px 16px 0}
+.day-banner{border-radius:12px;padding:14px 16px;margin-bottom:12px;border-left:3px solid;display:flex;align-items:center;gap:14px}
+.day-banner-text{flex:1}
+.day-focus{font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:3px}
+.day-name{font-size:15px;font-weight:800;color:#fff}
+.progress-wrap{display:flex;align-items:center;gap:10px;margin-top:10px}
+.progress-bar{flex:1;height:4px;background:#1e1e30;border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;transition:width .3s}
+.progress-label{font-size:11px;color:#555;white-space:nowrap}
+
+.tabs-secondary{display:flex;gap:6px;margin-bottom:12px}
+.tab-sec{flex:1;background:#0f0f1c;border:1px solid #1e1e30;border-radius:8px;padding:8px;text-align:center;font-size:12px;color:#555;cursor:pointer;font-weight:600;transition:all .15s}
+.tab-sec.active{color:#fff;border-color:#333}
+
+.exercise-card{background:#0f0f1c;border:1px solid #1e1e30;border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .2s}
+.exercise-card.done{opacity:.65;border-color:#111}
+.ex-main{padding:13px 14px;display:flex;align-items:center;gap:12px}
+.ex-check{width:22px;height:22px;border-radius:7px;border:2px solid #2a2a3a;background:transparent;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:#000;font-weight:800;transition:all .15s}
+.ex-info{flex:1;min-width:0}
+.ex-name{font-size:13px;font-weight:700;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.done .ex-name{text-decoration:line-through;color:#444}
+.badges{display:flex;gap:5px;flex-wrap:wrap}
+.badge{border-radius:5px;padding:2px 8px;font-size:10px;font-weight:700}
+.ex-controls{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.weight-box{display:flex;flex-direction:column;align-items:center;gap:2px}
+.weight-label{font-size:9px;color:#444;text-transform:uppercase;letter-spacing:1px}
+.weight-input{width:52px;height:36px;background:#16161f;border:1px solid #2a2a3a;border-radius:8px;color:#888;font-size:15px;font-weight:800;text-align:center;outline:none;-webkit-appearance:none;-moz-appearance:textfield;font-family:inherit}
+.weight-input:focus{border-color:#555;color:#fff}
+.rpe-box{display:flex;flex-direction:column;align-items:center;gap:2px}
+.rpe-select{width:42px;height:36px;background:#16161f;border:1px solid #2a2a3a;border-radius:8px;color:#888;font-size:12px;font-weight:700;text-align:center;outline:none;cursor:pointer;font-family:inherit}
+.ex-footer{padding:9px 14px;border-top:1px solid #141420;display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.machine-label{font-size:10px;color:#444;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ex-expand{background:#0c0c18}
+.tip-box{padding:12px 14px 10px}
+.tip-title{font-size:10px;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.tip-text{font-size:12px;color:#888;line-height:1.7}
+.yt-link{display:flex;align-items:center;gap:10px;background:#ff000015;border:1px solid #ff000040;border-radius:10px;padding:11px 14px;text-decoration:none;margin:0 14px 14px;cursor:pointer}
+.yt-title{font-size:12px;font-weight:700;color:#ff4444;margin-bottom:1px}
+.yt-sub{font-size:10px;color:#555}
+
+.week-section{margin-top:4px}
+.week-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.week-card{background:#0f0f1c;border:1px solid #1e1e30;border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:all .15s}
+.week-card.active{border-color:#444}
+.week-num{font-size:10px;color:#444;font-weight:700;margin-bottom:5px}
+.week-bar{height:3px;background:#1a1a28;border-radius:2px;margin:0 2px}
+.week-bar-fill{height:100%;border-radius:2px}
+.week-date{font-size:9px;color:#333;margin-top:5px}
+
+.chart-wrap{background:#0f0f1c;border:1px solid #1e1e30;border-radius:12px;padding:14px;margin-bottom:12px}
+.chart-title{font-size:12px;color:#888;margin-bottom:10px;font-weight:600}
+.ex-select{width:100%;background:#16161f;border:1px solid #2a2a3a;border-radius:8px;color:#e2e2e8;font-size:12px;padding:7px 10px;outline:none;margin-bottom:12px;font-family:inherit;cursor:pointer}
+
+.progress-pct-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.pct-card{background:#0f0f1c;border:1px solid #1e1e30;border-radius:10px;padding:10px;text-align:center}
+.pct-label{font-size:10px;color:#555;margin-bottom:4px}
+.pct-val{font-size:18px;font-weight:800}
+.pct-sub{font-size:10px;color:#444;margin-top:2px}
+
+.progression-table{width:100%;border-collapse:collapse;font-size:12px}
+.progression-table th{color:#444;font-weight:600;text-align:left;padding:6px 8px;border-bottom:1px solid #1e1e30}
+.progression-table td{padding:7px 8px;border-bottom:1px solid #141420;color:#888}
+.progression-table td:first-child{color:#e2e2e8;font-weight:600}
+.pr-badge{background:#22333a;color:#4af;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700}
+.up-arrow{color:#4a4}
+.same{color:#555}
+
+.save-btn{width:100%;margin-top:14px;background:#fff;border:none;border-radius:12px;padding:14px;cursor:pointer;font-size:13px;font-weight:800;color:#000;letter-spacing:1px;font-family:inherit;transition:opacity .15s}
+.save-btn:hover{opacity:.85}
+
+.weekly-overview{margin-top:20px}
+.overview-title{font-size:10px;letter-spacing:2px;color:#333;text-transform:uppercase;margin-bottom:10px;font-weight:700}
+.overview-grid{display:flex;gap:6px}
+.ov-card{flex:1;background:#0f0f1c;border:1px solid #1a1a28;border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;transition:all .15s}
+.ov-label{font-size:9px;font-weight:700;margin-bottom:6px}
+.ov-bar{height:3px;background:#1a1a28;border-radius:2px;margin:0 2px}
+.ov-count{font-size:9px;color:#333;margin-top:5px}
+
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#fff;color:#000;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:700;z-index:999;display:none;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+</style>
+</head>
+<body>
+<div class="toast" id="toast">✓ Kaydedildi</div>
+
+<div class="nav">
+<div class="nav-header">
+  <div class="nav-title">Antrenman Takip</div>
+  <div class="nav-sub">5 Günlük Program</div>
+  <div class="day-tabs" id="dayTabs"></div>
+</div>
+</div>
+
+<div class="main" id="main"></div>
+
+<script>
+const DAYS = [
+  { id:"pzt", label:"PAZ", full:"PAZARTESİ", focus:"PUSH — Göğüs · Omuz · Triceps", color:"#c084fc",
+    exercises:[
+      { name:"Incline Chest Press Machine", sets:4, reps:"6-8", target:"Üst Göğüs", machine:"Üst Göğüs Makinesi", tip:"Kalçayı koltuğa sabitle, yukarı iterken göğsünü sıkıştır.", yt:"incline chest press machine nasıl yapılır" },
+      { name:"Machine Chest Press", sets:4, reps:"8-10", target:"Orta Göğüs", machine:"Göğüs Pres Makinesi", tip:"Dirseklerini omuz hizasının altında 45 derece tut.", yt:"göğüs pres makinesi form" },
+      { name:"Cable Fly", sets:3, reps:"10-12", target:"İç Göğüs", machine:"Kablo İstasyonu", tip:"Uzatılmış pozisyonda göğüs kasını 1 sn esnet.", yt:"kablo göğüs fly form" },
+      { name:"Machine Shoulder Press", sets:3, reps:"8-10", target:"Ön Omuz", machine:"Omuz Pres Makinesi", tip:"Koltuk yüksekliğini tutamaklar çene hizasına gelecek şekilde ayarla.", yt:"omuz pres makinesi form" },
+      { name:"Cable Lateral Raise", sets:4, reps:"12-15", target:"Yan Omuz", machine:"Alçak Makara Kablo", tip:"Kabloyu vücudunun arkasından çekerek sürekli gerilim sağla.", yt:"kablo lateral raise yan omuz" },
+      { name:"Rope Pushdown", sets:3, reps:"10-12", target:"Triceps Dış Baş", machine:"Üst Makara Halat", tip:"Dirsekleri gövdene kilitle, sadece ön kollar hareket etsin.", yt:"rope pushdown triceps form" },
+      { name:"Overhead Cable Extension", sets:3, reps:"10-12", target:"Triceps Uzun Baş", machine:"Baş Üstü Kablo", tip:"Negatif fazı yavaş ve kontrollü yap.", yt:"overhead cable extension triceps" },
+    ]},
+  { id:"sal", label:"SAL", full:"SALI", focus:"PULL — Sırt · Biceps · Arka Omuz", color:"#34d399",
+    exercises:[
+      { name:"Chest Supported Row", sets:4, reps:"6-8", target:"Orta Sırt", machine:"PureStrength Makinesi", tip:"Göğsünü pede kilitle, ağırlığı dirseklerinle arkaya çek.", yt:"chest supported row form" },
+      { name:"T-Bar Row", sets:3, reps:"8-10", target:"Sırt Kalınlık", machine:"T-Bar Makinesi", tip:"Göğüs destekli makinede beli tamamen koru.", yt:"t bar row sırt egzersizi" },
+      { name:"Seated Cable Row", sets:3, reps:"10-12", target:"Orta Sırt", machine:"Kablo Kürek V-Bar", tip:"Çekerken omuzlarını yukarı kaldırma, aşağı bastır.", yt:"oturarak kablo kürek form" },
+      { name:"Face Pull", sets:3, reps:"15", target:"Arka Omuz", machine:"Üst Makara Halat", tip:"Halatı alnına doğru çekerken ellerini dışarı aç.", yt:"face pull arka omuz form" },
+      { name:"Rear Delt Fly Machine", sets:3, reps:"15", target:"Arka Omuz", machine:"Ters Pec Deck Makinesi", tip:"Dirsekleri hafif bükülü tut ve hareket boyunca bozma.", yt:"ters pec deck arka omuz" },
+      { name:"Machine Biceps Curl", sets:3, reps:"8-10", target:"Biceps", machine:"Pazı Makinesi", tip:"Pedden kaldırmadan tepe noktada pazını sıkıştır.", yt:"biceps curl makinesi form" },
+      { name:"Cable Hammer Curl", sets:3, reps:"10-12", target:"Ön Kol", machine:"Alçak Makara Halat", tip:"Başparmakların yukarıyı gösterecek şekilde sürükle.", yt:"cable hammer curl form" },
+    ]},
+  { id:"car", label:"ÇAR", full:"ÇARŞAMBA", focus:"LEGS — Quad · Hamstring · Glute · Calf", color:"#fbbf24",
+    exercises:[
+      { name:"Leg Press", sets:4, reps:"8-10", target:"Ön Bacak", machine:"Açılı Bacak Pres", tip:"Dizleri göğsüne kontrollü indir, tepede eklemleri kilitleme.", yt:"leg press doğru form" },
+      { name:"Smith Machine Split Squat", sets:3, reps:"10", target:"Ön Bacak / Kalça", machine:"Smith Machine", tip:"Denge problemi olmadan bacağa tamamen odaklan.", yt:"smith machine split squat" },
+      { name:"Lying Leg Curl", sets:4, reps:"10-12", target:"Hamstrings", machine:"Arka Bacak Makinesi", tip:"Kalçanın yukarı kalkmasını engellemek için tutamakları kavra.", yt:"lying leg curl form" },
+      { name:"Smith Machine RDL", sets:3, reps:"8-10", target:"Arka Bacak", machine:"Smith Machine", tip:"Kalçayı arkaya it, bar rayda düz indiği için bel riski sıfır.", yt:"smith machine rdl romanian deadlift" },
+      { name:"Leg Extension", sets:3, reps:"12-15", target:"Quadriceps", machine:"Ön Bacak Makinesi", tip:"Tepe noktada 1 sn bekle.", yt:"leg extension quadriceps form" },
+      { name:"Standing Calf Raise", sets:4, reps:"12-15", target:"Baldır Gastrocnemius", machine:"Ayakta Kalf Makinesi", tip:"Topukları olabildiğince aşağı indirip parmak ucuna çık.", yt:"ayakta kalf raise form" },
+      { name:"Seated Calf Raise", sets:3, reps:"15-20", target:"Baldır Soleus", machine:"Oturarak Kalf Makinesi", tip:"Dizler bükülü — derin kalf liflerini hedefler.", yt:"oturarak kalf raise form" },
+      { name:"Machine Crunch", sets:3, reps:"12-15", target:"Karın", machine:"Karın Makinesi", tip:"Kaburgaları kalçana yaklaştırarak sıkıştır.", yt:"karın makinesi crunch form" },
+    ]},
+  { id:"per", label:"PER", full:"PERŞEMBE", focus:"PUSH 2 — Omuz Ağırlıklı", color:"#f97316",
+    exercises:[
+      { name:"Flat Chest Press Machine", sets:4, reps:"8-10", target:"Orta Göğüs", machine:"Düz Göğüs Pres", tip:"Makinede göğüs liflerini çok daha ağır yükleyebilirsin.", yt:"düz göğüs pres makinesi form" },
+      { name:"Incline Smith Machine Press", sets:3, reps:"10-12", target:"Üst Göğüs", machine:"Smith Machine 30°", tip:"Sehpa 30 derece, barı üst göğse yavaşça indir.", yt:"incline smith machine bench press" },
+      { name:"High-to-Low Cable Fly", sets:3, reps:"12-15", target:"Alt Göğüs", machine:"Üst Makara Kablo", tip:"Kabloları aşağıda ve önde birleştirirken alt göğsü sık.", yt:"high to low cable fly alt göğüs" },
+      { name:"Pec Deck Fly", sets:3, reps:"10-12", target:"Göğüs Genişlik", machine:"Kelebek Makinesi", tip:"Kolları arkaya açtığında tam esneme hissi olsun.", yt:"pec deck fly kelebek makinesi" },
+      { name:"Machine Shoulder Press", sets:2, reps:"10-12", target:"Ön Omuz", machine:"Omuz Pres Makinesi", tip:"İterken omuzların kulaklara yaklaşmasına izin verme.", yt:"omuz pres makinesi form" },
+      { name:"Cable Lateral Raise", sets:4, reps:"12-15", target:"Yan Omuz", machine:"Kablo Önden Çekiş", tip:"Bu sefer önden alarak lifleri farklı açıdan uyar.", yt:"kablo lateral raise önden" },
+      { name:"Rope Pushdown", sets:3, reps:"12", target:"Triceps", machine:"Üst Makara Halat", tip:"Set aralarını kısa tutarak arka kollara maksimum kan pompala.", yt:"rope pushdown form" },
+      { name:"Overhead Cable Extension", sets:3, reps:"12", target:"Triceps Uzun Baş", machine:"Baş Üstü Kablo", tip:"Dirseklerin dışarıya çok açılmasına izin verme.", yt:"overhead cable extension" },
+    ]},
+  { id:"cum", label:"CUM", full:"CUMA", focus:"PULL 2 — Sırt Genişlik · Biceps Zirve", color:"#60a5fa",
+    exercises:[
+      { name:"Wide Grip Lat Pulldown", sets:4, reps:"8-10", target:"Üst Kanat", machine:"Geniş Tutuş Lat Pulldown", tip:"Barı çekerken göğsünü yukarı kaldır, kürek kemiklerini aşağı bastır.", yt:"geniş tutuş lat pulldown form" },
+      { name:"Close Grip Lat Pulldown", sets:3, reps:"10-12", target:"Alt Kanat", machine:"Dar Tutuş Nötr Lat", tip:"Dirseklerini vücuduna mümkün olduğunca yakın tut.", yt:"dar tutuş lat pulldown form" },
+      { name:"Straight Arm Pulldown", sets:3, reps:"12-15", target:"İzole Kanat", machine:"Kablo Düz Bar", tip:"Dirsekler hafif bükülü kilitle, barı bacaklarına doğru presle.", yt:"straight arm pulldown lat izolasyon" },
+      { name:"One Arm Machine Row", sets:3, reps:"10-12", target:"Sırt Simetri", machine:"Tek Kol Row Makinesi", tip:"Vücudu döndürmeden sadece sırt kasının gücüyle çek.", yt:"tek kol makine row form" },
+      { name:"Face Pull", sets:3, reps:"15", target:"Arka Omuz", machine:"Üst Makara Halat", tip:"Omuz kuşağının arkasını doldurmak için yüksek tekrarlı.", yt:"face pull form" },
+      { name:"Rear Delt Fly Machine", sets:3, reps:"15", target:"Arka Omuz", machine:"Ters Kelebek Makinesi", tip:"Kürek kemiklerini çok fazla birbirine çarpma.", yt:"ters kelebek makinesi arka omuz" },
+      { name:"Machine Preacher Curl", sets:3, reps:"10-12", target:"Biceps Kısa Baş", machine:"Scott Curl Makinesi", tip:"Makinede tepe noktasındaki gerilimi kaçırmazsın.", yt:"preacher curl scott makinesi" },
+      { name:"Cable Hammer Curl", sets:3, reps:"10-12", target:"Ön Kol", machine:"Alçak Makara Halat", tip:"Ön kollar tamamen yanana kadar tempo kontrollü.", yt:"cable hammer curl form" },
+    ]},
+];
+
+const PROG_RULES = [
+  { label:"Doğrusal Artış", desc:"Her başarılı sette +2.5kg", pct:2.5, weeks:[1,2,3,4,5,6,7,8,9,10,11,12] },
+  { label:"%5 Kural", desc:"Her 2 haftada %5 artış", pct:5, weeks:[1,1,2,2,3,3,4,4,5,5,6,6] },
+  { label:"Deload Haftası", desc:"4 haftada 1 %20 azalt, sonra devam", pct:-20, weeks:[1,2,3,-1,4,5,6,-1,7,8,9,-1,10,11,12,-1] },
+];
+
+let activeDay = 0;
+let activeSection = "workout";
+let expandedEx = null;
+let data = {};
+let progressionWeek = 0;
+let selectedExChart = 0;
+
+function getKey(dayId, exIdx, field){return `${dayId}_${exIdx}_${field}`;}
+function getData(dayId, exIdx, field, def=""){
+  const k=getKey(dayId,exIdx,field);
+  return data[k] !== undefined ? data[k] : def;
+}
+function setData(dayId, exIdx, field, val){
+  data[getKey(dayId,exIdx,field)]=val;
+}
+function getWeekWeight(dayId, exIdx, week){
+  const base = parseFloat(getData(dayId,exIdx,"weight",0))||0;
+  if(!base) return null;
+  let w = base;
+  for(let i=0;i<week;i++){
+    w = +(w * 1.025).toFixed(1);
+  }
+  return w;
+}
+
+function renderDayTabs(){
+  const tabs = document.getElementById("dayTabs");
+  tabs.innerHTML = DAYS.map((d,i)=>`
+    <button class="day-tab${activeDay===i?" active":""}" style="${activeDay===i?`border-bottom-color:${d.color}`:""}">
+      ${d.label}
+    </button>`).join("");
+  tabs.querySelectorAll(".day-tab").forEach((btn,i)=>btn.onclick=()=>{activeDay=i;expandedEx=null;activeSection="workout";render();});
+}
+
+function renderMain(){
+  const day = DAYS[activeDay];
+  const done = day.exercises.filter((_,i)=>getData(day.id,i,"done")==="1").length;
+  const pct = Math.round(done/day.exercises.length*100);
+
+  let html = `
+  <div class="day-banner" style="background:${day.color}15;border-left-color:${day.color}">
+    <div class="day-banner-text">
+      <div class="day-focus" style="color:${day.color}">${day.full}</div>
+      <div class="day-name">${day.focus}</div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" style="background:${day.color};width:${pct}%"></div></div>
+        <div class="progress-label">${done}/${day.exercises.length} egzersiz</div>
+      </div>
+    </div>
+  </div>
+  <div class="tabs-secondary">
+    <div class="tab-sec${activeSection==="workout"?" active":""}" style="${activeSection==="workout"?`color:${day.color};border-color:${day.color}40`:""}">Antrenman</div>
+    <div class="tab-sec${activeSection==="progress"?" active":""}" style="${activeSection==="progress"?`color:${day.color};border-color:${day.color}40`:""}">İlerleme</div>
+    <div class="tab-sec${activeSection==="progression"?" active":""}" style="${activeSection==="progression"?`color:${day.color};border-color:${day.color}40`:""}">Ağırlık Artış</div>
+  </div>`;
+
+  if(activeSection==="workout"){
+    html += renderWorkout(day);
+  } else if(activeSection==="progress"){
+    html += renderProgress(day);
+  } else {
+    html += renderProgression(day);
+  }
+
+  html += renderWeeklyOverview();
+  document.getElementById("main").innerHTML = html;
+
+  document.querySelectorAll(".tab-sec").forEach((t,i)=>{
+    const sections=["workout","progress","progression"];
+    t.onclick=()=>{activeSection=sections[i];render();};
+  });
+
+  if(activeSection==="workout") bindWorkout(day);
+  if(activeSection==="progress") bindProgress(day);
+  if(activeSection==="progression") bindProgression(day);
+  bindOverview();
+}
+
+function renderWorkout(day){
+  return day.exercises.map((ex,i)=>{
+    const isDone = getData(day.id,i,"done")==="1";
+    const w = getData(day.id,i,"weight","");
+    const rpe = getData(day.id,i,"rpe","");
+    const note = getData(day.id,i,"note","");
+    const isOpen = expandedEx===i;
+    return `
+    <div class="exercise-card${isDone?" done":""}" id="excard_${i}">
+      <div class="ex-main">
+        <div class="ex-check" id="chk_${i}" style="border-color:${isDone?day.color:"#2a2a3a"};background:${isDone?day.color:"transparent"}">
+          ${isDone?"✓":""}
+        </div>
+        <div class="ex-info">
+          <div class="ex-name">${ex.name}</div>
+          <div class="badges">
+            <span class="badge" style="background:${day.color}20;color:${day.color}">${ex.sets} SET</span>
+            <span class="badge" style="background:#1e1e2e;color:#aaa">${ex.reps} TK</span>
+            <span class="badge" style="background:#1e1e2e;color:#666">${ex.target}</span>
+          </div>
+        </div>
+        <div class="ex-controls">
+          <div class="weight-box">
+            <div class="weight-label">KG</div>
+            <input class="weight-input" id="w_${i}" type="number" placeholder="—" value="${w}" min="0" max="500" step="0.5" style="border-color:${w?day.color+"60":"#2a2a3a"};color:${w?day.color:"#555"}">
+          </div>
+          <div class="rpe-box">
+            <div class="weight-label">RPE</div>
+            <select class="rpe-select" id="rpe_${i}" style="border-color:${rpe?day.color+"60":"#2a2a3a"};color:${rpe?day.color:"#555"}">
+              <option value="">—</option>
+              ${[6,7,7.5,8,8.5,9,9.5,10].map(r=>`<option${rpe==r?" selected":""}>${r}</option>`).join("")}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="ex-footer" id="expand_${i}">
+        <i class="ti ti-tool" style="color:#444;font-size:13px" aria-hidden="true"></i>
+        <span class="machine-label">${ex.machine}</span>
+        <i class="ti ti-chevron-${isOpen?"up":"down"}" style="color:#333;font-size:12px" aria-hidden="true"></i>
+      </div>
+      ${isOpen?`
+      <div class="ex-expand">
+        <div class="tip-box">
+          <div class="tip-title"><i class="ti ti-bulb" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Teknik ipucu</div>
+          <div class="tip-text">${ex.tip}</div>
+          <div style="margin-top:10px">
+            <div class="tip-title" style="margin-bottom:5px"><i class="ti ti-pencil" style="font-size:12px;vertical-align:-1px" aria-hidden="true"></i> Not</div>
+            <textarea id="note_${i}" rows="2" style="width:100%;background:#16161f;border:1px solid #2a2a3a;border-radius:8px;color:#e2e2e8;font-size:12px;padding:8px;resize:none;outline:none;font-family:inherit" placeholder="Bugünkü his, öneri…">${note}</textarea>
+          </div>
+        </div>
+        <a class="yt-link" href="https://www.youtube.com/results?search_query=${encodeURIComponent(ex.yt)}" target="_blank" rel="noopener">
+          <svg width="22" height="16" viewBox="0 0 22 16" fill="none" aria-hidden="true"><rect width="22" height="16" rx="3.5" fill="#FF0000"/><path d="M9 4.5L15 8L9 11.5V4.5Z" fill="white"/></svg>
+          <div><div class="yt-title">Nasıl Yapılır?</div><div class="yt-sub">YouTube'da Türkçe video ara</div></div>
+          <i class="ti ti-external-link" style="color:#333;font-size:14px" aria-hidden="true"></i>
+        </a>
+      </div>`:""}
+    </div>`;
+  }).join("")+`
+  <button class="save-btn" id="saveBtn" style="background:${day.color}">KAYDET</button>`;
+}
+
+function bindWorkout(day){
+  day.exercises.forEach((_,i)=>{
+    document.getElementById(`chk_${i}`).onclick=()=>{
+      const cur = getData(day.id,i,"done")==="1";
+      setData(day.id,i,"done",cur?"0":"1");
+      render();
+    };
+    document.getElementById(`w_${i}`).oninput=function(){
+      setData(day.id,i,"weight",this.value);
+      this.style.borderColor=this.value?day.color+"60":"#2a2a3a";
+      this.style.color=this.value?day.color:"#555";
+    };
+    document.getElementById(`rpe_${i}`).onchange=function(){
+      setData(day.id,i,"rpe",this.value);
+    };
+    document.getElementById(`expand_${i}`).onclick=()=>{
+      expandedEx = expandedEx===i?null:i;
+      render();
+    };
+    if(expandedEx===i){
+      const na = document.getElementById(`note_${i}`);
+      if(na) na.oninput=function(){setData(day.id,i,"note",this.value);};
+    }
+  });
+  document.getElementById("saveBtn").onclick=()=>{
+    const toast=document.getElementById("toast");
+    toast.style.background=day.color;
+    toast.style.display="block";
+    setTimeout(()=>toast.style.display="none",2000);
+  };
+}
+
+function renderProgress(day){
+  const allWeights = day.exercises.map((ex,i)=>{
+    const weeks=[];
+    for(let w=0;w<8;w++){
+      const ww=getWeekWeight(day.id,i,w);
+      weeks.push(ww);
+    }
+    return {name:ex.name, weeks};
+  });
+  const exWithWeights = allWeights.filter(e=>e.weeks[0]!==null);
+
+  let statsHtml="";
+  if(exWithWeights.length>0){
+    const e=exWithWeights[0];
+    const base=e.weeks[0]||0;
+    const w12=+(base*Math.pow(1.025,12)).toFixed(1);
+    const diff=+(w12-base).toFixed(1);
+    const pct=+((diff/base)*100).toFixed(1);
+    statsHtml=`
+    <div class="progress-pct-grid">
+      <div class="pct-card">
+        <div class="pct-label">Bu hafta</div>
+        <div class="pct-val" style="color:${day.color}">${base} kg</div>
+        <div class="pct-sub">Başlangıç</div>
+      </div>
+      <div class="pct-card">
+        <div class="pct-label">4. hafta</div>
+        <div class="pct-val" style="color:#60a5fa">${+(base*Math.pow(1.025,4)).toFixed(1)} kg</div>
+        <div class="pct-sub">+${+((base*Math.pow(1.025,4)-base)).toFixed(1)} kg</div>
+      </div>
+      <div class="pct-card">
+        <div class="pct-label">12. hafta</div>
+        <div class="pct-val" style="color:#34d399">${w12} kg</div>
+        <div class="pct-sub">+${pct}%</div>
+      </div>
+    </div>`;
+  }
+
+  const exOptions = day.exercises.map((ex,i)=>`<option value="${i}"${i===selectedExChart?" selected":""}>${ex.name}</option>`).join("");
+
+  return `
+  ${statsHtml}
+  <div class="chart-wrap">
+    <div class="chart-title">Ağırlık Tahmini (12 Hafta)</div>
+    <select class="ex-select" id="exChartSelect">${exOptions}</select>
+    <div style="position:relative;height:220px"><canvas id="progressChart" role="img" aria-label="12 haftalık ağırlık ilerleme grafiği">Ağırlık ilerleme tahmini</canvas></div>
+  </div>
+  <div class="chart-wrap">
+    <div class="chart-title">Haftalık Tamamlanma Oranı</div>
+    <div style="position:relative;height:160px"><canvas id="completionChart" role="img" aria-label="Günlük tamamlanma grafiği">Tamamlanma oranı</canvas></div>
+  </div>`;
+}
+
+function bindProgress(day){
+  const sel = document.getElementById("exChartSelect");
+  if(sel) sel.onchange=function(){selectedExChart=parseInt(this.value);renderProgressCharts(day);};
+  renderProgressCharts(day);
+}
+
+function renderProgressCharts(day){
+  const exIdx = selectedExChart;
+  const base = parseFloat(getData(day.id,exIdx,"weight",0))||60;
+  const labels=[]; const vals=[];
+  for(let w=0;w<=12;w++){
+    labels.push(`H${w}`);
+    vals.push(+(base*Math.pow(1.025,w)).toFixed(1));
+  }
+
+  const c1=document.getElementById("progressChart");
+  if(c1){
+    if(c1._chart) c1._chart.destroy();
+    c1._chart=new Chart(c1,{
+      type:"line",
+      data:{labels,datasets:[{
+        label:"Tahmin (kg)",data:vals,
+        borderColor:day.color,borderWidth:2,pointRadius:3,
+        pointBackgroundColor:day.color,pointBorderColor:"#0a0a12",pointBorderWidth:2,
+        fill:true,backgroundColor:day.color+"18",tension:0.3
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`${v.raw} kg`}}},
+        scales:{
+          x:{ticks:{color:"#555",font:{size:10}},grid:{color:"#1a1a28"}},
+          y:{ticks:{color:"#555",font:{size:10},callback:v=>`${v}kg`},grid:{color:"#1a1a28"}}
+        }
+      }
+    });
+  }
+
+  const compData=DAYS.map((d,di)=>{
+    const tot=d.exercises.length;
+    const done=d.exercises.filter((_,i)=>getData(d.id,i,"done")==="1").length;
+    return Math.round(done/tot*100);
+  });
+  const c2=document.getElementById("completionChart");
+  if(c2){
+    if(c2._chart) c2._chart.destroy();
+    c2._chart=new Chart(c2,{
+      type:"bar",
+      data:{labels:DAYS.map(d=>d.label),datasets:[{
+        label:"%",data:compData,
+        backgroundColor:DAYS.map(d=>d.color+"99"),borderRadius:6,borderSkipped:false
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>`%${v.raw}`}}},
+        scales:{
+          x:{ticks:{color:"#555",font:{size:11}},grid:{color:"#1a1a28"}},
+          y:{min:0,max:100,ticks:{color:"#555",font:{size:10},callback:v=>`%${v}`},grid:{color:"#1a1a28"}}
+        }
+      }
+    });
+  }
+}
+
+function renderProgression(day){
+  const weekNums=Array.from({length:12},(_,i)=>i+1);
+  const weeksHtml=`
+  <div class="week-grid">
+    ${weekNums.map(w=>{
+      const active=progressionWeek===(w-1);
+      return `<div class="week-card${active?" active":""}" data-week="${w-1}" style="${active?`border-color:${day.color}60`:""}">
+        <div class="week-num" style="color:${active?day.color:"#444"}">HAFTA ${w}</div>
+        <div class="week-bar"><div class="week-bar-fill" style="background:${day.color};width:${active?100:0}%"></div></div>
+        <div class="week-date" style="color:${active?"#666":"#333"}">H${w}</div>
+      </div>`;
+    }).join("")}
+  </div>`;
+
+  const tableRows = day.exercises.map((ex,i)=>{
+    const base=parseFloat(getData(day.id,i,"weight",0))||0;
+    const prev=progressionWeek>0?+(base*Math.pow(1.025,progressionWeek-1)).toFixed(1):null;
+    const cur=base?+(base*Math.pow(1.025,progressionWeek)).toFixed(1):null;
+    const diff=prev&&cur?+(cur-prev).toFixed(1):null;
+    const isPR=cur&&base&&cur>base;
+    return `<tr>
+      <td>${ex.name.length>22?ex.name.slice(0,20)+"…":ex.name}</td>
+      <td>${base?`${base} kg`:"<span style='color:#333'>—</span>"}</td>
+      <td style="color:${day.color}">${cur?`${cur} kg`:"<span style='color:#333'>—</span>"}</td>
+      <td class="up-arrow">${diff?`+${diff} kg`:"<span class='same'>—</span>"}</td>
+      <td>${isPR?`<span class="pr-badge">PR</span>`:""}</td>
+    </tr>`;
+  }).join("");
+
+  const rules=`
+  <div class="chart-wrap">
+    <div class="chart-title" style="margin-bottom:8px">Artış Protokolleri</div>
+    ${PROG_RULES.map((r,i)=>`
+    <div style="padding:10px 12px;border:1px solid #1e1e30;border-radius:8px;margin-bottom:6px;background:#0c0c18">
+      <div style="font-size:12px;font-weight:700;color:#e2e2e8;margin-bottom:2px">${r.label}</div>
+      <div style="font-size:11px;color:#555">${r.desc}</div>
+    </div>`).join("")}
+  </div>`;
+
+  return `
+  ${weeksHtml}
+  <div class="chart-wrap">
+    <div class="chart-title">Hafta ${progressionWeek+1} — Hedef Ağırlıklar (%2.5 artış)</div>
+    <table class="progression-table">
+      <thead><tr>
+        <th>Egzersiz</th><th>Başlangıç</th><th>Hedef</th><th>Artış</th><th></th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>
+  ${rules}`;
+}
+
+function bindProgression(day){
+  document.querySelectorAll(".week-card").forEach(card=>{
+    card.onclick=()=>{progressionWeek=parseInt(card.dataset.week);render();};
+  });
+}
+
+function renderWeeklyOverview(){
+  return `
+  <div class="weekly-overview">
+    <div class="overview-title">Haftalık Özet</div>
+    <div class="overview-grid" id="ovGrid">
+      ${DAYS.map((d,i)=>{
+        const done=d.exercises.filter((_,j)=>getData(d.id,j,"done")==="1").length;
+        const pct=Math.round(done/d.exercises.length*100);
+        return `<div class="ov-card" id="ov_${i}" style="${activeDay===i?`border-color:${d.color}60`:""}">
+          <div class="ov-label" style="color:${activeDay===i?d.color:"#444"}">${d.label}</div>
+          <div class="ov-bar"><div style="height:100%;border-radius:2px;background:${d.color};width:${pct}%"></div></div>
+          <div class="ov-count">${done}/${d.exercises.length}</div>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>
+  <div style="margin-top:14px;font-size:11px;color:#2a2a3a;text-align:center;padding-bottom:20px">Veriler bu oturumda saklanır</div>`;
+}
+
+function bindOverview(){
+  DAYS.forEach((_,i)=>{
+    const el=document.getElementById(`ov_${i}`);
+    if(el) el.onclick=()=>{activeDay=i;expandedEx=null;activeSection="workout";render();};
+  });
+}
+
+function render(){
+  renderDayTabs();
+  renderMain();
+}
+
+render();
+</script>
+</body>
+</html>
