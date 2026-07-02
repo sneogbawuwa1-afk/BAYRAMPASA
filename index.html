@@ -183,7 +183,6 @@
   #yuklemeTable tbody tr:hover{background:var(--bg);}
   #yuklemeTable tbody tr.yukleme-tanimsiz td{color:var(--ink-faint);font-style:italic;}
   #yuklemeTable .col-ayrac{border-left:1.5px solid var(--line);}
-  #yuklemeTable .st-oran{font-weight:700;color:var(--accent-deep);font-family:'Space Grotesk';}
   #yuklemeTable thead th.col-ayrac{border-left:1.5px solid var(--line);}
   tbody tr.data-row{cursor:pointer;transition:background .1s ease;}
   tbody tr.data-row:hover{background:var(--bg);}
@@ -728,7 +727,7 @@
             </table>
           </div>
           <div class="legend no-print" style="padding:10px 20px 0;">
-            <span>Sol taraftaki sütunlar ödeme tipine göre tahsilat kırılımı, <b>Genel Toplam</b>'dan sonraki sütunlar ise sevkiyat (litre) ve birim litre başına tahsilat özetidir. <i>Tanımsız</i> satırı, tahsilat dökümünde eşleşen müşterisi bulunamayan litreleri gösterir.</span>
+            <span>Sol taraftaki sütunlar ödeme tipine göre tahsilat kırılımı, <b>Genel Toplam</b>'dan sonraki sütun ise sevkiyat (litre) özetidir. <i>Tanımsız</i> satırı, tahsilat dökümünde eşleşen müşterisi bulunamayan litreleri gösterir.</span>
           </div>
         </div>
         <div class="panel-body" style="padding-top:0;">
@@ -3373,7 +3372,7 @@ function renderYuklemeTable(report){
 
   theadRow.innerHTML = `<th>Satır Etiketleri</th>` +
     kolonlar.map(k=>`<th class="num">${escapeHtml(k)}</th>`).join('') +
-    `<th class="num col-ayrac">Genel Toplam</th><th class="num">${escapeHtml(sevkiyatBaslik)}</th><th class="num" title="Genel Toplam ÷ Litre — bir litre satışın ortalama kaç TL tahsilata dönüştüğünü gösterir">ST Tahsilat/Litre</th>`;
+    `<th class="num col-ayrac">Genel Toplam</th><th class="num">${escapeHtml(sevkiyatBaslik)}</th>`;
 
   tbody.innerHTML = (report.temsilciler||[]).map(r=>{
     const rKolonlar = r.kolonlar || {}; // eski/eksik arşiv kayıtlarında bu alan bulunmayabilir
@@ -3383,7 +3382,6 @@ function renderYuklemeTable(report){
     ${kolonlar.map(k=> `<td class="num">${rKolonlar[k] ? YUKLEME_TL2(rKolonlar[k]) : '<span class="zero">—</span>'}</td>`).join('')}
     <td class="num col-ayrac"><b>${YUKLEME_TL2(r.genelToplam)}</b></td>
     <td class="num">${r.litre ? YUKLEME_LT2(r.litre) + ' Lt' : '<span class="zero">—</span>'}</td>
-    <td class="num st-oran">${r.stTahsilatLitre!=null ? YUKLEME_TL2(r.stTahsilatLitre) : '<span class="zero">—</span>'}</td>
   </tr>`;
   }).join('');
 
@@ -3394,7 +3392,6 @@ function renderYuklemeTable(report){
     ${kolonlar.map(k=> `<td class="num">${YUKLEME_TL2(gKolonlar[k]||0)}</td>`).join('')}
     <td class="num col-ayrac">${YUKLEME_TL2(g.genelToplam)}</td>
     <td class="num">${YUKLEME_LT2(g.litre)} Lt</td>
-    <td class="num st-oran">${g.stTahsilatLitre!=null ? YUKLEME_TL2(g.stTahsilatLitre) : '—'}</td>
   </tr>`;
 
   document.getElementById('yuklemePanel').style.display = 'block';
