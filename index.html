@@ -501,6 +501,7 @@
     <div class="tabbar no-print" id="tabBar">
       <button class="tab-btn active" data-view="genel" type="button">📊 Genel Rapor</button>
       <button class="tab-btn" data-view="sevk" type="button">🚚 Sevk Raporu</button>
+      <button class="tab-btn" data-view="yukleme" type="button">📦 Yükleme Raporu</button>
       <button class="tab-btn" data-view="yaslandirma" type="button">⏱️ Yaşlandırma Raporu</button>
       <button class="tab-btn" data-view="ticariStok" type="button">🛢️ Ticari Stok Raporu</button>
       <button class="tab-btn" data-view="faturaKontrol" type="button">🧾 Fatura Kontrol</button>
@@ -684,6 +685,64 @@
       </div>
 
     </div><!-- /sevkView -->
+
+    <div id="yuklemeView" style="display:none;">
+
+      <div class="panel print-section" id="yuklemeUploadPanel">
+        <div class="panel-head"><h2>Yükleme Raporu — Veri Yükle</h2></div>
+        <div class="panel-body">
+          <div class="check-meta" style="font-size:11.5px;margin-bottom:14px;">ℹ️ Litre'lerin doğru temsilciye yazılabilmesi için önce "Genel Rapor" sekmesinde Kalemler/Sipariş dosyaları yüklenmiş olmalı (müşteri→temsilci eşleşmesi oradan alınır). O rapor yoksa yalnızca tahsilat dökümündeki müşteriler eşleştirilebilir, geri kalanı "Tanımsız" altında toplanır.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+            <div class="check-item" id="yuklemeTahsilatCheck" data-type="yuklemeTahsilat" style="cursor:pointer;">
+              <div class="check-icon">1</div>
+              <div>
+                <div class="check-name">Tahsilat Raporu</div>
+                <div class="check-desc">SST, Belge Tarihi, Ödeme Tipi, Banka, Belge Tutarı, Müşt. Kodu kolonlarını içeren tahsilat dışa aktarımı</div>
+                <div class="check-meta" id="yuklemeTahsilatMeta"></div>
+              </div>
+            </div>
+            <div class="check-item" id="yuklemeYuklemeCheck" data-type="yuklemeYukleme" style="cursor:pointer;">
+              <div class="check-icon">2</div>
+              <div>
+                <div class="check-name">Yükleme Raporu</div>
+                <div class="check-desc">Müşteri Numarası, Litre Total, Yükleme Tarihi kolonlarını içeren yükleme/sevkiyat dışa aktarımı</div>
+                <div class="check-meta" id="yuklemeYuklemeMeta"></div>
+              </div>
+            </div>
+          </div>
+          <input type="file" id="yuklemeTahsilatFile" accept=".xlsx,.xls" style="display:none;" />
+          <input type="file" id="yuklemeYuklemeFile" accept=".xlsx,.xls" style="display:none;" />
+          <div class="upload-error" id="yuklemeUploadError"></div>
+          <div style="margin-top:18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button class="btn primary" id="yuklemeBuildBtn" disabled>Raporu Oluştur</button>
+            <span class="pill" id="yuklemeStatusPill">Dosya bekleniyor</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel print-section" id="yuklemePanel" style="display:none;">
+        <div class="panel-head">
+          <div><h2 id="yuklemeTitle">Yükleme &amp; Tahsilat Raporu</h2><span class="count" id="yuklemeSubTitle"></span></div>
+          <div class="toolbar">
+            <select class="filter-select" id="yuklemeTarihSelect"></select>
+            <button class="btn small" id="yuklemeYenileBtn" type="button">🔄 Arşivi Yenile</button>
+          </div>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <div style="overflow-x:auto;">
+            <table id="yuklemeTable">
+              <thead><tr id="yuklemeTheadRow"></tr></thead>
+              <tbody id="yuklemeTbody"></tbody>
+              <tfoot id="yuklemeTfoot"></tfoot>
+            </table>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0;">
+          <div class="check-meta" id="yuklemeArsivBilgi" style="font-size:11.5px;"></div>
+        </div>
+      </div>
+
+    </div><!-- /yuklemeView -->
 
     <div id="yaslandirmaView" style="display:none;">
 
@@ -916,6 +975,10 @@ const state = {
   tSort: { key:'depodaKalanLt', dir:-1 },
   expanded: new Set(),
   faturaArsivCache: {}, // Fatura Kontrol / Trend Analizi arşivi — yalnızca bulutta saklanır, bu bellek-içi kopya son çekilen hâlidir
+  yuklemeFiles: { yuklemeTahsilat:null, yuklemeYukleme:null }, // Yükleme Raporu için ayrı yüklenen 2 dosya
+  yuklemeReport: null,   // en son oluşturulan Yükleme Raporu (bellek içi)
+  yuklemeArsivCache: {}, // gün->rapor şeklinde buluttaki Yükleme Raporu arşivinin bellek-içi kopyası
+  yuklemeSeciliGun: null, // arşivde görüntülenmekte olan gün (null ise en son oluşturulan/canlı rapor)
 };
 
 /* ============================== KALICI SAKLAMA (localStorage) ============================== */
@@ -1970,11 +2033,13 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     const view = btn.getAttribute('data-view');
     document.getElementById('genelView').style.display = view==='genel' ? 'block' : 'none';
     document.getElementById('sevkView').style.display = view==='sevk' ? 'block' : 'none';
+    document.getElementById('yuklemeView').style.display = view==='yukleme' ? 'block' : 'none';
     document.getElementById('yaslandirmaView').style.display = view==='yaslandirma' ? 'block' : 'none';
     document.getElementById('ticariStokView').style.display = view==='ticariStok' ? 'block' : 'none';
     document.getElementById('faturaKontrolView').style.display = view==='faturaKontrol' ? 'block' : 'none';
     document.getElementById('trendView').style.display = view==='trend' ? 'block' : 'none';
     if(view==='sevk' && state.report) renderSevkView(state.report);
+    if(view==='yukleme') renderYuklemeView();
     if(view==='yaslandirma' && state.report) renderYaslandirmaView(state.report);
     if(view==='ticariStok' && state.report) renderTicariStokView(state.report);
     if(view==='faturaKontrol' && state.report) renderFaturaKontrolView(state.report);
@@ -3020,6 +3085,403 @@ function renderBakiyesiz(bakiyesiz){
     <td class="num">${b.emanetSiparis>0?TL(b.emanetSiparis):'<span class="zero">—</span>'}</td>
   </tr>`).join('');
 }
+
+/* ============================== YÜKLEME RAPORU ============================== */
+// Bu modül, ana "Kalemler/Sipariş" akışından tamamen bağımsız 2 ayrı dosyayı (Tahsilat Raporu +
+// Yükleme Raporu) kullanır: Tahsilat Raporu'ndaki SST/Müşt. Kodu eşleşmesinden bir müşteri->temsilci
+// haritası çıkarılır; bu harita üzerinden Yükleme Raporu'ndaki Müşteri Numarası'na ait Litre Total,
+// ilgili temsilciye yazılır. Tahsilat tarafı, dosyadaki EN GÜNCEL Belge Tarihi'ne; yükleme tarafı da
+// dosyadaki EN GÜNCEL Yükleme Tarihi'ne göre filtrelenir. Sonuç, gün bazlı olarak buluta (Firebase)
+// arşivlenir; böylece tarih seçiciyle geçmişe dönük günler de görüntülenebilir.
+
+const YUKLEME_ARSIV_CLOUD_PATH = CLOUD.path + '_yuklemeRaporuArsiv';
+const YUKLEME_ARSIV_LOCAL_KEY = 'noktaCariTakip_yuklemeArsiv_v1';
+
+function yuklemeNumber(v){
+  if(v===null || v===undefined || v==='') return 0;
+  const n = Number(v);
+  return isNaN(n) ? 0 : n;
+}
+function yuklemeKod(v){ return String(v===null||v===undefined?'':v).trim(); }
+
+// "Türkiye Cumhuriyeti Ziraat Bankası A.Ş." -> "Ziraat Bankası" gibi kısa/okunur bir banka adı üretir.
+function bankaKisaAdi(banka){
+  if(!banka) return '';
+  let s = String(banka).replace(/Türkiye Cumhuriyeti/gi,'').replace(/^Türkiye\s+/i,'').trim();
+  s = s.replace(/Bankası\s*A\.Ş\.?/i,'Bankası').trim();
+  return s || String(banka).trim();
+}
+
+// Ödeme Tipi + Banka bilgisinden rapor kolonunun etiketini üretir. Banka bilgisi YALNIZCA
+// Kredi Kartı ödemeleri için kullanılır; diğer ödeme tipleri (Alınan Senet, Banka havalesi, Nakit vb.)
+// olduğu gibi (banka eklenmeden) kullanılır.
+function yuklemeOdemeEtiketi(odemeTipi, banka){
+  const ot = String(odemeTipi||'').trim();
+  if(!ot) return 'Diğer';
+  if(ot !== 'Kredi Kartı') return ot;
+  const b = String(banka||'').trim();
+  if(!b) return 'Kredi Kartı';
+  if(/ziraat/i.test(b) || /yapı\s*ve\s*kredi/i.test(b) || /yapı\s*kredi/i.test(b)) return 'Kredi Kartı (SÜPÜRME)';
+  const kisa = bankaKisaAdi(b);
+  return kisa ? `Kredi Kartı (${kisa})` : 'Kredi Kartı';
+}
+
+// Sabit kolon sırası: bilinen tipler bu sırayla, "Kredi Kartı (SÜPÜRME)" hemen "Kredi Kartı"nın
+// ardından, diğer banka bazlı Kredi Kartı etiketleri alfabetik olarak süpürmeden sonra, "Nakit" en
+// sonda (Genel Toplam'dan hemen önce) gösterilir. Beklenmeyen bir etiket gelirse listenin sonuna eklenir.
+function yuklemeKolonSirala(etiketler){
+  const oncelik = ['Alınan Senet','Banka havalesi','Kredi Kartı','Kredi Kartı (SÜPÜRME)'];
+  const kalanKrediKarti = Array.from(etiketler).filter(e=> e.startsWith('Kredi Kartı (') && e!=='Kredi Kartı (SÜPÜRME)').sort((a,b)=>a.localeCompare(b,'tr'));
+  const digerler = Array.from(etiketler).filter(e=> !oncelik.includes(e) && !e.startsWith('Kredi Kartı (') && e!=='Nakit').sort((a,b)=>a.localeCompare(b,'tr'));
+  const sonuc = [];
+  oncelik.forEach(k=>{ if(etiketler.has(k)) sonuc.push(k); });
+  kalanKrediKarti.forEach(k=> sonuc.push(k));
+  digerler.forEach(k=> sonuc.push(k));
+  if(etiketler.has('Nakit')) sonuc.push('Nakit');
+  return sonuc;
+}
+
+// Tahsilat + Yükleme ham satırlarından (sheetToObjects.data) nihai Yükleme Raporu'nu hesaplar.
+function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
+  if(!tahsilatRows || !tahsilatRows.length) throw new Error('Tahsilat Raporu\'nda satır bulunamadı.');
+  if(!yuklemeRows || !yuklemeRows.length) throw new Error('Yükleme Raporu\'nda satır bulunamadı.');
+
+  // 1) Tahsilat: en güncel Belge Tarihi'ni bul, o güne ait satırları filtrele.
+  const tahsilatParsed = tahsilatRows.map(r=>({
+    sst: (r['SST']||'Tanımsız').toString().trim() || 'Tanımsız',
+    musteriKodu: yuklemeKod(r['Müşt. Kodu']),
+    belgeTarihi: excelDateToJS(r['Belge Tarihi']),
+    odemeTipi: r['Ödeme Tipi'],
+    banka: r['Banka'],
+    tutar: Math.abs(yuklemeNumber(r['Belge Tutarı'])),
+  })).filter(r=> r.belgeTarihi);
+  if(!tahsilatParsed.length) throw new Error('Tahsilat Raporu\'nda geçerli bir Belge Tarihi bulunamadı.');
+
+  let enGuncelTahsilatTarihi = tahsilatParsed[0].belgeTarihi;
+  tahsilatParsed.forEach(r=>{ if(r.belgeTarihi.getTime() > enGuncelTahsilatTarihi.getTime()) enGuncelTahsilatTarihi = r.belgeTarihi; });
+  const enGuncelTahsilatGunKey = dateKeyLocal(enGuncelTahsilatTarihi);
+  const tahsilatGununSatirlari = tahsilatParsed.filter(r=> dateKeyLocal(r.belgeTarihi) === enGuncelTahsilatGunKey);
+
+  // Müşteri -> Temsilci haritası: ÖNCELİKLE ana rapordaki (Kalemler/Sipariş yüklemesinden gelen ve
+  // hemen hemen tüm müşterileri kapsayan) müşteri->temsilci eşleşmesi kullanılır — çünkü tek bir
+  // günün tahsilat dökümünde yalnızca o gün ödeme yapan az sayıda müşteri bulunur ve bu, yükleme
+  // raporundaki müşterilerin büyük kısmını eşleştirmeye yetmez. Ana rapor yoksa veya bir müşteri onda
+  // bulunamıyorsa, tahsilat dökümünün kendi Müşt. Kodu/SST eşleşmesi tamamlayıcı (fallback) olarak kullanılır.
+  const musteriTemsilciHaritasi = new Map();
+  if(state.report && Array.isArray(state.report.musteriler)){
+    state.report.musteriler.forEach(m=>{
+      const kod = yuklemeKod(m.musteri);
+      if(kod && m.temsilci && m.temsilci !== '—') musteriTemsilciHaritasi.set(kod, m.temsilci);
+    });
+  }
+  tahsilatParsed.forEach(r=>{ if(r.musteriKodu && !musteriTemsilciHaritasi.has(r.musteriKodu)) musteriTemsilciHaritasi.set(r.musteriKodu, r.sst); });
+
+  // 2) Yükleme: en güncel Yükleme Tarihi'ni bul, o güne ait satırları filtrele, Müşteri Numarası
+  // bazında Litre Total'i topla.
+  const yuklemeParsed = yuklemeRows.map(r=>({
+    musteriNo: yuklemeKod(r['Müşteri Numarası']),
+    litre: yuklemeNumber(r['Litre Total']),
+    yuklemeTarihi: excelDateToJS(r['Yükleme Tarihi']),
+  })).filter(r=> r.yuklemeTarihi);
+  if(!yuklemeParsed.length) throw new Error('Yükleme Raporu\'nda geçerli bir Yükleme Tarihi bulunamadı.');
+
+  let enGuncelYuklemeTarihi = yuklemeParsed[0].yuklemeTarihi;
+  yuklemeParsed.forEach(r=>{ if(r.yuklemeTarihi.getTime() > enGuncelYuklemeTarihi.getTime()) enGuncelYuklemeTarihi = r.yuklemeTarihi; });
+  const enGuncelYuklemeGunKey = dateKeyLocal(enGuncelYuklemeTarihi);
+  const yuklemeGununSatirlari = yuklemeParsed.filter(r=> dateKeyLocal(r.yuklemeTarihi) === enGuncelYuklemeGunKey);
+
+  const litreByMusteri = new Map();
+  yuklemeGununSatirlari.forEach(r=>{
+    litreByMusteri.set(r.musteriNo, (litreByMusteri.get(r.musteriNo)||0) + r.litre);
+  });
+
+  // 3) Temsilci bazlı satış/tahsilat kolonlarını hesapla.
+  const kolonSet = new Set();
+  const temsilciMap = new Map(); // temsilci -> {temsilci, kolonlar:{}, genelToplam, litre}
+  function repRow(temsilci){
+    if(!temsilciMap.has(temsilci)) temsilciMap.set(temsilci, {temsilci, kolonlar:{}, genelToplam:0, litre:0});
+    return temsilciMap.get(temsilci);
+  }
+  tahsilatGununSatirlari.forEach(r=>{
+    const etiket = yuklemeOdemeEtiketi(r.odemeTipi, r.banka);
+    kolonSet.add(etiket);
+    const row = repRow(r.sst);
+    row.kolonlar[etiket] = (row.kolonlar[etiket]||0) + r.tutar;
+    row.genelToplam += r.tutar;
+  });
+
+  // 4) Litre'yi müşteri->temsilci haritası üzerinden temsilcilere dağıt (bulunamayan müşteriler "Tanımsız").
+  litreByMusteri.forEach((litre, musteriNo)=>{
+    const temsilci = musteriTemsilciHaritasi.get(musteriNo) || 'Tanımsız';
+    const row = repRow(temsilci);
+    row.litre += litre;
+  });
+
+  const kolonlar = yuklemeKolonSirala(kolonSet);
+  const temsilciler = Array.from(temsilciMap.values())
+    .map(r=>({
+      temsilci: r.temsilci,
+      kolonlar: r.kolonlar,
+      genelToplam: r.genelToplam,
+      litre: r.litre,
+      stTahsilatLitre: r.litre > 0 ? (r.genelToplam / r.litre) : null,
+    }))
+    .sort((a,b)=> a.temsilci.localeCompare(b.temsilci,'tr'));
+
+  const genelToplamSatiri = { kolonlar:{}, genelToplam:0, litre:0 };
+  temsilciler.forEach(r=>{
+    kolonlar.forEach(k=>{ genelToplamSatiri.kolonlar[k] = (genelToplamSatiri.kolonlar[k]||0) + (r.kolonlar[k]||0); });
+    genelToplamSatiri.genelToplam += r.genelToplam;
+    genelToplamSatiri.litre += r.litre;
+  });
+  genelToplamSatiri.stTahsilatLitre = genelToplamSatiri.litre > 0 ? (genelToplamSatiri.genelToplam / genelToplamSatiri.litre) : null;
+
+  return {
+    tahsilatTarihi: enGuncelTahsilatTarihi,
+    yuklemeTarihi: enGuncelYuklemeTarihi,
+    kolonlar,
+    temsilciler,
+    genelToplamSatiri,
+    kayitZamani: new Date().toISOString(),
+  };
+}
+
+const YUKLEME_LT2 = n => (n||0).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const YUKLEME_TL2 = n => (n||0).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ₺';
+
+function renderYuklemeTable(report){
+  const theadRow = document.getElementById('yuklemeTheadRow');
+  const tbody = document.getElementById('yuklemeTbody');
+  const tfoot = document.getElementById('yuklemeTfoot');
+  const sevkiyatBaslik = fmtDate(report.yuklemeTarihi) + ' SEVKİYAT';
+
+  theadRow.innerHTML = `<th>Satır Etiketleri</th>` +
+    report.kolonlar.map(k=>`<th class="num">${escapeHtml(k)}</th>`).join('') +
+    `<th class="num">Genel Toplam</th><th class="num">${escapeHtml(sevkiyatBaslik)}</th><th class="num">ST Tahsilat/Litre</th>`;
+
+  tbody.innerHTML = report.temsilciler.map(r=>`<tr>
+    <td>${escapeHtml(r.temsilci)}</td>
+    ${report.kolonlar.map(k=> `<td class="num">${r.kolonlar[k] ? YUKLEME_TL2(r.kolonlar[k]) : '<span class="zero">—</span>'}</td>`).join('')}
+    <td class="num"><b>${YUKLEME_TL2(r.genelToplam)}</b></td>
+    <td class="num">${r.litre ? YUKLEME_LT2(r.litre) : '<span class="zero">—</span>'}</td>
+    <td class="num">${r.stTahsilatLitre!=null ? YUKLEME_TL2(r.stTahsilatLitre) : '<span class="zero">—</span>'}</td>
+  </tr>`).join('');
+
+  const g = report.genelToplamSatiri;
+  tfoot.innerHTML = `<tr style="font-weight:700;background:var(--bg);">
+    <td>Genel Toplam</td>
+    ${report.kolonlar.map(k=> `<td class="num">${YUKLEME_TL2(g.kolonlar[k]||0)}</td>`).join('')}
+    <td class="num">${YUKLEME_TL2(g.genelToplam)}</td>
+    <td class="num">${YUKLEME_LT2(g.litre)}</td>
+    <td class="num">${g.stTahsilatLitre!=null ? YUKLEME_TL2(g.stTahsilatLitre) : '—'}</td>
+  </tr>`;
+
+  document.getElementById('yuklemePanel').style.display = 'block';
+  document.getElementById('yuklemeTitle').textContent = 'Yükleme & Tahsilat Raporu — ' + sevkiyatBaslik;
+  document.getElementById('yuklemeSubTitle').textContent = 'Tahsilat tarihi: ' + fmtDate(report.tahsilatTarihi) + ' · ' + report.temsilciler.length.toLocaleString('tr-TR') + ' temsilci';
+}
+
+/* ---- Buluta arşivleme (gün bazlı, Fatura Kontrol arşivi ile aynı desende) ---- */
+async function saveYuklemeArsivToCloud(arsiv){
+  if(!cloudEnabled()) return {ok:false, reason:'not-configured'};
+  try{
+    const res = await fetch(`${CLOUD.dbUrl.replace(/\/$/,'')}/${YUKLEME_ARSIV_CLOUD_PATH}.json`, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(arsiv),
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    return {ok:true};
+  }catch(err){ console.error('Yükleme Raporu arşivi buluta kaydedilemedi:', err); return {ok:false, reason:err.message}; }
+}
+async function loadYuklemeArsivFromCloud(){
+  if(!cloudEnabled()) return null;
+  try{
+    const res = await fetch(`${CLOUD.dbUrl.replace(/\/$/,'')}/${YUKLEME_ARSIV_CLOUD_PATH}.json`);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const text = await res.text();
+    if(!text || text==='null') return null;
+    return JSON.parse(text, (key, value)=>{
+      if((key==='tahsilatTarihi' || key==='yuklemeTarihi') && typeof value === 'string'){
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? value : d;
+      }
+      return value;
+    });
+  }catch(err){ console.error('Yükleme Raporu arşivi buluttan okunamadı:', err); return null; }
+}
+function saveYuklemeArsivToLocal(arsiv){
+  try{ localStorage.setItem(YUKLEME_ARSIV_LOCAL_KEY, JSON.stringify(arsiv)); }catch(err){ console.error(err); }
+}
+function loadYuklemeArsivFromLocal(){
+  try{
+    const json = localStorage.getItem(YUKLEME_ARSIV_LOCAL_KEY);
+    if(!json) return null;
+    return JSON.parse(json, (key, value)=>{
+      if((key==='tahsilatTarihi' || key==='yuklemeTarihi') && typeof value === 'string'){
+        const d = new Date(value);
+        return isNaN(d.getTime()) ? value : d;
+      }
+      return value;
+    });
+  }catch(err){ console.error(err); return null; }
+}
+
+// Bugünün (yükleme tarihinin) kaydını arşive ekler/üzerine yazar; diğer günlerin kaydına dokunmaz.
+// Hem buluta (varsa) hem cihaza (yerel yedek) yazılır.
+async function yuklemeRaporuArsivineKaydet(report){
+  const gunKey = dateKeyLocal(report.yuklemeTarihi);
+  if(!gunKey) return;
+  let arsiv = {};
+  if(cloudEnabled()){
+    arsiv = (await loadYuklemeArsivFromCloud()) || {};
+  } else {
+    arsiv = loadYuklemeArsivFromLocal() || {};
+  }
+  arsiv[gunKey] = report;
+  state.yuklemeArsivCache = arsiv;
+  if(cloudEnabled()){
+    await saveYuklemeArsivToCloud(arsiv);
+  }
+  saveYuklemeArsivToLocal(arsiv); // her durumda cihazda da yedeklenir
+}
+
+async function yuklemeArsivYenile(){
+  let arsiv = null;
+  if(cloudEnabled()) arsiv = await loadYuklemeArsivFromCloud();
+  if(!arsiv) arsiv = loadYuklemeArsivFromLocal();
+  state.yuklemeArsivCache = arsiv || {};
+  return state.yuklemeArsivCache;
+}
+
+function populateYuklemeTarihSelect(){
+  const sel = document.getElementById('yuklemeTarihSelect');
+  const arsiv = state.yuklemeArsivCache || {};
+  const gunler = Object.keys(arsiv).sort().reverse();
+  const mevcutSecim = state.yuklemeSeciliGun;
+  sel.innerHTML = gunler.map(g=>{
+    const d = new Date(g+'T00:00:00');
+    return `<option value="${g}">${fmtDate(d)}${g===dateKeyLocal(new Date())?' (bugün)':''}</option>`;
+  }).join('');
+  if(!gunler.length){
+    sel.innerHTML = `<option value="">Arşivde henüz gün yok</option>`;
+  } else if(mevcutSecim && gunler.includes(mevcutSecim)){
+    sel.value = mevcutSecim;
+  } else {
+    sel.value = gunler[0];
+    state.yuklemeSeciliGun = gunler[0];
+  }
+}
+
+function renderYuklemeArsivBilgi(){
+  const el = document.getElementById('yuklemeArsivBilgi');
+  const gunSayisi = Object.keys(state.yuklemeArsivCache||{}).length;
+  if(!cloudEnabled()){
+    el.textContent = '⚠️ Bulut (Firebase) yapılandırılmamış; bu arşiv yalnızca bu cihazda (tarayıcı hafızasında) saklanıyor.';
+    return;
+  }
+  el.textContent = gunSayisi
+    ? `☁️ Arşivde ${gunSayisi.toLocaleString('tr-TR')} günün Yükleme Raporu kaydı var. Tarih seçiciden geçmişe dönük görüntüleyebilirsiniz.`
+    : 'Buluttaki Yükleme Raporu arşivinde henüz veri yok. "Raporu Oluştur" ile ilk raporu oluşturduğunuzda o günün verisi buluta eklenir. ☁️';
+}
+
+// Sekmeye her girişte (veya arşiv yenilendiğinde) çağrılır: arşivi çeker, tarih seçiciyi doldurur,
+// seçili güne (veya en son oluşturulan canlı rapora) ait tabloyu gösterir.
+async function renderYuklemeView(){
+  document.getElementById('yuklemeStatusPill').textContent = cloudEnabled() ? 'Arşiv buluttan kontrol ediliyor…' : 'Arşiv cihazdan kontrol ediliyor…';
+  await yuklemeArsivYenile();
+  populateYuklemeTarihSelect();
+  renderYuklemeArsivBilgi();
+  updateYuklemeBuildBtnDurumu();
+
+  const sel = document.getElementById('yuklemeTarihSelect');
+  if(state.yuklemeReport && (!sel.value || !state.yuklemeSeciliGun)){
+    renderYuklemeTable(state.yuklemeReport);
+  } else if(sel.value && state.yuklemeArsivCache[sel.value]){
+    renderYuklemeTable(state.yuklemeArsivCache[sel.value]);
+  } else if(state.yuklemeReport){
+    renderYuklemeTable(state.yuklemeReport);
+  }
+}
+
+document.getElementById('yuklemeTarihSelect').addEventListener('change', (e)=>{
+  state.yuklemeSeciliGun = e.target.value;
+  const rapor = state.yuklemeArsivCache[e.target.value];
+  if(rapor) renderYuklemeTable(rapor);
+});
+document.getElementById('yuklemeYenileBtn').addEventListener('click', renderYuklemeView);
+
+/* ---- Dosya yükleme UI (bu sekmeye özel, ana yükleyiciden bağımsız 2 dosya) ---- */
+function updateYuklemeBuildBtnDurumu(){
+  const t = state.yuklemeFiles.yuklemeTahsilat;
+  const y = state.yuklemeFiles.yuklemeYukleme;
+  document.getElementById('yuklemeBuildBtn').disabled = !(t && y);
+  document.getElementById('yuklemeStatusPill').textContent = (t && y) ? '2/2 dosya hazır' : ((t||y) ? '1/2 dosya yüklendi' : 'Dosya bekleniyor');
+  if(t && y) document.getElementById('yuklemeStatusPill').classList.add('ok'); else document.getElementById('yuklemeStatusPill').classList.remove('ok');
+}
+function showYuklemeError(msg){
+  const el = document.getElementById('yuklemeUploadError');
+  el.textContent = msg; el.style.display = 'block';
+}
+function clearYuklemeError(){
+  const el = document.getElementById('yuklemeUploadError');
+  el.style.display='none'; el.textContent='';
+}
+document.getElementById('yuklemeTahsilatCheck').addEventListener('click', ()=> document.getElementById('yuklemeTahsilatFile').click());
+document.getElementById('yuklemeYuklemeCheck').addEventListener('click', ()=> document.getElementById('yuklemeYuklemeFile').click());
+
+function yuklemeDosyaYukle(file, type, requiredCols, itemElId, metaElId){
+  clearYuklemeError();
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const {headers, data} = sheetToObjects(ws);
+      const set = new Set(headers.map(h=>String(h||'').trim()));
+      const eksik = requiredCols.filter(c=>!set.has(c));
+      if(eksik.length){
+        showYuklemeError(`"${file.name}" dosyasında beklenen kolonlar bulunamadı: ${eksik.join(', ')}. Doğru dosyayı seçtiğinizden emin olun.`);
+        return;
+      }
+      state.yuklemeFiles[type] = {name:file.name, headers, data};
+      const item = document.getElementById(itemElId);
+      item.classList.add('done');
+      item.querySelector('.check-icon').textContent = '✓';
+      document.getElementById(metaElId).textContent = file.name + ' · ' + data.length.toLocaleString('tr-TR') + ' satır';
+      updateYuklemeBuildBtnDurumu();
+    }catch(err){
+      showYuklemeError('Dosya okunamadı: ' + file.name + ' — ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+document.getElementById('yuklemeTahsilatFile').addEventListener('change', e=>{
+  const file = e.target.files[0]; if(!file) return;
+  yuklemeDosyaYukle(file, 'yuklemeTahsilat', ['SST','Belge Tarihi','Ödeme Tipi','Belge Tutarı','Müşt. Kodu'], 'yuklemeTahsilatCheck', 'yuklemeTahsilatMeta');
+});
+document.getElementById('yuklemeYuklemeFile').addEventListener('change', e=>{
+  const file = e.target.files[0]; if(!file) return;
+  yuklemeDosyaYukle(file, 'yuklemeYukleme', ['Müşteri Numarası','Litre Total','Yükleme Tarihi'], 'yuklemeYuklemeCheck', 'yuklemeYuklemeMeta');
+});
+
+document.getElementById('yuklemeBuildBtn').addEventListener('click', async ()=>{
+  clearYuklemeError();
+  try{
+    const tahsilat = state.yuklemeFiles.yuklemeTahsilat.data;
+    const yukleme = state.yuklemeFiles.yuklemeYukleme.data;
+    const report = buildYuklemeRaporu(tahsilat, yukleme);
+    state.yuklemeReport = report;
+    state.yuklemeSeciliGun = dateKeyLocal(report.yuklemeTarihi);
+    renderYuklemeTable(report);
+    document.getElementById('yuklemeStatusPill').textContent = 'Rapor oluşturuldu, arşive kaydediliyor…';
+    await yuklemeRaporuArsivineKaydet(report);
+    populateYuklemeTarihSelect();
+    renderYuklemeArsivBilgi();
+    document.getElementById('yuklemeStatusPill').textContent = 'Rapor oluşturuldu ve arşivlendi ✓';
+  }catch(err){
+    console.error(err);
+    showYuklemeError('Rapor oluşturulamadı: ' + err.message);
+  }
+});
 </script>
 </body>
 </html>
