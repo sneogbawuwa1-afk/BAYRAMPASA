@@ -1603,9 +1603,22 @@ function buildReport(files){
   const tahsilatMap = new Map();
   // Fatura Kontrol ekranında tarihe göre aranabilmesi için tahsilat dökümü (tüm satırlar) arşivlenir.
   const tahsilatArsiv = [];
+  let enYeniTahsilatGunu = null;
   if(files.tahsilat){
     const tHeaders = new Set(files.tahsilat.headers);
     const formatA = tHeaders.has('Tutar') && tHeaders.has('Tahsilat Alan');
+
+    // Genel Rapor / Sevk Raporu'ndaki "Alınan Tahsilat" değeri, yüklenen dosyanın TAMAMI (ör. ayın 1'i
+    // ile 30'u arası tüm günleri kapsayan kümülatif bir döküm) değil, yalnızca dosyadaki EN GÜNCEL (en
+    // yeni) Belge Tarihi'ne ait satırların toplamı olsun diye önce dosyadaki en yeni tarih bulunur.
+    // Aksi hâlde çok günlük/kümülatif bir tahsilat dosyası yüklendiğinde tüm dönem sanki tek günde
+    // alınmış gibi görünürdü. (Fatura Kontrol / Trend Analizi arşivi bundan ETKİLENMEZ — oraya dosyanın
+    // tüm satırları, tarihleri ne olursa olsun, olduğu gibi arşivlenir.)
+    files.tahsilat.data.forEach(r=>{
+      const gun = dateKeyLocal(excelDateToJSArti1Gun(r['Belge Tarihi']));
+      if(gun && (!enYeniTahsilatGunu || gun > enYeniTahsilatGunu)) enYeniTahsilatGunu = gun;
+    });
+
     files.tahsilat.data.forEach(r=>{
       const belgeTarihi = excelDateToJSArti1Gun(r['Belge Tarihi']);
       const musteriArsiv = String((formatA ? r['Müşteri'] : r['Müşt. Kodu'])||'').trim();
@@ -1613,6 +1626,9 @@ function buildReport(files){
       if(musteriArsiv){
         tahsilatArsiv.push({musteri: musteriArsiv, belgeTarihi, tutar: tutarArsiv});
       }
+
+      // Genel Rapor / Sevk Raporu toplamlarına yalnızca dosyadaki en güncel tarihe ait satırlar dahil edilir.
+      if(!belgeTarihi || dateKeyLocal(belgeTarihi) !== enYeniTahsilatGunu) return;
 
       if(r['Belge Türü'] && r['Belge Türü'] !== 'Müşteri Tahsilat') return;
 
