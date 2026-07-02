@@ -418,7 +418,7 @@
     <div class="dropzone" id="dropzone">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#5C6577" stroke-width="1.6"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <div class="dz-title">Excel dosyalarını buraya sürükleyin ya da tıklayıp seçin</div>
-      <div class="dz-sub">6 dosyayı aynı anda seçebilirsiniz — sistem her birini <b>otomatik tanır</b> (Kalemler, Sipariş, Tahsilat, Çek/Senet, Ticari Stok, Fatura Dökümü)</div>
+      <div class="dz-sub">7 dosyayı aynı anda seçebilirsiniz — sistem her birini <b>otomatik tanır</b> (Kalemler, Sipariş, Tahsilat, Çek/Senet, Ticari Stok, Fatura Dökümü, Bayi Hak Ediş)</div>
     </div>
     <input type="file" id="fileInput" accept=".xlsx,.xls" multiple />
 
@@ -468,6 +468,14 @@
         <div>
           <div class="check-name">Fatura Dökümü</div>
           <div class="check-desc">Ödenecek Tutar, Toplam Litre kolonlarını içeren fatura dökümü — Trend Analizi'ndeki haftalık fatura tutarı ve litre için kullanılır (opsiyonel)</div>
+          <div class="check-meta"></div>
+        </div>
+      </div>
+      <div class="check-item" data-type="bayiHakedis">
+        <div class="check-icon">7</div>
+        <div>
+          <div class="check-name">Bayi Hak Ediş</div>
+          <div class="check-desc">Tutar, Efes Payı % kolonlarını içeren hak ediş dökümü — Fatura Tarihi tahsilat tarihi, Tutar %20 KDV'li olarak Trend Analizi'nde tahsilat gibi sayılır (opsiyonel, buluta arşivlenmez — her gün güncel dosyayla yüklenir)</div>
           <div class="check-meta"></div>
         </div>
       </div>
@@ -899,7 +907,7 @@
 <script>
 /* ============================== STATE ============================== */
 const state = {
-  files: { kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null },
+  files: { kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null, bayiHakedis:null },
   report: null,
   sort: { key:'kalanBorc', dir:-1 },
   sevkSort: { key:'toplamRisk', dir:-1 },
@@ -912,7 +920,7 @@ const state = {
 
 /* ============================== KALICI SAKLAMA (localStorage) ============================== */
 const STORAGE_KEY = 'noktaCariTakip_report_v1';
-const DATE_KEYS = new Set(['faturaTarihi','netVade','vade','belgeTarihi','asOf','istenilenTeslimTarihi']);
+const DATE_KEYS = new Set(['faturaTarihi','netVade','vade','belgeTarihi','asOf','istenilenTeslimTarihi','tahsilatTarihi']);
 
 function saveReportToStorage(report){
   try{
@@ -1219,8 +1227,9 @@ const SIGNATURES = {
   cekSenet: [['Esas Borçlu','Çek/Senet Numarası']],
   ticariStok: [['Depoda Kalan Mk.','Depoda Kalan Lt.','Malzeme Kodu']],
   fatura: [['Ödenecek Tutar','Toplam Litre','Fatura Numarası']],
+  bayiHakedis: [['Bayi Tutar','Efes Payı %','Müşteri Alacak Dekont No']],
 };
-const LABELS = { kalemler:'Kalemler (Fatura / Bakiye)', siparis:'Sipariş Dökümü', tahsilat:'Tahsilat Dökümü', cekSenet:'Çek / Senet Riski', ticariStok:'Ticari Stok', fatura:'Fatura Dökümü' };
+const LABELS = { kalemler:'Kalemler (Fatura / Bakiye)', siparis:'Sipariş Dökümü', tahsilat:'Tahsilat Dökümü', cekSenet:'Çek / Senet Riski', ticariStok:'Ticari Stok', fatura:'Fatura Dökümü', bayiHakedis:'Bayi Hak Ediş' };
 
 function detectType(headers){
   const set = new Set(headers.map(h=>String(h||'').trim()));
@@ -1414,11 +1423,11 @@ syncBtn.addEventListener('click', async ()=>{
 });
 
 function resetAll(){
-  state.files = {kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null};
+  state.files = {kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null, bayiHakedis:null};
   state.report = null;
   state.expanded.clear();
   clearStoredReport();
-  const ICON_NUMS = {kalemler:'1', siparis:'2', tahsilat:'3', cekSenet:'4', ticariStok:'5', fatura:'6'};
+  const ICON_NUMS = {kalemler:'1', siparis:'2', tahsilat:'3', cekSenet:'4', ticariStok:'5', fatura:'6', bayiHakedis:'7'};
   document.querySelectorAll('.check-item').forEach(el=>{
     el.classList.remove('done');
     el.querySelector('.check-icon').textContent = ICON_NUMS[el.getAttribute('data-type')] || '';
@@ -1774,10 +1783,27 @@ function buildReport(files){
     });
   }
 
+  // ---- 7) BAYİ HAK EDİŞ: Trend Analizi'nde müşteriden alınmış bir tahsilat gibi sayılır — Fatura
+  // Tarihi tahsilat tarihi kabul edilir, Tutar üzerine %20 KDV eklenir. Bu veri sipariş/tahsilat/
+  // fatura dökümlerinin aksine buluttaki günlük arşive KAYDEDİLMEZ (kullanıcı her gün güncel dosyayı
+  // yeniden yükleyecek); yalnızca o oturumdaki güncel raporun içinde tutulur.
+  const bayiHakedis = [];
+  if(files.bayiHakedis){
+    files.bayiHakedis.data.forEach(r=>{
+      const musteri = String(r['Müşteri']||'').trim();
+      if(!musteri) return;
+      const musteriAdi = r['Müşteri Unvanı'] || musteri;
+      const tutarHam = Number(r['Tutar'])||0;
+      const tutar = tutarHam * 1.20; // %20 KDV dahil
+      const tahsilatTarihi = excelDateToJS(r['Fatura Tarihi']);
+      bayiHakedis.push({musteri, musteriAdi, tutar, tahsilatTarihi});
+    });
+  }
+
   return {
     asOf: today, musteriler, invoices, bakiyesiz, kpi, ticariStok,
     temsilciler: Array.from(repMap.values()).sort((a,b)=>b.kalanBorc-a.kalanBorc),
-    siparisArsiv, tahsilatArsiv, faturaArsiv,
+    siparisArsiv, tahsilatArsiv, faturaArsiv, bayiHakedis,
   };
 }
 function sum(arr,key){ return arr.reduce((a,b)=>a+(b[key]||0),0); }
@@ -2767,12 +2793,21 @@ function ortalamaAl(seri, key){
 function computeMusteriHaftalikOzet(musteri){
   const birlesik = faturaKontrolArsivBirlestir(state.faturaArsivCache || {});
   const faturalar = birlesik.faturaArsiv.filter(r=>r.musteri===musteri && r.faturaTarihi);
-  const tahsilatlar = birlesik.tahsilatArsiv.filter(r=>r.musteri===musteri && r.belgeTarihi);
+  const tahsilatlarArsiv = birlesik.tahsilatArsiv.filter(r=>r.musteri===musteri && r.belgeTarihi);
+  // Bayi Hak Ediş: buluttaki arşivde tutulmaz (kullanıcı her gün güncel dosyayı yeniden yükler);
+  // yalnızca o oturumdaki güncel rapordan (state.report.bayiHakedis) okunur ve Fatura Tarihi tahsilat
+  // tarihi, Tutar da (%20 KDV dahil edilmiş hâliyle) müşteriden alınmış bir tahsilat gibi sayılır.
+  const hakedisTahsilatlari = ((state.report && state.report.bayiHakedis) || [])
+    .filter(r=>r.musteri===musteri && r.tahsilatTarihi)
+    .map(r=>({musteri:r.musteri, belgeTarihi:r.tahsilatTarihi, tutar:r.tutar}));
+  const toplamHakedisTahsilat = hakedisTahsilatlari.reduce((a,b)=>a+(b.tutar||0),0);
+  const tahsilatlar = tahsilatlarArsiv.concat(hakedisTahsilatlari);
   if(!faturalar.length && !tahsilatlar.length) return null;
 
   // ÖNEMLİ: Gün sayısı, "kaç gün rapor oluşturuldu" gibi arşivleme sıklığına göre DEĞİL; doğrudan bu
-  // müşterinin fatura dökümündeki "Fatura Tarihi" ve tahsilat dökümündeki "Belge Tarihi"
-  // değerlerinin en eskisiyle en yenisi arasındaki gerçek takvim gün farkına göre hesaplanır.
+  // müşterinin fatura dökümündeki "Fatura Tarihi" ve tahsilat dökümündeki "Belge Tarihi" (Bayi Hak
+  // Ediş için de yine "Fatura Tarihi") değerlerinin en eskisiyle en yenisi arasındaki gerçek takvim
+  // gün farkına göre hesaplanır.
   const tumZamanlar = [
     ...faturalar.map(r=> new Date(r.faturaTarihi).getTime()),
     ...tahsilatlar.map(r=> new Date(r.belgeTarihi).getTime()),
@@ -2789,15 +2824,17 @@ function computeMusteriHaftalikOzet(musteri){
   const haftalikLitre = toplamLitre / haftaSayisi;
   const haftalikTahsilat = toplamTahsilat / haftaSayisi;
   const geriDonusGun = haftalikTahsilat > 0 ? (haftalikFatura / haftalikTahsilat) * 7 : null;
-  return { gunSayisi, haftaSayisi, toplamFatura, toplamLitre, toplamTahsilat, haftalikFatura, haftalikLitre, haftalikTahsilat, geriDonusGun };
+  return { gunSayisi, haftaSayisi, toplamFatura, toplamLitre, toplamTahsilat, haftalikFatura, haftalikLitre, haftalikTahsilat, geriDonusGun, toplamHakedisTahsilat };
 }
 
 function renderTrendHaftalikGrid(ozet){
   const el = document.getElementById('trendHaftalikGrid');
   if(!ozet){ el.innerHTML = ''; return; }
+  const tahsilatSub = 'fatura/tahsilat tarihlerine göre '+ozet.gunSayisi.toLocaleString('tr-TR')+' günlük aralık'
+    + (ozet.toplamHakedisTahsilat>0 ? ' · içinde '+TL(ozet.toplamHakedisTahsilat)+' Bayi Hak Ediş dahil' : '');
   const items = [
     {label:'Haftalık Ortalama Fatura Tutarı', value:ozet.haftalikFatura, sub:'fatura/tahsilat tarihlerine göre '+ozet.gunSayisi.toLocaleString('tr-TR')+' günlük aralık', color:'var(--accent)'},
-    {label:'Haftalık Ortalama Tahsilat', value:ozet.haftalikTahsilat, sub:'fatura/tahsilat tarihlerine göre '+ozet.gunSayisi.toLocaleString('tr-TR')+' günlük aralık', color:'var(--success)'},
+    {label:'Haftalık Ortalama Tahsilat', value:ozet.haftalikTahsilat, sub:tahsilatSub, color:'var(--success)'},
     {label:'Haftalık Ortalama Fatura Litresi', value:null, display: ozet.haftalikLitre!=null ? Math.round(ozet.haftalikLitre).toLocaleString('tr-TR')+' Lt' : '—', sub:'fatura dökümündeki Toplam Litre kolonuna göre', color:'var(--navy)'},
     {label:'Fatura Tutarının Ort. Geri Dönüş Süresi', value:null, display: ozet.geriDonusGun!=null ? Math.round(ozet.geriDonusGun).toLocaleString('tr-TR')+' gün' : '—', sub:'haftalık tahsilat hızına göre', color:'var(--danger)'},
   ];
