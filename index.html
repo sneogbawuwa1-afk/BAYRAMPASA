@@ -418,7 +418,7 @@
     <div class="dropzone" id="dropzone">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#5C6577" stroke-width="1.6"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <div class="dz-title">Excel dosyalarını buraya sürükleyin ya da tıklayıp seçin</div>
-      <div class="dz-sub">5 dosyayı aynı anda seçebilirsiniz — sistem her birini <b>otomatik tanır</b> (Kalemler, Sipariş, Tahsilat, Çek/Senet, Ticari Stok)</div>
+      <div class="dz-sub">6 dosyayı aynı anda seçebilirsiniz — sistem her birini <b>otomatik tanır</b> (Kalemler, Sipariş, Tahsilat, Çek/Senet, Ticari Stok, Fatura Dökümü)</div>
     </div>
     <input type="file" id="fileInput" accept=".xlsx,.xls" multiple />
 
@@ -460,6 +460,14 @@
         <div>
           <div class="check-name">Ticari Stok</div>
           <div class="check-desc">Malzeme Kodu, Depoda Kalan Mk./Lt. kolonlarını içeren nokta bazlı stok dökümü (opsiyonel)</div>
+          <div class="check-meta"></div>
+        </div>
+      </div>
+      <div class="check-item" data-type="fatura">
+        <div class="check-icon">6</div>
+        <div>
+          <div class="check-name">Fatura Dökümü</div>
+          <div class="check-desc">Ödenecek Tutar, Toplam Litre kolonlarını içeren fatura dökümü — Trend Analizi'ndeki haftalık fatura tutarı ve litre için kullanılır (opsiyonel)</div>
           <div class="check-meta"></div>
         </div>
       </div>
@@ -891,7 +899,7 @@
 <script>
 /* ============================== STATE ============================== */
 const state = {
-  files: { kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null },
+  files: { kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null },
   report: null,
   sort: { key:'kalanBorc', dir:-1 },
   sevkSort: { key:'toplamRisk', dir:-1 },
@@ -974,6 +982,7 @@ async function faturaKontrolArsivineKaydetVeSenkronizeEt(report){
   const bugununKaydi = {
     siparisArsiv: report.siparisArsiv || [],
     tahsilatArsiv: report.tahsilatArsiv || [],
+    faturaArsiv: report.faturaArsiv || [],
     musteriSnapshot: buildMusteriSnapshot(report),
     kayitZamani: new Date().toISOString(),
   };
@@ -1002,6 +1011,7 @@ function faturaKontrolArsivBirlestir(arsiv){
   const gunler = Object.keys(arsiv||{}).sort(); // eskiden yeniye
   const siparisMap = new Map();
   const tahsilatMap = new Map();
+  const faturaMap = new Map();
   gunler.forEach(gun=>{
     const g = arsiv[gun];
     (g.siparisArsiv||[]).forEach(r=>{
@@ -1014,10 +1024,16 @@ function faturaKontrolArsivBirlestir(arsiv){
       const key = [r.musteri, tarihKey, r.tutar].join('|');
       tahsilatMap.set(key, r);
     });
+    (g.faturaArsiv||[]).forEach(r=>{
+      const tarihKey = r.faturaTarihi ? new Date(r.faturaTarihi).getTime() : '';
+      const key = [r.musteri, tarihKey, r.tutar].join('|');
+      faturaMap.set(key, r);
+    });
   });
   return {
     siparisArsiv: Array.from(siparisMap.values()),
     tahsilatArsiv: Array.from(tahsilatMap.values()),
+    faturaArsiv: Array.from(faturaMap.values()),
     gunSayisi: gunler.length,
     ilkGun: gunler[0] || null,
     sonGun: gunler[gunler.length-1] || null,
@@ -1202,8 +1218,9 @@ const SIGNATURES = {
   ],
   cekSenet: [['Esas Borçlu','Çek/Senet Numarası']],
   ticariStok: [['Depoda Kalan Mk.','Depoda Kalan Lt.','Malzeme Kodu']],
+  fatura: [['Ödenecek Tutar','Toplam Litre','Fatura Numarası']],
 };
-const LABELS = { kalemler:'Kalemler (Fatura / Bakiye)', siparis:'Sipariş Dökümü', tahsilat:'Tahsilat Dökümü', cekSenet:'Çek / Senet Riski', ticariStok:'Ticari Stok' };
+const LABELS = { kalemler:'Kalemler (Fatura / Bakiye)', siparis:'Sipariş Dökümü', tahsilat:'Tahsilat Dökümü', cekSenet:'Çek / Senet Riski', ticariStok:'Ticari Stok', fatura:'Fatura Dökümü' };
 
 function detectType(headers){
   const set = new Set(headers.map(h=>String(h||'').trim()));
@@ -1397,13 +1414,14 @@ syncBtn.addEventListener('click', async ()=>{
 });
 
 function resetAll(){
-  state.files = {kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null};
+  state.files = {kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null};
   state.report = null;
   state.expanded.clear();
   clearStoredReport();
+  const ICON_NUMS = {kalemler:'1', siparis:'2', tahsilat:'3', cekSenet:'4', ticariStok:'5', fatura:'6'};
   document.querySelectorAll('.check-item').forEach(el=>{
     el.classList.remove('done');
-    el.querySelector('.check-icon').textContent = el.getAttribute('data-type')==='kalemler'?'1':el.getAttribute('data-type')==='siparis'?'2':el.getAttribute('data-type')==='tahsilat'?'3':el.getAttribute('data-type')==='cekSenet'?'4':'5';
+    el.querySelector('.check-icon').textContent = ICON_NUMS[el.getAttribute('data-type')] || '';
     el.querySelector('.check-meta').textContent='';
   });
   buildBtn.disabled = true;
@@ -1740,10 +1758,26 @@ function buildReport(files){
     ozet: Array.from(ticariStokOzetMap.values()).sort((a,b)=>b.depodaKalanLt-a.depodaKalanLt),
   };
 
+  // ---- 6) FATURA DÖKÜMÜ: Trend Analizi'ndeki haftalık fatura tutarı ve fatura litresi için
+  // (Ödenecek Tutar / Toplam Litre kolonları), müşteri + tarih bazlı arşivlenir. ----
+  const faturaArsiv = [];
+  if(files.fatura){
+    files.fatura.data.forEach(r=>{
+      const musteri = String(r['Müşteri Numarası']||'').trim();
+      if(!musteri) return;
+      const musteriAdi = r['Müşteri Adı'] || musteri;
+      const temsilci = r['Satış Temsilcisi Adı'] || null;
+      const tutar = Number(r['Ödenecek Tutar'])||0;
+      const litre = Number(r['Toplam Litre'])||0;
+      const faturaTarihi = excelDateToJS(r['Fatura Tarihi']);
+      faturaArsiv.push({musteri, musteriAdi, temsilci, tutar, litre, faturaTarihi});
+    });
+  }
+
   return {
     asOf: today, musteriler, invoices, bakiyesiz, kpi, ticariStok,
     temsilciler: Array.from(repMap.values()).sort((a,b)=>b.kalanBorc-a.kalanBorc),
-    siparisArsiv, tahsilatArsiv,
+    siparisArsiv, tahsilatArsiv, faturaArsiv,
   };
 }
 function sum(arr,key){ return arr.reduce((a,b)=>a+(b[key]||0),0); }
@@ -2645,7 +2679,7 @@ function renderFaturaKontrolArsivBilgi(){
     return;
   }
   const birlesik = faturaKontrolArsivBirlestir(arsiv);
-  el.textContent = `Buluttaki arşivde ${gunler.length.toLocaleString('tr-TR')} günün verisi var (${fmtDate(new Date(birlesik.ilkGun))} – ${fmtDate(new Date(birlesik.sonGun))}) · ${birlesik.siparisArsiv.length.toLocaleString('tr-TR')} sipariş, ${birlesik.tahsilatArsiv.length.toLocaleString('tr-TR')} tahsilat kaydı. ☁️`;
+  el.textContent = `Buluttaki arşivde ${gunler.length.toLocaleString('tr-TR')} günün verisi var (${fmtDate(new Date(birlesik.ilkGun))} – ${fmtDate(new Date(birlesik.sonGun))}) · ${birlesik.siparisArsiv.length.toLocaleString('tr-TR')} sipariş, ${birlesik.tahsilatArsiv.length.toLocaleString('tr-TR')} tahsilat, ${birlesik.faturaArsiv.length.toLocaleString('tr-TR')} fatura kaydı. ☁️`;
 }
 
 const FATURA_ARSIV_TEMIZLEME_SIFRESI = '471252580a';
@@ -2726,20 +2760,21 @@ function ortalamaAl(seri, key){
   return seri.reduce((a,b)=>a+(b[key]||0),0) / seri.length;
 }
 
-// Arşivlenen tüm günler boyunca bu müşterinin sipariş/tahsilat toplamlarından haftalık ortalamaları
-// ve "sipariş tutarının ortalama geri dönüş süresi"ni (bugünkü haftalık tahsilat hızına göre, bir
-// haftalık sipariş tutarının tahsilata dönüşmesinin ortalama kaç gün sürdüğünü) hesaplar.
+// Arşivlenen tüm günler boyunca bu müşterinin fatura/tahsilat toplamlarından haftalık ortalamaları
+// ve "fatura tutarının ortalama geri dönüş süresi"ni (bugünkü haftalık tahsilat hızına göre, bir
+// haftalık fatura tutarının tahsilata dönüşmesinin ortalama kaç gün sürdüğünü) hesaplar. Ayrıca
+// Fatura Dökümü'ndeki "Toplam Litre" kolonundan müşterinin haftalık ortalama fatura litresini hesaplar.
 function computeMusteriHaftalikOzet(musteri){
   const birlesik = faturaKontrolArsivBirlestir(state.faturaArsivCache || {});
-  const siparisler = birlesik.siparisArsiv.filter(r=>r.musteri===musteri && r.istenilenTeslimTarihi);
+  const faturalar = birlesik.faturaArsiv.filter(r=>r.musteri===musteri && r.faturaTarihi);
   const tahsilatlar = birlesik.tahsilatArsiv.filter(r=>r.musteri===musteri && r.belgeTarihi);
-  if(!siparisler.length && !tahsilatlar.length) return null;
+  if(!faturalar.length && !tahsilatlar.length) return null;
 
   // ÖNEMLİ: Gün sayısı, "kaç gün rapor oluşturuldu" gibi arşivleme sıklığına göre DEĞİL; doğrudan bu
-  // müşterinin sipariş dökümündeki "İstenilen Tsl. Trh." ve tahsilat dökümündeki "Belge Tarihi"
+  // müşterinin fatura dökümündeki "Fatura Tarihi" ve tahsilat dökümündeki "Belge Tarihi"
   // değerlerinin en eskisiyle en yenisi arasındaki gerçek takvim gün farkına göre hesaplanır.
   const tumZamanlar = [
-    ...siparisler.map(r=> new Date(r.istenilenTeslimTarihi).getTime()),
+    ...faturalar.map(r=> new Date(r.faturaTarihi).getTime()),
     ...tahsilatlar.map(r=> new Date(r.belgeTarihi).getTime()),
   ];
   const enEski = Math.min(...tumZamanlar);
@@ -2747,21 +2782,24 @@ function computeMusteriHaftalikOzet(musteri){
   const gunSayisi = Math.max(1, Math.round((enYeni - enEski) / 86400000) + 1);
   const haftaSayisi = Math.max(1, gunSayisi/7);
 
-  const toplamSiparis = siparisler.reduce((a,b)=>a+(b.tutar||0),0);
+  const toplamFatura = faturalar.reduce((a,b)=>a+(b.tutar||0),0);
+  const toplamLitre = faturalar.reduce((a,b)=>a+(b.litre||0),0);
   const toplamTahsilat = tahsilatlar.reduce((a,b)=>a+(b.tutar||0),0);
-  const haftalikSiparis = toplamSiparis / haftaSayisi;
+  const haftalikFatura = toplamFatura / haftaSayisi;
+  const haftalikLitre = toplamLitre / haftaSayisi;
   const haftalikTahsilat = toplamTahsilat / haftaSayisi;
-  const geriDonusGun = haftalikTahsilat > 0 ? (haftalikSiparis / haftalikTahsilat) * 7 : null;
-  return { gunSayisi, haftaSayisi, toplamSiparis, toplamTahsilat, haftalikSiparis, haftalikTahsilat, geriDonusGun };
+  const geriDonusGun = haftalikTahsilat > 0 ? (haftalikFatura / haftalikTahsilat) * 7 : null;
+  return { gunSayisi, haftaSayisi, toplamFatura, toplamLitre, toplamTahsilat, haftalikFatura, haftalikLitre, haftalikTahsilat, geriDonusGun };
 }
 
 function renderTrendHaftalikGrid(ozet){
   const el = document.getElementById('trendHaftalikGrid');
   if(!ozet){ el.innerHTML = ''; return; }
   const items = [
-    {label:'Haftalık Ortalama Sipariş', value:ozet.haftalikSiparis, sub:'sipariş/tahsilat tarihlerine göre '+ozet.gunSayisi.toLocaleString('tr-TR')+' günlük aralık', color:'var(--accent)'},
-    {label:'Haftalık Ortalama Tahsilat', value:ozet.haftalikTahsilat, sub:'sipariş/tahsilat tarihlerine göre '+ozet.gunSayisi.toLocaleString('tr-TR')+' günlük aralık', color:'var(--success)'},
-    {label:'Sipariş Tutarının Ort. Geri Dönüş Süresi', value:null, display: ozet.geriDonusGun!=null ? Math.round(ozet.geriDonusGun).toLocaleString('tr-TR')+' gün' : '—', sub:'haftalık tahsilat hızına göre', color:'var(--danger)'},
+    {label:'Haftalık Ortalama Fatura Tutarı', value:ozet.haftalikFatura, sub:'fatura/tahsilat tarihlerine göre '+ozet.gunSayisi.toLocaleString('tr-TR')+' günlük aralık', color:'var(--accent)'},
+    {label:'Haftalık Ortalama Tahsilat', value:ozet.haftalikTahsilat, sub:'fatura/tahsilat tarihlerine göre '+ozet.gunSayisi.toLocaleString('tr-TR')+' günlük aralık', color:'var(--success)'},
+    {label:'Haftalık Ortalama Fatura Litresi', value:null, display: ozet.haftalikLitre!=null ? Math.round(ozet.haftalikLitre).toLocaleString('tr-TR')+' Lt' : '—', sub:'fatura dökümündeki Toplam Litre kolonuna göre', color:'var(--navy)'},
+    {label:'Fatura Tutarının Ort. Geri Dönüş Süresi', value:null, display: ozet.geriDonusGun!=null ? Math.round(ozet.geriDonusGun).toLocaleString('tr-TR')+' gün' : '—', sub:'haftalık tahsilat hızına göre', color:'var(--danger)'},
   ];
   el.innerHTML = items.map(it=>`
     <div class="kpi" style="--kpi-color:${it.color}">
