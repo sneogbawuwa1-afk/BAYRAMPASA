@@ -179,6 +179,12 @@
   thead th.num,tbody td.num{text-align:right;}
   thead th .arrow{opacity:.4;font-size:10px;margin-left:3px;}
   tbody td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+  tfoot td{padding:10px 12px;vertical-align:middle;}
+  #yuklemeTable tbody tr:hover{background:var(--bg);}
+  #yuklemeTable tbody tr.yukleme-tanimsiz td{color:var(--ink-faint);font-style:italic;}
+  #yuklemeTable .col-ayrac{border-left:1.5px solid var(--line);}
+  #yuklemeTable .st-oran{font-weight:700;color:var(--accent-deep);font-family:'Space Grotesk';}
+  #yuklemeTable thead th.col-ayrac{border-left:1.5px solid var(--line);}
   tbody tr.data-row{cursor:pointer;transition:background .1s ease;}
   tbody tr.data-row:hover{background:var(--bg);}
   tbody tr.data-row.expanded{background:var(--accent-soft);}
@@ -365,6 +371,7 @@
     table{font-size:12px;}
     thead th{padding:8px 9px;font-size:10px;}
     tbody td{padding:9px 9px;}
+    tfoot td{padding:9px 9px;}
     .musteri-code{font-size:10.5px;}
     .risk-bar{width:70px;}
 
@@ -418,7 +425,7 @@
     <div class="dropzone" id="dropzone">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#5C6577" stroke-width="1.6"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <div class="dz-title">Excel dosyalarını buraya sürükleyin ya da tıklayıp seçin</div>
-      <div class="dz-sub">7 dosyayı aynı anda seçebilirsiniz — sistem her birini <b>otomatik tanır</b> (Kalemler, Sipariş, Tahsilat, Çek/Senet, Ticari Stok, Fatura Dökümü, Bayi Hak Ediş)</div>
+      <div class="dz-sub">9 dosyayı aynı anda seçebilirsiniz — sistem her birini <b>otomatik tanır</b> (Kalemler, Sipariş, Tahsilat, Çek/Senet, Ticari Stok, Fatura Dökümü, Bayi Hak Ediş, Yükleme Raporu, Müşteri Master)</div>
     </div>
     <input type="file" id="fileInput" accept=".xlsx,.xls" multiple />
 
@@ -443,7 +450,7 @@
         <div class="check-icon">3</div>
         <div>
           <div class="check-name">Tahsilat Dökümü</div>
-          <div class="check-desc">Müşteri Tahsilat belgelerini içeren döküm (Belge Tipi/Tahsilat Alan/Tutar veya Belge Tutarı/Çek-Senet Durumu/Müşt. Kodu kolonlu) — Çek/Senet ödemeleri her zaman hariç tutulur</div>
+          <div class="check-desc">Müşteri Tahsilat belgelerini içeren döküm (Belge Tipi/Tahsilat Alan/Tutar veya Belge Tutarı/Çek-Senet Durumu/Müşt. Kodu kolonlu) — Çek/Senet ödemeleri her zaman hariç tutulur. SST/Belge Tarihi/Ödeme Tipi/Banka kolonları varsa aynı zamanda ST Tahsilat/Litre raporu için de kullanılır</div>
           <div class="check-meta"></div>
         </div>
       </div>
@@ -479,6 +486,22 @@
           <div class="check-meta"></div>
         </div>
       </div>
+      <div class="check-item" data-type="yukleme">
+        <div class="check-icon">8</div>
+        <div>
+          <div class="check-name">Yükleme Raporu</div>
+          <div class="check-desc">Müşteri Numarası, Litre Total, Yükleme Tarihi kolonlarını içeren yükleme/sevkiyat dışa aktarımı — Tahsilat Dökümü ile birlikte "ST Tahsilat/Litre" raporunu oluşturur (opsiyonel)</div>
+          <div class="check-meta"></div>
+        </div>
+      </div>
+      <div class="check-item" data-type="musteriMaster">
+        <div class="check-icon">9</div>
+        <div>
+          <div class="check-name">Müşteri Master</div>
+          <div class="check-desc">Müşteri, Tabela Adı, Satış Temsilcisi Adı, Kredi limiti kolonlarını içeren müşteri ana veri dökümü — tüm raporlardaki müşteri→temsilci eşleşmesini bu dosya belirler (Satış Temsilcisi Adı boşsa otomatik "Key Account" yazılır). Opsiyonel ve her gün yüklenmesi gerekmez; en son yüklenen dosya buluta kaydedilip yeni biri yüklenene kadar kullanılmaya devam eder</div>
+          <div class="check-meta"></div>
+        </div>
+      </div>
     </div>
 
     <div class="upload-error" id="uploadError"></div>
@@ -501,7 +524,7 @@
     <div class="tabbar no-print" id="tabBar">
       <button class="tab-btn active" data-view="genel" type="button">📊 Genel Rapor</button>
       <button class="tab-btn" data-view="sevk" type="button">🚚 Sevk Raporu</button>
-      <button class="tab-btn" data-view="yukleme" type="button">📦 Yükleme Raporu</button>
+      <button class="tab-btn" data-view="yukleme" type="button">📦 ST Tahsilat/Litre</button>
       <button class="tab-btn" data-view="yaslandirma" type="button">⏱️ Yaşlandırma Raporu</button>
       <button class="tab-btn" data-view="ticariStok" type="button">🛢️ Ticari Stok Raporu</button>
       <button class="tab-btn" data-view="faturaKontrol" type="button">🧾 Fatura Kontrol</button>
@@ -688,41 +711,9 @@
 
     <div id="yuklemeView" style="display:none;">
 
-      <div class="panel print-section" id="yuklemeUploadPanel">
-        <div class="panel-head"><h2>Yükleme Raporu — Veri Yükle</h2></div>
-        <div class="panel-body">
-          <div class="check-meta" style="font-size:11.5px;margin-bottom:14px;">ℹ️ Litre'lerin doğru temsilciye yazılabilmesi için önce "Genel Rapor" sekmesinde Kalemler/Sipariş dosyaları yüklenmiş olmalı (müşteri→temsilci eşleşmesi oradan alınır). O rapor yoksa yalnızca tahsilat dökümündeki müşteriler eşleştirilebilir, geri kalanı "Tanımsız" altında toplanır.</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
-            <div class="check-item" id="yuklemeTahsilatCheck" data-type="yuklemeTahsilat" style="cursor:pointer;">
-              <div class="check-icon">1</div>
-              <div>
-                <div class="check-name">Tahsilat Raporu</div>
-                <div class="check-desc">SST, Belge Tarihi, Ödeme Tipi, Banka, Belge Tutarı, Müşt. Kodu kolonlarını içeren tahsilat dışa aktarımı</div>
-                <div class="check-meta" id="yuklemeTahsilatMeta"></div>
-              </div>
-            </div>
-            <div class="check-item" id="yuklemeYuklemeCheck" data-type="yuklemeYukleme" style="cursor:pointer;">
-              <div class="check-icon">2</div>
-              <div>
-                <div class="check-name">Yükleme Raporu</div>
-                <div class="check-desc">Müşteri Numarası, Litre Total, Yükleme Tarihi kolonlarını içeren yükleme/sevkiyat dışa aktarımı</div>
-                <div class="check-meta" id="yuklemeYuklemeMeta"></div>
-              </div>
-            </div>
-          </div>
-          <input type="file" id="yuklemeTahsilatFile" accept=".xlsx,.xls" style="display:none;" />
-          <input type="file" id="yuklemeYuklemeFile" accept=".xlsx,.xls" style="display:none;" />
-          <div class="upload-error" id="yuklemeUploadError"></div>
-          <div style="margin-top:18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <button class="btn primary" id="yuklemeBuildBtn" disabled>Raporu Oluştur</button>
-            <span class="pill" id="yuklemeStatusPill">Dosya bekleniyor</span>
-          </div>
-        </div>
-      </div>
-
       <div class="panel print-section" id="yuklemePanel" style="display:none;">
         <div class="panel-head">
-          <div><h2 id="yuklemeTitle">Yükleme &amp; Tahsilat Raporu</h2><span class="count" id="yuklemeSubTitle"></span></div>
+          <div><h2 id="yuklemeTitle">ST Tahsilat/Litre</h2><span class="count" id="yuklemeSubTitle"></span></div>
           <div class="toolbar">
             <select class="filter-select" id="yuklemeTarihSelect"></select>
             <button class="btn small" id="yuklemeYenileBtn" type="button">🔄 Arşivi Yenile</button>
@@ -736,9 +727,18 @@
               <tfoot id="yuklemeTfoot"></tfoot>
             </table>
           </div>
+          <div class="legend no-print" style="padding:10px 20px 0;">
+            <span>Sol taraftaki sütunlar ödeme tipine göre tahsilat kırılımı, <b>Genel Toplam</b>'dan sonraki sütunlar ise sevkiyat (litre) ve birim litre başına tahsilat özetidir. <i>Tanımsız</i> satırı, tahsilat dökümünde eşleşen müşterisi bulunamayan litreleri gösterir.</span>
+          </div>
         </div>
         <div class="panel-body" style="padding-top:0;">
           <div class="check-meta" id="yuklemeArsivBilgi" style="font-size:11.5px;"></div>
+        </div>
+      </div>
+
+      <div class="panel print-section" id="yuklemeBosPanel">
+        <div class="panel-body">
+          <div class="empty-state" id="yuklemeBosMesaj">ST Tahsilat/Litre raporu için ana yükleme sayfasında hem "Tahsilat Dökümü" hem de "Yükleme Raporu" dosyalarını yükleyip "Raporu Oluştur"a basmanız gerekir.</div>
         </div>
       </div>
 
@@ -966,7 +966,7 @@
 <script>
 /* ============================== STATE ============================== */
 const state = {
-  files: { kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null, bayiHakedis:null },
+  files: { kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null, bayiHakedis:null, yukleme:null, musteriMaster:null },
   report: null,
   sort: { key:'kalanBorc', dir:-1 },
   sevkSort: { key:'toplamRisk', dir:-1 },
@@ -975,10 +975,10 @@ const state = {
   tSort: { key:'depodaKalanLt', dir:-1 },
   expanded: new Set(),
   faturaArsivCache: {}, // Fatura Kontrol / Trend Analizi arşivi — yalnızca bulutta saklanır, bu bellek-içi kopya son çekilen hâlidir
-  yuklemeFiles: { yuklemeTahsilat:null, yuklemeYukleme:null }, // Yükleme Raporu için ayrı yüklenen 2 dosya
-  yuklemeReport: null,   // en son oluşturulan Yükleme Raporu (bellek içi)
-  yuklemeArsivCache: {}, // gün->rapor şeklinde buluttaki Yükleme Raporu arşivinin bellek-içi kopyası
+  yuklemeReport: null,   // en son oluşturulan ST Tahsilat/Litre raporu (bellek içi)
+  yuklemeArsivCache: {}, // gün->rapor şeklinde buluttaki ST Tahsilat/Litre arşivinin bellek-içi kopyası
   yuklemeSeciliGun: null, // arşivde görüntülenmekte olan gün (null ise en son oluşturulan/canlı rapor)
+  musteriMasterMap: new Map(), // musteri kodu -> temsilci (en son yüklenen Müşteri Master'dan; gün bazlı değil, kalıcı tek kayıt)
 };
 
 /* ============================== KALICI SAKLAMA (localStorage) ============================== */
@@ -1210,6 +1210,84 @@ async function loadReportFromCloud(){
   }
 }
 
+// ============================== MÜŞTERİ MASTER (kalıcı, gün bazlı DEĞİL, tek kayıt) ==============================
+// Diğer tüm dosyaların aksine Müşteri Master her gün yeniden yüklenmesi gereken bir dosya değildir:
+// yalnızca en son yüklenen sürüm tek bir kayıt olarak buluta/cihaza yazılır; yeni bir Müşteri Master
+// yüklenip "Raporu Oluştur"a basılana kadar önceki hâli kullanılmaya devam eder. Yeniden yüklenirse
+// eskisinin üzerine yazılır (geçmiş gün arşivi tutulmaz — Fatura Kontrol/Yükleme Raporu arşivlerinden
+// farklı olarak burada "gün gün biriktirme" YOKTUR, sadece "en güncel" saklanır).
+const MUSTERI_MASTER_CLOUD_PATH = CLOUD.path + '_musteriMaster';
+const MUSTERI_MASTER_LOCAL_KEY = 'noktaCariTakip_musteriMaster_v1';
+
+// Müşteri Master ham satırlarından musteri kodu -> temsilci haritası çıkarır. Satış Temsilcisi Adı
+// boşsa (bu dosyada temsilcisi görünmeyen müşteriler genelde Key Account kanalından yönetiliyor)
+// otomatik olarak "Key Account" yazılır.
+function buildMusteriMasterMap(rows){
+  const map = new Map();
+  (rows||[]).forEach(r=>{
+    const musteri = String(r['Müşteri']||'').trim();
+    if(!musteri) return;
+    let temsilci = String(r['Satış Temsilcisi Adı']||'').trim();
+    if(!temsilci) temsilci = 'Key Account';
+    map.set(musteri, temsilci);
+  });
+  return map;
+}
+function musteriMasterMapToObj(map){ const o={}; map.forEach((v,k)=>{ o[k]=v; }); return o; }
+function musteriMasterObjToMap(obj){ return new Map(Object.entries(obj||{})); }
+
+async function saveMusteriMasterToCloud(obj){
+  if(!cloudEnabled()) return {ok:false, reason:'not-configured'};
+  try{
+    const res = await fetch(`${CLOUD.dbUrl.replace(/\/$/,'')}/${MUSTERI_MASTER_CLOUD_PATH}.json`, {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(obj),
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    return {ok:true};
+  }catch(err){ console.error('Müşteri Master buluta kaydedilemedi:', err); return {ok:false, reason:err.message}; }
+}
+async function loadMusteriMasterFromCloud(){
+  if(!cloudEnabled()) return null;
+  try{
+    const res = await fetch(`${CLOUD.dbUrl.replace(/\/$/,'')}/${MUSTERI_MASTER_CLOUD_PATH}.json`);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const text = await res.text();
+    if(!text || text==='null') return null;
+    return JSON.parse(text);
+  }catch(err){ console.error('Müşteri Master buluttan okunamadı:', err); return null; }
+}
+function saveMusteriMasterToLocal(obj){
+  try{ localStorage.setItem(MUSTERI_MASTER_LOCAL_KEY, JSON.stringify(obj)); }catch(err){ console.error(err); }
+}
+function loadMusteriMasterFromLocal(){
+  try{
+    const json = localStorage.getItem(MUSTERI_MASTER_LOCAL_KEY);
+    return json ? JSON.parse(json) : null;
+  }catch(err){ console.error(err); return null; }
+}
+
+// Sayfa açılışında (veya "Diğer Cihazdan Güncelle"de) çağrılır: buluttaki (yoksa cihazdaki) en son
+// kaydedilmiş Müşteri Master'ı çeker. Bu oturumda yeni bir Müşteri Master yüklenmese bile, önceki
+// yüklemeden kalan eşleşme haritası bu şekilde kullanılabilir hâle gelir.
+async function musteriMasterYenile(){
+  let obj = null;
+  if(cloudEnabled()) obj = await loadMusteriMasterFromCloud();
+  if(!obj) obj = loadMusteriMasterFromLocal();
+  state.musteriMasterMap = musteriMasterObjToMap(obj);
+  return state.musteriMasterMap;
+}
+
+// Yeni bir Müşteri Master dosyası yüklenip "Raporu Oluştur"a basıldığında çağrılır: haritayı belleğe
+// alır, ardından buluta ve cihaza (eskisinin üzerine yazarak) kaydeder.
+async function musteriMasterKaydet(rows){
+  const map = buildMusteriMasterMap(rows);
+  state.musteriMasterMap = map;
+  const obj = musteriMasterMapToObj(map);
+  saveMusteriMasterToLocal(obj);
+  if(cloudEnabled()) await saveMusteriMasterToCloud(obj);
+  return map;
+}
+
 // Fatura Kontrol arşivi, ana rapordan ayrı bir bulut kaydında tutulur (raporun her seferinde
 // tamamen değiştirilmesinden etkilenmemesi için). Gün bazlı olduğundan ve birden fazla cihazdan
 // büyüyebileceğinden, her yazmadan önce buluttaki mevcut arşivle YEREL arşiv BİRLEŞTİRİLİR
@@ -1305,8 +1383,10 @@ const SIGNATURES = {
   ticariStok: [['Depoda Kalan Mk.','Depoda Kalan Lt.','Malzeme Kodu']],
   fatura: [['Ödenecek Tutar','Toplam Litre','Fatura Numarası']],
   bayiHakedis: [['Bayi Tutar','Efes Payı %','Müşteri Alacak Dekont No']],
+  yukleme: [['Müşteri Numarası','Litre Total','Yükleme Tarihi']],
+  musteriMaster: [['Müşteri','Tabela Adı','Kredi limiti']],
 };
-const LABELS = { kalemler:'Kalemler (Fatura / Bakiye)', siparis:'Sipariş Dökümü', tahsilat:'Tahsilat Dökümü', cekSenet:'Çek / Senet Riski', ticariStok:'Ticari Stok', fatura:'Fatura Dökümü', bayiHakedis:'Bayi Hak Ediş' };
+const LABELS = { kalemler:'Kalemler (Fatura / Bakiye)', siparis:'Sipariş Dökümü', tahsilat:'Tahsilat Dökümü', cekSenet:'Çek / Senet Riski', ticariStok:'Ticari Stok', fatura:'Fatura Dökümü', bayiHakedis:'Bayi Hak Ediş', yukleme:'Yükleme Raporu', musteriMaster:'Müşteri Master' };
 
 function detectType(headers){
   const set = new Set(headers.map(h=>String(h||'').trim()));
@@ -1443,7 +1523,15 @@ function updateChecklist(){
 
 buildBtn.addEventListener('click', ()=>{
   try{
-    state.report = buildReport(state.files);
+    // Müşteri Master bu oturumda yüklendiyse onu kullan; yüklenmediyse önceki bir yüklemeden kalan
+    // (sayfa açılışında buluttan/cihazdan çekilmiş) haritayı kullanmaya devam et.
+    let musteriMasterMapKullanilacak = state.musteriMasterMap;
+    if(state.files.musteriMaster){
+      musteriMasterMapKullanilacak = buildMusteriMasterMap(state.files.musteriMaster.data);
+      state.musteriMasterMap = musteriMasterMapKullanilacak;
+      musteriMasterKaydet(state.files.musteriMaster.data); // buluta/cihaza kalıcı olarak (eskisinin üzerine) kaydet
+    }
+    state.report = buildReport(state.files, musteriMasterMapKullanilacak);
     renderReport(state.report);
     document.getElementById('uploadCard').style.display='none';
     document.getElementById('reportSection').style.display='block';
@@ -1451,6 +1539,7 @@ buildBtn.addEventListener('click', ()=>{
     printBtn.style.display='inline-block';
     const saved = saveReportToStorage(state.report);
     faturaKontrolArsivineKaydetVeSenkronizeEt(state.report);
+    yuklemeRaporuOlusturVeArsivle();
     document.getElementById('storageNote').style.display = saved ? 'block' : 'none';
     if(saved){
       statusPill.textContent = 'Rapor oluşturuldu ve cihaza kaydedildi';
@@ -1483,6 +1572,7 @@ syncBtn.addEventListener('click', async ()=>{
   syncBtn.textContent = '🔄 Güncelleniyor…';
   const cloudReport = await loadReportFromCloud();
   await faturaArsivYenile();
+  await musteriMasterYenile();
   if(document.getElementById('faturaKontrolArsivBilgi')) renderFaturaKontrolArsivBilgi();
   syncBtn.disabled = false;
   syncBtn.textContent = prevText;
@@ -1500,11 +1590,15 @@ syncBtn.addEventListener('click', async ()=>{
 });
 
 function resetAll(){
-  state.files = {kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null, bayiHakedis:null};
+  state.files = {kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null, bayiHakedis:null, yukleme:null, musteriMaster:null};
   state.report = null;
   state.expanded.clear();
+  state.yuklemeReport = null;
+  state.yuklemeSeciliGun = null;
+  // NOT: state.musteriMasterMap kasıtlı olarak sıfırlanmıyor — Müşteri Master kalıcıdır, "Yeni veri
+  // yükle" ile başlatılan yeni bir oturumda da (yeniden yüklenmediği sürece) kullanılmaya devam eder.
   clearStoredReport();
-  const ICON_NUMS = {kalemler:'1', siparis:'2', tahsilat:'3', cekSenet:'4', ticariStok:'5', fatura:'6', bayiHakedis:'7'};
+  const ICON_NUMS = {kalemler:'1', siparis:'2', tahsilat:'3', cekSenet:'4', ticariStok:'5', fatura:'6', bayiHakedis:'7', yukleme:'8', musteriMaster:'9'};
   document.querySelectorAll('.check-item').forEach(el=>{
     el.classList.remove('done');
     el.querySelector('.check-icon').textContent = ICON_NUMS[el.getAttribute('data-type')] || '';
@@ -1531,6 +1625,7 @@ function resetAll(){
   if(genelTab) genelTab.classList.add('active');
   document.getElementById('genelView').style.display='block';
   document.getElementById('sevkView').style.display='none';
+  document.getElementById('yuklemeView').style.display='none';
   document.getElementById('yaslandirmaView').style.display='none';
   document.getElementById('ticariStokView').style.display='none';
   document.getElementById('faturaKontrolView').style.display='none';
@@ -1551,6 +1646,8 @@ document.addEventListener('visibilitychange', ()=>{
 /* ============================== SAYFA AÇILIŞINDA KAYITLI VERİYİ YÜKLE ============================== */
 window.addEventListener('DOMContentLoaded', async ()=>{
   let report = null, source = null;
+
+  await musteriMasterYenile(); // buluttan/cihazdan en son yüklenmiş Müşteri Master'ı çek
 
   if(cloudEnabled()){
     statusPill.textContent = 'Bulut verisi kontrol ediliyor…';
@@ -1592,7 +1689,8 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 });
 
 /* ============================== REPORT BUILDING ============================== */
-function buildReport(files){
+function buildReport(files, musteriMasterMap){
+  musteriMasterMap = musteriMasterMap || new Map();
   const today = turkiyeBugun();
 
   // ---- 1) KALEMLER: invoice-level debt rows ----
@@ -1776,7 +1874,10 @@ function buildReport(files){
 
     m.toplamRisk = m.kalanBorc + m.siparisTutari + m.cekSenet;
     const sp = siparisMusterileri.get(musteri);
-    m.temsilci = m.temsilciFromKalemler || (sp && sp.temsilci) || '—';
+    // Müşteri Master yüklenmişse (veya buluttan daha önce yüklenmiş bir kopyası varsa), müşteri->temsilci
+    // eşleşmesinde HER ZAMAN en yüksek önceliğe sahiptir; bulunamazsa Kalemler/Sipariş'ten gelen eski
+    // eşleşme mantığına geri düşülür.
+    m.temsilci = musteriMasterMap.get(musteri) || m.temsilciFromKalemler || (sp && sp.temsilci) || '—';
     m.invoices.sort((a,b)=> (b.faturaTarihi||0) - (a.faturaTarihi||0));
   });
 
@@ -1787,7 +1888,7 @@ function buildReport(files){
     if(musteriMap.has(musteri)) return;
     const sp = siparisMusterileri.get(musteri) || {};
     bakiyesiz.push({
-      musteri, musteriAdi: sp.musteriAdi || musteri, temsilci: sp.temsilci || '—',
+      musteri, musteriAdi: sp.musteriAdi || musteri, temsilci: musteriMasterMap.get(musteri) || sp.temsilci || '—',
       siparisTutari: siparisNormalMap.get(musteri)||0, emanetSiparis: emanetSiparisMap.get(musteri)||0,
     });
   });
@@ -3150,7 +3251,7 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
   const tahsilatParsed = tahsilatRows.map(r=>({
     sst: (r['SST']||'Tanımsız').toString().trim() || 'Tanımsız',
     musteriKodu: yuklemeKod(r['Müşt. Kodu']),
-    belgeTarihi: excelDateToJS(r['Belge Tarihi']),
+    belgeTarihi: excelDateToJSArti1Gun(r['Belge Tarihi']),
     odemeTipi: r['Ödeme Tipi'],
     banka: r['Banka'],
     tutar: Math.abs(yuklemeNumber(r['Belge Tutarı'])),
@@ -3168,12 +3269,26 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
   // raporundaki müşterilerin büyük kısmını eşleştirmeye yetmez. Ana rapor yoksa veya bir müşteri onda
   // bulunamıyorsa, tahsilat dökümünün kendi Müşt. Kodu/SST eşleşmesi tamamlayıcı (fallback) olarak kullanılır.
   const musteriTemsilciHaritasi = new Map();
+  // 1. öncelik: Müşteri Master (yüklenmişse veya buluttan daha önce yüklenmiş bir kopyası varsa) — tüm
+  // raporlarda olduğu gibi burada da en yüksek önceliğe sahiptir.
+  (state.musteriMasterMap||new Map()).forEach((temsilci, kod)=>{
+    if(kod && temsilci) musteriTemsilciHaritasi.set(kod, temsilci);
+  });
+  // 2. öncelik: ana rapordaki (Kalemler/Sipariş yüklemesinden gelen) müşteri->temsilci eşleşmesi.
   if(state.report && Array.isArray(state.report.musteriler)){
     state.report.musteriler.forEach(m=>{
       const kod = yuklemeKod(m.musteri);
-      if(kod && m.temsilci && m.temsilci !== '—') musteriTemsilciHaritasi.set(kod, m.temsilci);
+      if(kod && m.temsilci && m.temsilci !== '—' && !musteriTemsilciHaritasi.has(kod)) musteriTemsilciHaritasi.set(kod, m.temsilci);
     });
   }
+  // 3. öncelik: siparişi olan ama Kalemler'de kaydı olmayan (bakiyesiz) müşteriler.
+  if(state.report && Array.isArray(state.report.bakiyesiz)){
+    state.report.bakiyesiz.forEach(b=>{
+      const kod = yuklemeKod(b.musteri);
+      if(kod && b.temsilci && b.temsilci !== '—' && !musteriTemsilciHaritasi.has(kod)) musteriTemsilciHaritasi.set(kod, b.temsilci);
+    });
+  }
+  // 4. öncelik (son çare): tahsilat dökümünün kendi SST kolonu.
   tahsilatParsed.forEach(r=>{ if(r.musteriKodu && !musteriTemsilciHaritasi.has(r.musteriKodu)) musteriTemsilciHaritasi.set(r.musteriKodu, r.sst); });
 
   // 2) Yükleme: en güncel Yükleme Tarihi'ni bul, o güne ait satırları filtrele, Müşteri Numarası
@@ -3181,7 +3296,7 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
   const yuklemeParsed = yuklemeRows.map(r=>({
     musteriNo: yuklemeKod(r['Müşteri Numarası']),
     litre: yuklemeNumber(r['Litre Total']),
-    yuklemeTarihi: excelDateToJS(r['Yükleme Tarihi']),
+    yuklemeTarihi: excelDateToJSArti1Gun(r['Yükleme Tarihi']),
   })).filter(r=> r.yuklemeTarihi);
   if(!yuklemeParsed.length) throw new Error('Yükleme Raporu\'nda geçerli bir Yükleme Tarihi bulunamadı.');
 
@@ -3254,31 +3369,37 @@ function renderYuklemeTable(report){
   const tbody = document.getElementById('yuklemeTbody');
   const tfoot = document.getElementById('yuklemeTfoot');
   const sevkiyatBaslik = fmtDate(report.yuklemeTarihi) + ' SEVKİYAT';
+  const kolonlar = report.kolonlar || [];
 
   theadRow.innerHTML = `<th>Satır Etiketleri</th>` +
-    report.kolonlar.map(k=>`<th class="num">${escapeHtml(k)}</th>`).join('') +
-    `<th class="num">Genel Toplam</th><th class="num">${escapeHtml(sevkiyatBaslik)}</th><th class="num">ST Tahsilat/Litre</th>`;
+    kolonlar.map(k=>`<th class="num">${escapeHtml(k)}</th>`).join('') +
+    `<th class="num col-ayrac">Genel Toplam</th><th class="num">${escapeHtml(sevkiyatBaslik)}</th><th class="num" title="Genel Toplam ÷ Litre — bir litre satışın ortalama kaç TL tahsilata dönüştüğünü gösterir">ST Tahsilat/Litre</th>`;
 
-  tbody.innerHTML = report.temsilciler.map(r=>`<tr>
-    <td>${escapeHtml(r.temsilci)}</td>
-    ${report.kolonlar.map(k=> `<td class="num">${r.kolonlar[k] ? YUKLEME_TL2(r.kolonlar[k]) : '<span class="zero">—</span>'}</td>`).join('')}
-    <td class="num"><b>${YUKLEME_TL2(r.genelToplam)}</b></td>
-    <td class="num">${r.litre ? YUKLEME_LT2(r.litre) : '<span class="zero">—</span>'}</td>
-    <td class="num">${r.stTahsilatLitre!=null ? YUKLEME_TL2(r.stTahsilatLitre) : '<span class="zero">—</span>'}</td>
-  </tr>`).join('');
+  tbody.innerHTML = (report.temsilciler||[]).map(r=>{
+    const rKolonlar = r.kolonlar || {}; // eski/eksik arşiv kayıtlarında bu alan bulunmayabilir
+    const tanimsizMi = String(r.temsilci||'').trim().toLocaleLowerCase('tr-TR') === 'tanımsız';
+    return `<tr class="${tanimsizMi?'yukleme-tanimsiz':''}">
+    <td>${escapeHtml(r.temsilci)}${tanimsizMi ? ' <span title="Bu litre miktarı, tahsilat dökümünde eşleşecek bir müşteri/temsilci bulunamadığı için hiçbir temsilciye yazılamadı">ⓘ</span>' : ''}</td>
+    ${kolonlar.map(k=> `<td class="num">${rKolonlar[k] ? YUKLEME_TL2(rKolonlar[k]) : '<span class="zero">—</span>'}</td>`).join('')}
+    <td class="num col-ayrac"><b>${YUKLEME_TL2(r.genelToplam)}</b></td>
+    <td class="num">${r.litre ? YUKLEME_LT2(r.litre) + ' Lt' : '<span class="zero">—</span>'}</td>
+    <td class="num st-oran">${r.stTahsilatLitre!=null ? YUKLEME_TL2(r.stTahsilatLitre) : '<span class="zero">—</span>'}</td>
+  </tr>`;
+  }).join('');
 
-  const g = report.genelToplamSatiri;
-  tfoot.innerHTML = `<tr style="font-weight:700;background:var(--bg);">
+  const g = report.genelToplamSatiri || {};
+  const gKolonlar = g.kolonlar || {};
+  tfoot.innerHTML = `<tr class="totals-row">
     <td>Genel Toplam</td>
-    ${report.kolonlar.map(k=> `<td class="num">${YUKLEME_TL2(g.kolonlar[k]||0)}</td>`).join('')}
-    <td class="num">${YUKLEME_TL2(g.genelToplam)}</td>
-    <td class="num">${YUKLEME_LT2(g.litre)}</td>
-    <td class="num">${g.stTahsilatLitre!=null ? YUKLEME_TL2(g.stTahsilatLitre) : '—'}</td>
+    ${kolonlar.map(k=> `<td class="num">${YUKLEME_TL2(gKolonlar[k]||0)}</td>`).join('')}
+    <td class="num col-ayrac">${YUKLEME_TL2(g.genelToplam)}</td>
+    <td class="num">${YUKLEME_LT2(g.litre)} Lt</td>
+    <td class="num st-oran">${g.stTahsilatLitre!=null ? YUKLEME_TL2(g.stTahsilatLitre) : '—'}</td>
   </tr>`;
 
   document.getElementById('yuklemePanel').style.display = 'block';
-  document.getElementById('yuklemeTitle').textContent = 'Yükleme & Tahsilat Raporu — ' + sevkiyatBaslik;
-  document.getElementById('yuklemeSubTitle').textContent = 'Tahsilat tarihi: ' + fmtDate(report.tahsilatTarihi) + ' · ' + report.temsilciler.length.toLocaleString('tr-TR') + ' temsilci';
+  document.getElementById('yuklemeTitle').textContent = 'ST Tahsilat/Litre — ' + sevkiyatBaslik;
+  document.getElementById('yuklemeSubTitle').textContent = 'Tahsilat tarihi: ' + fmtDate(report.tahsilatTarihi) + ' · ' + (report.temsilciler||[]).length.toLocaleString('tr-TR') + ' temsilci';
 }
 
 /* ---- Buluta arşivleme (gün bazlı, Fatura Kontrol arşivi ile aynı desende) ---- */
@@ -3379,26 +3500,78 @@ function renderYuklemeArsivBilgi(){
     return;
   }
   el.textContent = gunSayisi
-    ? `☁️ Arşivde ${gunSayisi.toLocaleString('tr-TR')} günün Yükleme Raporu kaydı var. Tarih seçiciden geçmişe dönük görüntüleyebilirsiniz.`
-    : 'Buluttaki Yükleme Raporu arşivinde henüz veri yok. "Raporu Oluştur" ile ilk raporu oluşturduğunuzda o günün verisi buluta eklenir. ☁️';
+    ? `☁️ Arşivde ${gunSayisi.toLocaleString('tr-TR')} günün ST Tahsilat/Litre kaydı var. Tarih seçiciden geçmişe dönük görüntüleyebilirsiniz.`
+    : 'Buluttaki ST Tahsilat/Litre arşivinde henüz veri yok. Ana yükleme sayfasında "Tahsilat Dökümü" ve "Yükleme Raporu" dosyalarını yükleyip "Raporu Oluştur"a bastığınızda o günün verisi buluta eklenir. ☁️';
+}
+
+// Ana "Raporu Oluştur" akışının bir parçası olarak çağrılır: hem Tahsilat Dökümü hem de Yükleme
+// Raporu dosyaları yüklenmişse ST Tahsilat/Litre raporunu hesaplayıp gün bazlı arşive kaydeder.
+// İkisinden biri eksikse rapor oluşturulmaz (sekmede "gerekli dosyalar eksik" mesajı gösterilir).
+async function yuklemeRaporuOlusturVeArsivle(){
+  const tahsilatDosya = state.files.tahsilat;
+  const yuklemeDosya = state.files.yukleme;
+  state.yuklemeRaporuHata = null;
+  if(!tahsilatDosya || !yuklemeDosya){
+    state.yuklemeReport = null;
+    if(document.getElementById('yuklemeView').style.display !== 'none') renderYuklemeView();
+    return;
+  }
+  try{
+    const report = buildYuklemeRaporu(tahsilatDosya.data, yuklemeDosya.data);
+    state.yuklemeReport = report;
+    state.yuklemeSeciliGun = dateKeyLocal(report.yuklemeTarihi);
+    await yuklemeRaporuArsivineKaydet(report);
+  }catch(err){
+    console.error('ST Tahsilat/Litre raporu oluşturulamadı:', err);
+    state.yuklemeReport = null;
+    state.yuklemeRaporuHata = err.message;
+  }
+  if(document.getElementById('yuklemeView').style.display !== 'none') renderYuklemeView();
 }
 
 // Sekmeye her girişte (veya arşiv yenilendiğinde) çağrılır: arşivi çeker, tarih seçiciyi doldurur,
-// seçili güne (veya en son oluşturulan canlı rapora) ait tabloyu gösterir.
+// seçili güne (veya en son oluşturulan canlı rapora) ait tabloyu gösterir. Gerekli dosyalar hiç
+// yüklenmemişse (veya rapor hesaplanamadıysa) ve arşivde de veri yoksa "veri eksik" mesajı gösterilir.
 async function renderYuklemeView(){
-  document.getElementById('yuklemeStatusPill').textContent = cloudEnabled() ? 'Arşiv buluttan kontrol ediliyor…' : 'Arşiv cihazdan kontrol ediliyor…';
-  await yuklemeArsivYenile();
-  populateYuklemeTarihSelect();
-  renderYuklemeArsivBilgi();
-  updateYuklemeBuildBtnDurumu();
+  const bosPanel = document.getElementById('yuklemeBosPanel');
+  const bosMesaj = document.getElementById('yuklemeBosMesaj');
+  const panel = document.getElementById('yuklemePanel');
+  try{
+    await yuklemeArsivYenile();
+    populateYuklemeTarihSelect();
+    renderYuklemeArsivBilgi();
 
-  const sel = document.getElementById('yuklemeTarihSelect');
-  if(state.yuklemeReport && (!sel.value || !state.yuklemeSeciliGun)){
-    renderYuklemeTable(state.yuklemeReport);
-  } else if(sel.value && state.yuklemeArsivCache[sel.value]){
-    renderYuklemeTable(state.yuklemeArsivCache[sel.value]);
-  } else if(state.yuklemeReport){
-    renderYuklemeTable(state.yuklemeReport);
+    const gunler = Object.keys(state.yuklemeArsivCache||{});
+    const gosterilecekVarMi = Boolean(state.yuklemeReport) || gunler.length > 0;
+
+    if(!gosterilecekVarMi){
+      panel.style.display = 'none';
+      bosPanel.style.display = 'block';
+      bosMesaj.textContent = state.yuklemeRaporuHata
+        ? ('ST Tahsilat/Litre raporu oluşturulamadı: ' + state.yuklemeRaporuHata)
+        : 'ST Tahsilat/Litre raporu için ana yükleme sayfasında hem "Tahsilat Dökümü" hem de "Yükleme Raporu" dosyalarını yükleyip "Raporu Oluştur"a basmanız gerekir.';
+      return;
+    }
+
+    const sel = document.getElementById('yuklemeTarihSelect');
+    let gosterilecekRapor = null;
+    if(state.yuklemeReport && (!sel.value || !state.yuklemeSeciliGun)) gosterilecekRapor = state.yuklemeReport;
+    else if(sel.value && state.yuklemeArsivCache[sel.value]) gosterilecekRapor = state.yuklemeArsivCache[sel.value];
+    else if(state.yuklemeReport) gosterilecekRapor = state.yuklemeReport;
+
+    if(gosterilecekRapor){
+      renderYuklemeTable(gosterilecekRapor);
+      bosPanel.style.display = 'none';
+    }else{
+      panel.style.display = 'none';
+      bosPanel.style.display = 'block';
+      bosMesaj.textContent = 'ST Tahsilat/Litre raporu için ana yükleme sayfasında hem "Tahsilat Dökümü" hem de "Yükleme Raporu" dosyalarını yükleyip "Raporu Oluştur"a basmanız gerekir.';
+    }
+  }catch(err){
+    console.error('ST Tahsilat/Litre görünümü oluşturulamadı:', err);
+    panel.style.display = 'none';
+    bosPanel.style.display = 'block';
+    bosMesaj.textContent = 'ST Tahsilat/Litre raporu gösterilirken bir hata oluştu: ' + err.message;
   }
 }
 
@@ -3408,80 +3581,6 @@ document.getElementById('yuklemeTarihSelect').addEventListener('change', (e)=>{
   if(rapor) renderYuklemeTable(rapor);
 });
 document.getElementById('yuklemeYenileBtn').addEventListener('click', renderYuklemeView);
-
-/* ---- Dosya yükleme UI (bu sekmeye özel, ana yükleyiciden bağımsız 2 dosya) ---- */
-function updateYuklemeBuildBtnDurumu(){
-  const t = state.yuklemeFiles.yuklemeTahsilat;
-  const y = state.yuklemeFiles.yuklemeYukleme;
-  document.getElementById('yuklemeBuildBtn').disabled = !(t && y);
-  document.getElementById('yuklemeStatusPill').textContent = (t && y) ? '2/2 dosya hazır' : ((t||y) ? '1/2 dosya yüklendi' : 'Dosya bekleniyor');
-  if(t && y) document.getElementById('yuklemeStatusPill').classList.add('ok'); else document.getElementById('yuklemeStatusPill').classList.remove('ok');
-}
-function showYuklemeError(msg){
-  const el = document.getElementById('yuklemeUploadError');
-  el.textContent = msg; el.style.display = 'block';
-}
-function clearYuklemeError(){
-  const el = document.getElementById('yuklemeUploadError');
-  el.style.display='none'; el.textContent='';
-}
-document.getElementById('yuklemeTahsilatCheck').addEventListener('click', ()=> document.getElementById('yuklemeTahsilatFile').click());
-document.getElementById('yuklemeYuklemeCheck').addEventListener('click', ()=> document.getElementById('yuklemeYuklemeFile').click());
-
-function yuklemeDosyaYukle(file, type, requiredCols, itemElId, metaElId){
-  clearYuklemeError();
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    try{
-      const wb = XLSX.read(ev.target.result, {type:'array', cellDates:true});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const {headers, data} = sheetToObjects(ws);
-      const set = new Set(headers.map(h=>String(h||'').trim()));
-      const eksik = requiredCols.filter(c=>!set.has(c));
-      if(eksik.length){
-        showYuklemeError(`"${file.name}" dosyasında beklenen kolonlar bulunamadı: ${eksik.join(', ')}. Doğru dosyayı seçtiğinizden emin olun.`);
-        return;
-      }
-      state.yuklemeFiles[type] = {name:file.name, headers, data};
-      const item = document.getElementById(itemElId);
-      item.classList.add('done');
-      item.querySelector('.check-icon').textContent = '✓';
-      document.getElementById(metaElId).textContent = file.name + ' · ' + data.length.toLocaleString('tr-TR') + ' satır';
-      updateYuklemeBuildBtnDurumu();
-    }catch(err){
-      showYuklemeError('Dosya okunamadı: ' + file.name + ' — ' + err.message);
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
-document.getElementById('yuklemeTahsilatFile').addEventListener('change', e=>{
-  const file = e.target.files[0]; if(!file) return;
-  yuklemeDosyaYukle(file, 'yuklemeTahsilat', ['SST','Belge Tarihi','Ödeme Tipi','Belge Tutarı','Müşt. Kodu'], 'yuklemeTahsilatCheck', 'yuklemeTahsilatMeta');
-});
-document.getElementById('yuklemeYuklemeFile').addEventListener('change', e=>{
-  const file = e.target.files[0]; if(!file) return;
-  yuklemeDosyaYukle(file, 'yuklemeYukleme', ['Müşteri Numarası','Litre Total','Yükleme Tarihi'], 'yuklemeYuklemeCheck', 'yuklemeYuklemeMeta');
-});
-
-document.getElementById('yuklemeBuildBtn').addEventListener('click', async ()=>{
-  clearYuklemeError();
-  try{
-    const tahsilat = state.yuklemeFiles.yuklemeTahsilat.data;
-    const yukleme = state.yuklemeFiles.yuklemeYukleme.data;
-    const report = buildYuklemeRaporu(tahsilat, yukleme);
-    state.yuklemeReport = report;
-    state.yuklemeSeciliGun = dateKeyLocal(report.yuklemeTarihi);
-    renderYuklemeTable(report);
-    document.getElementById('yuklemeStatusPill').textContent = 'Rapor oluşturuldu, arşive kaydediliyor…';
-    await yuklemeRaporuArsivineKaydet(report);
-    populateYuklemeTarihSelect();
-    renderYuklemeArsivBilgi();
-    document.getElementById('yuklemeStatusPill').textContent = 'Rapor oluşturuldu ve arşivlendi ✓';
-  }catch(err){
-    console.error(err);
-    showYuklemeError('Rapor oluşturulamadı: ' + err.message);
-  }
-});
 </script>
 </body>
 </html>
