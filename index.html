@@ -1872,13 +1872,18 @@ function buildReport(files, musteriMasterMap){
       const tutar = Number(r['Sipariş Toplam Tutar'])||0;
       const istenilenTeslimTarihi = excelDateToJSArti1Gun(r['İstenilen Tsl. Trh.']);
 
-      siparisArsiv.push({musteri, musteriAdi, temsilci, tutar, istenilenTeslimTarihi, belgeTuru});
+      const isEmanet = belgeTuru === 'Sevki Ertelenecek Sp' && redStatu === 'Aktif';
+      const isNormalAcik = belgeTuru !== 'Sevki Ertelenecek Sp' && redStatu === 'Aktif' && teslimat !== 'Reddedildi';
+
+      // Fatura Kontrol arşivi de Genel Rapor/Sevk Raporu ile AYNI filtreye tabidir: iptal/reddedilmiş
+      // (Red Statüsü "Aktif" olmayan veya Teslimat Durumu "Reddedildi" olan) satırlar hiçbir yerde
+      // gösterilmediğinden, Fatura Kontrol'de de gösterilmemelidir.
+      if(isEmanet || isNormalAcik){
+        siparisArsiv.push({musteri, musteriAdi, temsilci, tutar, istenilenTeslimTarihi, belgeTuru});
+      }
 
       if(!siparisMusterileri.has(musteri)) siparisMusterileri.set(musteri, {musteriAdi, temsilci});
       else if(temsilci && !siparisMusterileri.get(musteri).temsilci) siparisMusterileri.get(musteri).temsilci = temsilci;
-
-      const isEmanet = belgeTuru === 'Sevki Ertelenecek Sp' && redStatu === 'Aktif';
-      const isNormalAcik = belgeTuru !== 'Sevki Ertelenecek Sp' && redStatu === 'Aktif' && teslimat !== 'Reddedildi';
 
       if(isEmanet){
         emanetSiparisMap.set(musteri, (emanetSiparisMap.get(musteri)||0) + tutar);
