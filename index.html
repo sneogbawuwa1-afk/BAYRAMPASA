@@ -180,8 +180,6 @@
   thead th .arrow{opacity:.4;font-size:10px;margin-left:3px;}
   tbody td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
   tfoot td{padding:10px 12px;vertical-align:middle;}
-  #yuklemeTable{table-layout:fixed;}
-  #yuklemeTable thead th{white-space:normal;line-height:1.25;}
   #yuklemeTable tbody tr:hover{background:var(--bg);}
   #yuklemeTable tbody tr.yukleme-tanimsiz td{color:var(--ink-faint);font-style:italic;}
   #yuklemeTable .col-ayrac{border-left:1.5px solid var(--line);}
@@ -723,7 +721,6 @@
         <div class="panel-body" style="padding:0;">
           <div style="overflow-x:auto;">
             <table id="yuklemeTable">
-              <colgroup id="yuklemeColgroup"></colgroup>
               <thead><tr id="yuklemeTheadRow"></tr></thead>
               <tbody id="yuklemeTbody"></tbody>
               <tfoot id="yuklemeTfoot"></tfoot>
@@ -3367,21 +3364,11 @@ const YUKLEME_LT2 = n => (n||0).toLocaleString('tr-TR', {minimumFractionDigits:2
 const YUKLEME_TL2 = n => (n||0).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ₺';
 
 function renderYuklemeTable(report){
-  const colgroup = document.getElementById('yuklemeColgroup');
   const theadRow = document.getElementById('yuklemeTheadRow');
   const tbody = document.getElementById('yuklemeTbody');
   const tfoot = document.getElementById('yuklemeTfoot');
   const sevkiyatBaslik = fmtDate(report.yuklemeTarihi) + ' SEVKİYAT';
   const kolonlar = report.kolonlar || [];
-
-  // table-layout:fixed ile birlikte bu <col> genişlikleri, thead/tbody/tfoot arasında sütun
-  // sınırlarının BİREBİR aynı olmasını garanti eder (tarayıcının içerik uzunluğuna göre satır
-  // grupları arasında farklı genişlik hesaplamasına asla izin verilmez).
-  const degerSutunSayisi = kolonlar.length + 2; // ödeme tipleri + Genel Toplam + Sevkiyat
-  const etiketGenislik = 17;
-  const degerGenislik = ((100 - etiketGenislik) / degerSutunSayisi).toFixed(3);
-  colgroup.innerHTML = `<col style="width:${etiketGenislik}%;">` +
-    Array(degerSutunSayisi).fill(0).map(()=>`<col style="width:${degerGenislik}%;">`).join('');
 
   theadRow.innerHTML = `<th>Satır Etiketleri</th>` +
     kolonlar.map(k=>`<th class="num">${escapeHtml(k)}</th>`).join('') +
