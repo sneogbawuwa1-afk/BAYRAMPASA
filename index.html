@@ -1012,36 +1012,50 @@ async function faturaKontrolArsivineKaydetVeSenkronizeEt(report){
   }
 }
 
-// Tüm günlerin arşivini tek bir listede birleştirir. Aynı sipariş/tahsilat kaydı (ör. hâlâ açık olan
-// bir sipariş) birden çok günün dökümünde tekrar tekrar yüklenmiş olabileceğinden, (müşteri + ilgili
-// tarih + tutar) anahtarına göre tekilleştirilir; en son eklenen gün esas alınır.
+// Tüm günlerin arşivini tek bir listede birleştirir. ÖNEMLİ MANTIK: Bir kayıt hangi upload gününde
+// (o gün "Raporu Oluştur" ile yüklenen dosyada) geldiyse değil, kaydın KENDİ TARİHİNİN (ör. tahsilat
+// için Belge Tarihi, sipariş için İstenilen Tsl. Trh., fatura için Fatura Tarihi) ait olduğu takvim
+// gününe göre değerlendirilir: bir takvim günü için en son hangi upload gününde veri geldiyse, o
+// takvim gününe ait TÜM kayıtlar için yalnızca o en güncel upload günündeki hâli esas alınır; daha
+// önceki bir upload gününde aynı takvim tarihine ait arşivlenmiş kayıtlar tamamen elenir (silinmiş
+// sayılır). Böylece ör. bugün yüklenen bir tahsilat dosyasında geçmiş bir tarihe (ör. 30.06) ait
+// satırlar da varsa, bu en güncel yükleme o tarih için "doğru kabul edilir" ve önceden o tarih için
+// arşivlenmiş eski kayıtların yerine geçer — içerik birebir aynı olmasa bile.
 function faturaKontrolArsivBirlestir(arsiv){
-  const gunler = Object.keys(arsiv||{}).sort(); // eskiden yeniye
-  const siparisMap = new Map();
-  const tahsilatMap = new Map();
-  const faturaMap = new Map();
-  gunler.forEach(gun=>{
-    const g = arsiv[gun];
-    (g.siparisArsiv||[]).forEach(r=>{
-      const tarihKey = r.istenilenTeslimTarihi ? new Date(r.istenilenTeslimTarihi).getTime() : '';
-      const key = [r.musteri, tarihKey, r.tutar].join('|');
-      siparisMap.set(key, r);
+  const gunler = Object.keys(arsiv||{}).sort(); // upload günleri, eskiden yeniye
+
+  function tekillestir(alanAdi, tarihAlani){
+    // 1) Her takvim tarihi için en son hangi upload gününde bu tarihe ait veri geldiğini bul.
+    const sonUploadGunu = new Map(); // takvimGunu -> en güncel upload günü
+    gunler.forEach(uploadGunu=>{
+      ((arsiv[uploadGunu] && arsiv[uploadGunu][alanAdi]) || []).forEach(r=>{
+        if(!r[tarihAlani]) return;
+        const takvimGunu = dateKeyLocal(new Date(r[tarihAlani]));
+        if(!takvimGunu) return;
+        if(!sonUploadGunu.has(takvimGunu) || uploadGunu > sonUploadGunu.get(takvimGunu)){
+          sonUploadGunu.set(takvimGunu, uploadGunu);
+        }
+      });
     });
-    (g.tahsilatArsiv||[]).forEach(r=>{
-      const tarihKey = r.belgeTarihi ? new Date(r.belgeTarihi).getTime() : '';
-      const key = [r.musteri, tarihKey, r.tutar].join('|');
-      tahsilatMap.set(key, r);
+    // 2) Yalnızca "sahibi" (o takvim günü için en güncel upload günü) olan kayıtları al; tarihsiz
+    // kayıtlar takvim bazlı ayıklanamayacağından olduğu gibi (içerik bazlı tekilleştirilerek) kalır.
+    const sonuc = new Map();
+    gunler.forEach(uploadGunu=>{
+      ((arsiv[uploadGunu] && arsiv[uploadGunu][alanAdi]) || []).forEach(r=>{
+        const takvimGunu = r[tarihAlani] ? dateKeyLocal(new Date(r[tarihAlani])) : null;
+        if(takvimGunu && sonUploadGunu.get(takvimGunu) !== uploadGunu) return; // eski/geçersiz kılınmış
+        const tarihKey = r[tarihAlani] ? new Date(r[tarihAlani]).getTime() : '';
+        const key = [r.musteri, tarihKey, r.tutar].join('|');
+        sonuc.set(key, r);
+      });
     });
-    (g.faturaArsiv||[]).forEach(r=>{
-      const tarihKey = r.faturaTarihi ? new Date(r.faturaTarihi).getTime() : '';
-      const key = [r.musteri, tarihKey, r.tutar].join('|');
-      faturaMap.set(key, r);
-    });
-  });
+    return Array.from(sonuc.values());
+  }
+
   return {
-    siparisArsiv: Array.from(siparisMap.values()),
-    tahsilatArsiv: Array.from(tahsilatMap.values()),
-    faturaArsiv: Array.from(faturaMap.values()),
+    siparisArsiv: tekillestir('siparisArsiv', 'istenilenTeslimTarihi'),
+    tahsilatArsiv: tekillestir('tahsilatArsiv', 'belgeTarihi'),
+    faturaArsiv: tekillestir('faturaArsiv', 'faturaTarihi'),
     gunSayisi: gunler.length,
     ilkGun: gunler[0] || null,
     sonGun: gunler[gunler.length-1] || null,
