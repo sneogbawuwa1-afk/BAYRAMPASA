@@ -283,6 +283,23 @@
   }
   .senet-adet-label{font-size:12.5px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:8px;}
   .senet-adet-controls{display:flex;align-items:center;gap:10px;}
+  .senet-tutar-tipi-row{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line-soft);}
+  .senet-tutar-tipi-options{display:flex;flex-direction:column;gap:8px;}
+  .senet-tutar-tipi-opt{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line-soft);
+    border-radius:10px;background:var(--bg);cursor:pointer;transition:border-color .15s ease,background .15s ease;
+  }
+  .senet-tutar-tipi-opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft);}
+  .senet-tutar-tipi-opt input[type="radio"]{width:16px;height:16px;flex-shrink:0;accent-color:var(--accent);}
+  .senet-tutar-tipi-opt span{font-size:13px;color:var(--ink);display:flex;flex:1;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;}
+  .senet-tutar-tipi-opt span b{font-family:'Space Grotesk';font-weight:700;color:var(--ink);}
+  .senet-manuel-tutar-row{margin-top:10px;padding-left:2px;}
+  .senet-manuel-tutar-row label{font-size:11px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:6px;}
+  .senet-manuel-tutar-row input{
+    width:100%;max-width:220px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;
+    font-size:14px;font-family:'Space Grotesk';font-weight:700;background:var(--surface);color:var(--ink);
+  }
+  .senet-manuel-tutar-row input:focus{outline:2px solid var(--accent-soft);border-color:var(--accent);}
   .senet-adet-input{
     width:78px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;
     font-size:14.5px;font-family:'Space Grotesk';font-weight:700;text-align:center;
@@ -685,6 +702,27 @@
           <button class="modal-close" id="senetModalClose" type="button" aria-label="Kapat">✕</button>
         </div>
         <div class="modal-body senet-modal-body">
+          <div class="senet-tutar-tipi-row">
+            <label class="senet-adet-label">Senet tutarı hangi tutar baz alınarak oluşturulsun?</label>
+            <div class="senet-tutar-tipi-options">
+              <label class="senet-tutar-tipi-opt">
+                <input type="radio" name="senetTutarTipi" value="acikSiparis" checked />
+                <span>Açık Sipariş <b id="senetTutarTipiAcikDeger">₺0</b></span>
+              </label>
+              <label class="senet-tutar-tipi-opt">
+                <input type="radio" name="senetTutarTipi" value="sevkiErtelenen" />
+                <span>Sevki Ertelenen <b id="senetTutarTipiSevkDeger">₺0</b></span>
+              </label>
+              <label class="senet-tutar-tipi-opt">
+                <input type="radio" name="senetTutarTipi" value="manuel" />
+                <span>Manuel Giriş</span>
+              </label>
+            </div>
+            <div class="senet-manuel-tutar-row" id="senetManuelTutarRow" style="display:none;">
+              <label for="senetManuelTutarInput">Tutar (₺)</label>
+              <input type="number" id="senetManuelTutarInput" min="0" step="0.01" placeholder="Örn. 15000" />
+            </div>
+          </div>
           <div class="senet-adet-row">
             <label for="senetAdetInput" class="senet-adet-label">Kaç senet oluşturulacak?</label>
             <div class="senet-adet-controls">
@@ -3245,7 +3283,7 @@ function renderMusteriTable(report){
       <td class="num"><span class="num-strong">${TL(m.toplamRisk)}</span></td>
     </tr>`;
     if(expanded){
-      html += `<tr class="expand-row"><td colspan="9"><div class="expand-inner">${renderMusteriDetail(m)}</div></td></tr>`;
+      html += `<tr class="expand-row"><td colspan="9"><div class="expand-inner">${renderMusteriDetail(m, true)}</div></td></tr>`;
     }
     return html;
   }).join('');
@@ -3357,11 +3395,49 @@ function buildSenetHTML(opts){
   </div></div></div>`;
 }
 
-let senetState = { musteriKod:null, musteriAdi:null, acikSiparisTutari:0 };
+let senetState = { musteriKod:null, musteriAdi:null, acikSiparisTutari:0, sevkiErtelenenTutari:0, bazTutar:0 };
 
-function senetModalAc(musteriKod, musteriAdi, acikSiparisTutari){
-  senetState = { musteriKod, musteriAdi, acikSiparisTutari };
-  document.getElementById('senetModalMusteriBilgi').textContent = `${musteriAdi} (${musteriKod}) — Açık Sipariş: ${TL(acikSiparisTutari)}`;
+function senetTutarTipiSec(deger){
+  document.querySelectorAll('input[name="senetTutarTipi"]').forEach(r=>{ r.checked = (r.value === deger); });
+  document.getElementById('senetManuelTutarRow').style.display = (deger === 'manuel') ? 'block' : 'none';
+}
+
+function senetBazTutarHesapla(){
+  const seciliEl = document.querySelector('input[name="senetTutarTipi"]:checked');
+  const secili = seciliEl ? seciliEl.value : 'acikSiparis';
+  if(secili === 'acikSiparis') return senetState.acikSiparisTutari;
+  if(secili === 'sevkiErtelenen') return senetState.sevkiErtelenenTutari;
+  return Number(document.getElementById('senetManuelTutarInput').value) || 0;
+}
+
+document.querySelectorAll('input[name="senetTutarTipi"]').forEach(r=>{
+  r.addEventListener('change', ()=>{
+    document.getElementById('senetManuelTutarRow').style.display = (r.value==='manuel' && r.checked) ? 'block' : 'none';
+    // Tutar kaynağı değişince önceden oluşturulmuş vade kartları eskir; kullanıcı tekrar "Devam" a basmalı.
+    document.getElementById('senetVadeAlanlari').innerHTML = '';
+    document.getElementById('senetYazdirBtn').style.display = 'none';
+    document.getElementById('senetHataMesaji').style.display = 'none';
+  });
+});
+document.getElementById('senetManuelTutarInput').addEventListener('input', ()=>{
+  document.getElementById('senetVadeAlanlari').innerHTML = '';
+  document.getElementById('senetYazdirBtn').style.display = 'none';
+  document.getElementById('senetHataMesaji').style.display = 'none';
+});
+
+function senetModalAc(musteriKod, musteriAdi, acikSiparisTutari, sevkiErtelenenTutari){
+  senetState = { musteriKod, musteriAdi, acikSiparisTutari: acikSiparisTutari||0, sevkiErtelenenTutari: sevkiErtelenenTutari||0, bazTutar:0 };
+  document.getElementById('senetModalMusteriBilgi').textContent = `${musteriAdi} (${musteriKod})`;
+  document.getElementById('senetTutarTipiAcikDeger').textContent = TL(senetState.acikSiparisTutari);
+  document.getElementById('senetTutarTipiSevkDeger').textContent = TL(senetState.sevkiErtelenenTutari);
+  document.getElementById('senetManuelTutarInput').value = '';
+
+  // Varsayılan seçim: açık siparişi varsa o, yoksa sevki ertelenen, ikisi de yoksa manuel giriş.
+  let varsayilan = 'acikSiparis';
+  if(!(senetState.acikSiparisTutari > 0) && senetState.sevkiErtelenenTutari > 0) varsayilan = 'sevkiErtelenen';
+  else if(!(senetState.acikSiparisTutari > 0) && !(senetState.sevkiErtelenenTutari > 0)) varsayilan = 'manuel';
+  senetTutarTipiSec(varsayilan);
+
   document.getElementById('senetAdetInput').value = 1;
   document.getElementById('senetVadeAlanlari').innerHTML = '';
   document.getElementById('senetYazdirBtn').style.display = 'none';
@@ -3381,7 +3457,7 @@ document.addEventListener('click', (e)=>{
     e.stopPropagation(); // satırın kendi genişletme/daraltma tıklamasını tetiklemesin
     e.preventDefault();
     try{
-      senetModalAc(senetBtn.dataset.musteri, senetBtn.dataset.musteriAdi, Number(senetBtn.dataset.tutar));
+      senetModalAc(senetBtn.dataset.musteri, senetBtn.dataset.musteriAdi, Number(senetBtn.dataset.tutar), Number(senetBtn.dataset.emanet));
     }catch(err){
       console.error('Senet Yazdır penceresi açılamadı:', err);
       alert('Senet penceresi açılırken bir hata oluştu: ' + err.message + '\n\nLütfen sayfayı yenileyip (sert yenileme) tekrar deneyin.');
@@ -3390,9 +3466,19 @@ document.addEventListener('click', (e)=>{
 });
 
 document.getElementById('senetAdetOnaylaBtn').addEventListener('click', ()=>{
+  const hataEl = document.getElementById('senetHataMesaji');
+  const bazTutar = senetBazTutarHesapla();
+  if(!(bazTutar > 0)){
+    hataEl.textContent = 'Lütfen geçerli bir senet tutarı seçin ya da manuel giriş alanına bir tutar girin.';
+    hataEl.style.display = 'block';
+    document.getElementById('senetVadeAlanlari').innerHTML = '';
+    document.getElementById('senetYazdirBtn').style.display = 'none';
+    return;
+  }
+  senetState.bazTutar = bazTutar;
   const adet = Math.max(1, Math.min(12, Number(document.getElementById('senetAdetInput').value)||1));
   document.getElementById('senetAdetInput').value = adet;
-  const parcalar = senetTutarlariniBol(senetState.acikSiparisTutari, adet);
+  const parcalar = senetTutarlariniBol(senetState.bazTutar, adet);
   const alan = document.getElementById('senetVadeAlanlari');
   alan.innerHTML = parcalar.map((tutar,i)=>`
     <div class="senet-vade-card">
@@ -3444,7 +3530,7 @@ document.getElementById('senetYazdirBtn').addEventListener('click', ()=>{
     return;
   }
   const adet = vadeInputs.length;
-  const parcalar = senetTutarlariniBol(senetState.acikSiparisTutari, adet);
+  const parcalar = senetTutarlariniBol(senetState.bazTutar, adet);
   const detay = state.musteriMasterDetay.get(senetState.musteriKod) || {};
   if(!detay.tabelaAdi && !detay.musteriAdi){
     hataEl.textContent = '⚠️ Bu müşteri için Müşteri Master bilgisi bulunamadı; borçlu adı/adres/vergi no boş basılacak. Devam etmek için tekrar basın.';
@@ -3477,9 +3563,9 @@ document.getElementById('senetYazdirBtn').addEventListener('click', ()=>{
 
 function renderMusteriDetail(m, showSenetBtn){
   let html = '';
-  if(showSenetBtn && m.siparisTutari > 0){
+  if(showSenetBtn){
     html += `<div class="no-print" style="margin-bottom:14px;">
-      <button type="button" class="btn small senet-yazdir-btn" data-musteri="${escapeHtml(m.musteri)}" data-musteri-adi="${escapeHtml(m.musteriAdi)}" data-tutar="${m.siparisTutari}">📄 Senet Yazdır</button>
+      <button type="button" class="btn small senet-yazdir-btn" data-musteri="${escapeHtml(m.musteri)}" data-musteri-adi="${escapeHtml(m.musteriAdi)}" data-tutar="${m.siparisTutari||0}" data-emanet="${m.emanetSiparis||0}">📄 Senet Yazdır</button>
     </div>`;
   }
   if(m.__bakiyesiz){
