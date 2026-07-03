@@ -1003,10 +1003,8 @@
                 <th data-key="adi">Nokta<span class="arrow"></span></th>
                 <th data-key="temsilci">Satış Temsilcisi<span class="arrow"></span></th>
                 <th class="num" data-key="kayitSayisi">Kayıt<span class="arrow"></span></th>
-                <th class="num" data-key="iskontoKdvli">İskonto<span class="arrow"></span></th>
-                <th class="num" data-key="katkiPayiKdvli">İşletme Katkı Payı<span class="arrow"></span></th>
-                <th class="num" data-key="toplamHaric">KDV Hariç Toplam Tutar<span class="arrow"></span></th>
-                <th class="num" data-key="toplamKdvli">KDV Dahil Toplam Tutar<span class="arrow"></span></th>
+                <th class="num" data-key="iskontoSayisi">İskonto<span class="arrow"></span></th>
+                <th class="num" data-key="katkiPayiSayisi">İşletme Katkı Payı<span class="arrow"></span></th>
               </tr></thead>
               <tbody id="bayiHakedisTbody"></tbody>
               <tfoot id="bayiHakedisTfoot"></tfoot>
@@ -3969,6 +3967,8 @@ function buildBayiHakedisRaporu(ciroPrimiRows, donemselIskontoRows, musteriMaste
     toplamHaric: r.iskonto + r.katkiPayi,
     toplamKdvli: (r.iskonto + r.katkiPayi) * BAYI_HAKEDIS_KDV_ORANI,
     kayitSayisi: r.kayitlar.length,
+    iskontoSayisi: r.kayitlar.filter(k=>k.kategori==='İskonto').length,
+    katkiPayiSayisi: r.kayitlar.filter(k=>k.kategori==='İşletme Katkı Payı').length,
     kayitlar: r.kayitlar.slice().sort((a,b)=> (b.tarih||0)-(a.tarih||0)),
   })).sort((a,b)=> b.toplamKdvli - a.toplamKdvli);
 
@@ -3977,6 +3977,9 @@ function buildBayiHakedisRaporu(ciroPrimiRows, donemselIskontoRows, musteriMaste
     katkiPayiKdvli: sum(noktalar,'katkiPayiKdvli'),
     toplamHaric: sum(noktalar,'toplamHaric'),
     toplamKdvli: sum(noktalar,'toplamKdvli'),
+    kayitSayisi: sum(noktalar,'kayitSayisi'),
+    iskontoSayisi: sum(noktalar,'iskontoSayisi'),
+    katkiPayiSayisi: sum(noktalar,'katkiPayiSayisi'),
   };
 
   return { noktalar, genelToplam, olusturulmaZamani: new Date().toISOString() };
@@ -4053,25 +4056,22 @@ function renderBayiHakedisTable(){
   const tbody = document.getElementById('bayiHakedisTbody');
   const tfoot = document.getElementById('bayiHakedisTfoot');
   if(!rows.length){
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Aramanızla/filtrenizle eşleşen nokta bulunamadı.</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Aramanızla/filtrenizle eşleşen nokta bulunamadı.</div></td></tr>`;
     tfoot.innerHTML = '';
     return;
   }
   tbody.innerHTML = rows.map(r=>{
     const expandKey = 'bh_'+r.kod;
     const expanded = state.expanded.has(expandKey);
-    const cokluMu = r.kayitSayisi > 1;
-    let html = `<tr class="${cokluMu?'data-row':''} ${expanded?'expanded':''}" data-kod="${escapeHtml(r.kod)}" style="${cokluMu?'cursor:pointer;':''}">
-    <td><div class="musteri-name">${escapeHtml(r.adi)}${cokluMu ? ' <span title="Bu noktanın birden fazla hakediş kaydı var, satıra tıklayarak tek tek görebilirsiniz">ⓘ</span>' : ''}</div><div class="musteri-code">${escapeHtml(r.kod)}</div></td>
+    let html = `<tr class="data-row ${expanded?'expanded':''}" data-kod="${escapeHtml(r.kod)}" style="cursor:pointer;">
+    <td><div class="musteri-name">${escapeHtml(r.adi)} <span title="Hakediş kayıtlarını görmek için satıra tıklayın">ⓘ</span></div><div class="musteri-code">${escapeHtml(r.kod)}</div></td>
     <td><span class="temsilci-tag">${escapeHtml(r.temsilci)}</span></td>
     <td class="num">${r.kayitSayisi}</td>
-    <td class="num">${r.iskontoKdvli ? TL(r.iskontoKdvli) : '<span class="zero">—</span>'}</td>
-    <td class="num">${r.katkiPayiKdvli ? TL(r.katkiPayiKdvli) : '<span class="zero">—</span>'}</td>
-    <td class="num">${TL(r.toplamHaric)}</td>
-    <td class="num"><b>${TL(r.toplamKdvli)}</b></td>
+    <td class="num">${r.iskontoSayisi || '<span class="zero">—</span>'}</td>
+    <td class="num">${r.katkiPayiSayisi || '<span class="zero">—</span>'}</td>
   </tr>`;
     if(expanded){
-      html += `<tr class="expand-row"><td colspan="7"><div class="expand-inner">${renderMiniBayiHakedisDetay(r.kayitlar)}</div></td></tr>`;
+      html += `<tr class="expand-row"><td colspan="5"><div class="expand-inner">${renderMiniBayiHakedisDetay(r.kayitlar)}</div></td></tr>`;
     }
     return html;
   }).join('');
@@ -4087,11 +4087,10 @@ function renderBayiHakedisTable(){
 
   const g = report.genelToplam;
   tfoot.innerHTML = `<tr class="totals-row">
-    <td>Genel Toplam</td><td></td><td></td>
-    <td class="num">${TL(g.iskontoKdvli)}</td>
-    <td class="num">${TL(g.katkiPayiKdvli)}</td>
-    <td class="num">${TL(g.toplamHaric)}</td>
-    <td class="num">${TL(g.toplamKdvli)}</td>
+    <td>Genel Toplam</td><td></td>
+    <td class="num">${g.kayitSayisi}</td>
+    <td class="num">${g.iskontoSayisi}</td>
+    <td class="num">${g.katkiPayiSayisi}</td>
   </tr>`;
 }
 
