@@ -1761,6 +1761,21 @@ function buildMusteriMasterMap(rows){
   });
   return map;
 }
+// Müşteri Master dosyasındaki "Müşteri Adı" sütunu genellikle aynı ismi iki kez art arda içerir
+// (örn. "SEVİM ÇAVUŞ Sevim Çavuş" — önce büyük harf, sonra normal yazım). Kelime sayısı çift ve
+// ilk yarı ile ikinci yarı (Türkçe harf duyarlılığı gözetilerek) aynıysa yalnızca ilk yarı bırakılır;
+// eşleşmiyorsa (örn. gerçekten farklı iki kelime/şirket adıysa) metin olduğu gibi korunur.
+function musteriAdiTekillestir(ad){
+  const temiz = String(ad||'').trim().replace(/\s+/g,' ');
+  if(!temiz) return temiz;
+  const kelimeler = temiz.split(' ');
+  if(kelimeler.length < 2 || kelimeler.length % 2 !== 0) return temiz;
+  const yari = kelimeler.length / 2;
+  const ilkYari = kelimeler.slice(0, yari).join(' ');
+  const ikinciYari = kelimeler.slice(yari).join(' ');
+  return ilkYari.toLocaleUpperCase('tr-TR') === ikinciYari.toLocaleUpperCase('tr-TR') ? ilkYari : temiz;
+}
+
 // Senet basımında kullanılacak müşteri kimlik/adres bilgileri. Vergi No varsa (tüzel kişi) o, yoksa
 // TC Kimlik No (şahıs) kullanılır. "İl" alanı, senetteki "Keşide Yeri" için de kullanılır.
 function buildMusteriMasterDetay(rows){
@@ -1770,7 +1785,7 @@ function buildMusteriMasterDetay(rows){
     if(!musteri) return;
     map.set(musteri, {
       tabelaAdi: String(r['Tabela Adı']||'').trim(),
-      musteriAdi: String(r['Müşteri Adı']||'').trim(),
+      musteriAdi: musteriAdiTekillestir(r['Müşteri Adı']),
       vergiNo: String(r['Vergi No']||'').trim(),
       tcKimlikNo: String(r['TC Kimlik No']||'').trim(),
       adres: String(r['Sevk Adresi']||'').trim(),
@@ -3384,11 +3399,24 @@ document.getElementById('senetAdetOnaylaBtn').addEventListener('click', ()=>{
 // Senet (bono) üzerindeki "Ad Soyad / Unvan" alanı: Müşteri Master'daki Tabela Adı ile Müşteri Adı
 // birlikte gösterilir (örn. "Ateş Bakkal / Esra Arı"). İkisi aynıysa veya biri boşsa tekrar önlenir;
 // hiçbiri yoksa açık siparişin bağlı olduğu müşteri adına düşülür.
+// Senet (bono) üzerindeki "Ad Soyad / Unvan" alanı: Müşteri Master'daki Tabela Adı ile Müşteri Adı
+// birlikte gösterilir (örn. "Ateş Bakkal / Esra Arı"). Üç durum ele alınır:
+//  1) İkisi birebir aynıysa tekrar önlenir, tek bir kez yazılır.
+//  2) Biri diğerinin başlangıcıysa (aynı isimle devam edip ek metinle sürüyorsa, örn. Tabela Adı
+//     "KAYKI TURİZM..." ile başlayıp Müşteri Adı aynı ifadeyle başlayıp devamında ek isim
+//     taşıyorsa) yalnızca daha kapsamlı (uzun) olan yazılır, ikisi yan yana tekrar edilmez.
+//  3) Aksi halde ikisi de farklı bilgi taşıyor demektir, " / " ile yan yana gösterilir.
 function senetBorcluAdiOlustur(detay, yedekMusteriAdi){
   const tabela = String(detay.tabelaAdi||'').trim();
   const musteriAdi = String(detay.musteriAdi||'').trim();
   if(tabela && musteriAdi){
-    return tabela.toLocaleUpperCase('tr-TR') === musteriAdi.toLocaleUpperCase('tr-TR') ? tabela : `${tabela} / ${musteriAdi}`;
+    const tabelaU = tabela.toLocaleUpperCase('tr-TR');
+    const musteriU = musteriAdi.toLocaleUpperCase('tr-TR');
+    if(tabelaU === musteriU) return tabela;
+    if(tabelaU.startsWith(musteriU) || musteriU.startsWith(tabelaU)){
+      return tabela.length >= musteriAdi.length ? tabela : musteriAdi;
+    }
+    return `${tabela} / ${musteriAdi}`;
   }
   return tabela || musteriAdi || yedekMusteriAdi || '—';
 }
