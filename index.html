@@ -1188,6 +1188,20 @@
         </div>
       </div>
 
+      <div class="panel" id="tvCariTrendPanel">
+        <div class="panel-head">
+          <div><h2>Cari (Kalan Borç) Değişimi — Ay İçi Günlük Trend</h2><span class="count" id="tvCariTrendSub"></span></div>
+          <div class="toolbar">
+            <select class="filter-select" id="tvCariTrendSelect"><option value="__genel__">Genel Toplam</option></select>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="trend-chart-card">
+            <div id="tvCariTrendChart"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="panel print-section" id="tvTablePanel">
         <div class="panel-head">
           <div><h2>Temsilci Tahsilat Verimliliği — Detay</h2><span class="count" id="tvCount"></span></div>
@@ -3902,30 +3916,60 @@ function fmtTrendDeger(v, birim){
   return birim==='gun' ? Math.round(v).toLocaleString('tr-TR')+' gün' : TL(v);
 }
 
+let _trendMeasureCtx = null;
+function trendTextWidth(text, font){
+  if(!_trendMeasureCtx) _trendMeasureCtx = document.createElement('canvas').getContext('2d');
+  _trendMeasureCtx.font = font;
+  return _trendMeasureCtx.measureText(text).width;
+}
+
 function renderTrendChart(containerId, seri, key, renk, birim){
   const el = document.getElementById(containerId);
   if(!seri.length){
     el.innerHTML = '<div class="empty-state" style="padding:24px 10px;">Veri yok</div>';
     return;
   }
-  const W = 520, H = 170, padL = 54, padR = 14, padT = 14, padB = 26;
+  const W = 520, H = 192, padR = 16, padT = 18, padB = 28;
   const values = seri.map(s=>s[key]);
   let minV = Math.min(...values), maxV = Math.max(...values);
   if(minV === maxV){ minV -= Math.max(1, Math.abs(minV)*0.1); maxV += Math.max(1, Math.abs(maxV)*0.1); }
+  const gridVals = [maxV, (minV+maxV)/2, minV];
+  const gridLabels = gridVals.map(v=>fmtTrendDeger(v, birim));
+
+  // Sol boşluğu en uzun eksen etiketine göre dinamik hesapla — değer noktası/çizgisiyle
+  // eksen yazısının üst üste binmesini engeller.
+  const font = "10px Inter, system-ui, sans-serif";
+  const maxLabelWidth = Math.max(...gridLabels.map(t=>trendTextWidth(t, font)), 30);
+  const padL = Math.ceil(maxLabelWidth) + 20;
+
   const xStep = seri.length > 1 ? (W-padL-padR)/(seri.length-1) : 0;
   const yScale = v => (H-padB) - ((v-minV)/(maxV-minV))*(H-padT-padB);
   const points = seri.map((s,i)=> [padL + i*xStep, yScale(s[key])]);
   const pathD = points.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
   const areaD = `${pathD} L${points[points.length-1][0].toFixed(1)},${(H-padB).toFixed(1)} L${points[0][0].toFixed(1)},${(H-padB).toFixed(1)} Z`;
-  const circles = points.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${renk}"><title>${fmtDate(new Date(seri[i].tarih))}: ${fmtTrendDeger(seri[i][key], birim)}</title></circle>`).join('');
-  const gridVals = [maxV, (minV+maxV)/2, minV];
-  const gridY = gridVals.map(v=>`<text x="4" y="${(yScale(v)+3).toFixed(1)}" font-size="10" fill="var(--ink-faint)">${fmtTrendDeger(v, birim)}</text>`).join('');
+
+  const gridLines = gridVals.map(v=>{
+    const y = yScale(v).toFixed(1);
+    return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="var(--line-soft)" stroke-width="1"></line>`;
+  }).join('');
+  const axisLine = `<line x1="${padL}" y1="${(H-padB).toFixed(1)}" x2="${W-padR}" y2="${(H-padB).toFixed(1)}" stroke="var(--line)" stroke-width="1"></line>`;
+
+  const circles = points.map((p,i)=>`
+    <g>
+      <title>${fmtDate(new Date(seri[i].tarih))}: ${fmtTrendDeger(seri[i][key], birim)}</title>
+      <circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="5" fill="var(--surface)" stroke="${renk}" stroke-width="2"></circle>
+      <circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.3" fill="${renk}"></circle>
+    </g>`).join('');
+
+  const gridY = gridVals.map((v,i)=>`<text x="0" y="${(yScale(v)+3).toFixed(1)}" font-size="10" fill="var(--ink-faint)">${gridLabels[i]}</text>`).join('');
   const xLabels = `<text x="${padL}" y="${H-8}" font-size="10" fill="var(--ink-faint)">${fmtDate(new Date(seri[0].tarih))}</text>` +
     (seri.length>1 ? `<text x="${W-padR}" y="${H-8}" font-size="10" fill="var(--ink-faint)" text-anchor="end">${fmtDate(new Date(seri[seri.length-1].tarih))}</text>` : '');
 
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    ${gridLines}
     <path d="${areaD}" fill="${renk}" opacity="0.08" stroke="none"></path>
-    <path d="${pathD}" fill="none" stroke="${renk}" stroke-width="2"></path>
+    <path d="${pathD}" fill="none" stroke="${renk}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+    ${axisLine}
     ${circles}
     ${gridY}
     ${xLabels}
@@ -4648,6 +4692,13 @@ async function computeTahsilatVerimlilikAy(report, ayKey){
 
   let baslangicGunu = null;
   gunler.forEach(g=>{ if(g<ilkKey && (!baslangicGunu || g>baslangicGunu)) baslangicGunu = g; });
+  // Ay başından önceye ait arşiv kaydı yoksa (ör. haziran verisi arşivlenmemiş), ay içindeki
+  // en erken arşiv gününü (ör. 1 Temmuz) yaklaşık başlangıç noktası olarak kullan.
+  let baslangicYaklasik = false;
+  if(!baslangicGunu){
+    gunler.forEach(g=>{ if(g>=ilkKey && g<=sonKey && (!baslangicGunu || g<baslangicGunu)) baslangicGunu = g; });
+    if(baslangicGunu) baslangicYaklasik = true;
+  }
 
   const bitisSnap = ((state.faturaArsivCache[bitisGunu] && state.faturaArsivCache[bitisGunu].musteriSnapshot) || []).filter(m=>musteriTvIcinGecerliMi(m.musteri));
   const bitisMap = new Map(bitisSnap.map(m=>[m.musteri, m]));
@@ -4713,7 +4764,7 @@ async function computeTahsilatVerimlilikAy(report, ayKey){
   genel.cariDegisim = cariDegisimVarMi ? (genel.toplamKalanBorc - genel.toplamKalanBorcBaslangic) : null;
   const enVerimli = rows.filter(r=>r.tahsilatOrani!=null && r.musteriSayisi>0).sort((a,b)=>b.tahsilatOrani-a.tahsilatOrani)[0] || null;
 
-  return {rows, genel, enVerimli, ayKey, bitisGunu, baslangicGunu, cariDegisimVarMi};
+  return {rows, genel, enVerimli, ayKey, bitisGunu, baslangicGunu, baslangicYaklasik, cariDegisimVarMi};
 }
 
 function getTahsilatVerimlilikFilteredSorted(){
@@ -4754,7 +4805,10 @@ function fmtCariDegisim(v){
 function renderTahsilatVerimlilikKPI(rep){
   const cariRenk = rep.genel.cariDegisim==null ? 'var(--ink-faint)' : (rep.genel.cariDegisim>0 ? 'var(--danger)' : 'var(--success)');
   const cariDisplay = rep.genel.cariDegisim==null ? '—' : ((rep.genel.cariDegisim>0?'+':'')+TL(rep.genel.cariDegisim));
-  const cariSub = rep.cariDegisimVarMi ? 'ay başına göre (negatif = borç azaldı)' : 'önceki ay arşiv kaydı yok';
+  const cariSub = !rep.cariDegisimVarMi ? 'önceki ay arşiv kaydı yok'
+    : (rep.baslangicYaklasik
+        ? (fmtDate(new Date(rep.baslangicGunu))+' kaydına göre · yaklaşık (önceki ay verisi yok, negatif = borç azaldı)')
+        : 'ay başına göre (negatif = borç azaldı)');
   const items = [
     {label:'Toplam Alınan Tahsilat', value:rep.genel.toplamTahsilat, sub:rep.genel.tahsilatYapilanMusteri.toLocaleString('tr-TR')+' müşteriden', color:'var(--success)'},
     {label:'Kalan Borç (Ay Sonu)', value:rep.genel.toplamKalanBorc, sub:rep.genel.musteriSayisi.toLocaleString('tr-TR')+' müşteri', color:'var(--navy)'},
@@ -4852,6 +4906,55 @@ function renderTvArsivBilgi(){
   el.textContent = `Buluttaki arşivden ${gunSayisi.toLocaleString('tr-TR')} günün tahsilat/cari verisi kullanılıyor. ☁️`;
 }
 
+// Seçilen ay içinde, arşivlenmiş her gün için toplam Kalan Borç serisini üretir.
+// baslangicGunu -> bitisGunu aralığındaki (dahil) tüm arşiv günlerini kapsar.
+// temsilciFiltre '__genel__' ise tüm temsilciler toplanır, aksi halde sadece o temsilci.
+function computeCariGunlukSeri(rep, temsilciFiltre){
+  if(!rep || !rep.baslangicGunu || !rep.bitisGunu) return [];
+  const gunler = Object.keys(state.faturaArsivCache||{}).sort()
+    .filter(g=> g>=rep.baslangicGunu && g<=rep.bitisGunu);
+  return gunler.map(g=>{
+    const snap = ((state.faturaArsivCache[g] && state.faturaArsivCache[g].musteriSnapshot) || [])
+      .filter(m=>musteriTvIcinGecerliMi(m.musteri))
+      .filter(m=> temsilciFiltre==='__genel__' || (m.temsilci||'—')===temsilciFiltre);
+    const toplamKalanBorc = snap.reduce((a,m)=>a+(m.kalanBorc||0),0);
+    return {tarih:g, kalanBorc:toplamKalanBorc};
+  });
+}
+
+function populateTvCariTrendSelect(rep){
+  const sel = document.getElementById('tvCariTrendSelect');
+  const oncekiDeger = sel.value || '__genel__';
+  const temsilciler = (rep.rows||[]).map(r=>r.temsilci).filter(Boolean).sort((a,b)=>a.localeCompare(b,'tr'));
+  sel.innerHTML = '<option value="__genel__">Genel Toplam</option>' + temsilciler.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+  sel.value = (oncekiDeger==='__genel__' || temsilciler.includes(oncekiDeger)) ? oncekiDeger : '__genel__';
+}
+
+function renderTvCariTrend(){
+  const rep = state.tvReport;
+  const container = document.getElementById('tvCariTrendChart');
+  const subEl = document.getElementById('tvCariTrendSub');
+  if(!rep || !rep.cariDegisimVarMi){
+    container.innerHTML = '<div class="empty-state" style="padding:24px 10px;">Karşılaştırma için arşiv kaydı yok</div>';
+    if(subEl) subEl.textContent = '';
+    return;
+  }
+  const sel = document.getElementById('tvCariTrendSelect');
+  const secim = sel ? (sel.value || '__genel__') : '__genel__';
+  const seri = computeCariGunlukSeri(rep, secim);
+  renderTrendChart('tvCariTrendChart', seri, 'kalanBorc', 'var(--navy)', 'tl');
+  if(subEl){
+    if(seri.length>=2){
+      const fark = seri[seri.length-1].kalanBorc - seri[0].kalanBorc;
+      const farkTxt = (fark>0?'+':'')+TL(fark);
+      subEl.textContent = fmtDate(new Date(seri[0].tarih))+' → '+fmtDate(new Date(seri[seri.length-1].tarih))+' arası net değişim: '+farkTxt
+        + (rep.baslangicYaklasik ? ' (yaklaşık başlangıç — önceki ay verisi arşivde yok)' : '');
+    }else{
+      subEl.textContent = 'Trend için en az 2 arşivlenmiş gün gerekiyor.';
+    }
+  }
+}
+
 async function recomputeAndRenderTahsilatVerimlilik(report){
   const bosDurum = (mesaj)=>{
     state.tvReport = null;
@@ -4860,6 +4963,8 @@ async function recomputeAndRenderTahsilatVerimlilik(report){
     document.getElementById('tvTbody').innerHTML = `<tr><td colspan="8"><div class="empty-state">${mesaj}</div></td></tr>`;
     document.getElementById('tvTfoot').innerHTML = '';
     document.getElementById('tvCount').textContent = '';
+    document.getElementById('tvCariTrendChart').innerHTML = `<div class="empty-state">${mesaj}</div>`;
+    document.getElementById('tvCariTrendSub').textContent = '';
   };
   if(!state.tvAy){
     bosDurum('Buluttaki arşivde henüz veri bulunmadığı için bu rapor gösterilemiyor.');
@@ -4875,6 +4980,8 @@ async function recomputeAndRenderTahsilatVerimlilik(report){
   renderTahsilatVerimlilikKPI(sonuc);
   renderTahsilatVerimlilikChart(sonuc);
   renderTahsilatVerimlilikTable();
+  populateTvCariTrendSelect(sonuc);
+  renderTvCariTrend();
 }
 
 async function renderTahsilatVerimlilikView(report){
@@ -4892,6 +4999,9 @@ document.getElementById('tvAySelect').addEventListener('change', (e)=>{
 });
 document.getElementById('tvYenileBtn').addEventListener('click', async ()=>{
   await renderTahsilatVerimlilikView(state.report || {musteriler:[]});
+});
+document.getElementById('tvCariTrendSelect').addEventListener('change', ()=>{
+  renderTvCariTrend();
 });
 
 function updateTvSearchClearBtn(){
