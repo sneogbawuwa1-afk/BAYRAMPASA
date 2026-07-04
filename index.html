@@ -4851,13 +4851,26 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
     yuklemeGunHaritasi.get(gunKey).satirlar.push(r);
   });
 
-  // Rapor, dosyalardan HANGİSİ kapsıyorsa o günlerin BİRLEŞİMİ (union) üzerinden üretilir: Tahsilat
-  // Dökümü'nde olup Yükleme Raporu'nda olmayan bir gün de, ya da tam tersi de raporlanabilsin diye.
-  const gunAnahtarlari = Array.from(new Set([...tahsilatGunHaritasi.keys(), ...yuklemeGunHaritasi.keys()])).sort();
+  // Rapor günleri SEVKİYAT (Yükleme) tarihine göre anahtarlanır. İş kuralı gereği bir günün
+  // tahsilatı, ERTESİ GÜNÜN sevkiyatıyla eşleşir (bayi önce tahsilatı yapar/kaydı düşer, ürün
+  // ertesi gün sevk edilir) — yani: rapor günü (sevkiyat günü) = tahsilat günü + 1 gün.
+  // Bu yüzden her tahsilat gününü, karşılık geldiği rapor gününe (kendi tarihi + 1 gün) taşıyoruz.
+  const tahsilatRaporGunHaritasi = new Map(); // raporGunKey (sevkiyat tarihine göre) -> tahsilat grubu {tarih (gerçek tahsilat tarihi), satirlar[]}
+  tahsilatGunHaritasi.forEach(grup=>{
+    const raporTarihi = new Date(grup.tarih.getTime() + 86400000);
+    const raporGunKey = dateKeyLocal(raporTarihi);
+    if(!raporGunKey) return;
+    tahsilatRaporGunHaritasi.set(raporGunKey, grup);
+  });
+
+  // Rapor, dosyalardan HANGİSİ kapsıyorsa o (sevkiyat tarihine göre anahtarlanmış) günlerin
+  // BİRLEŞİMİ (union) üzerinden üretilir: Tahsilat Dökümü'nde olup Yükleme Raporu'nda karşılığı
+  // olmayan bir gün de, ya da tam tersi de raporlanabilsin diye.
+  const gunAnahtarlari = Array.from(new Set([...tahsilatRaporGunHaritasi.keys(), ...yuklemeGunHaritasi.keys()])).sort();
   const gunler = {};
 
   gunAnahtarlari.forEach(gunKey=>{
-    const tGun = tahsilatGunHaritasi.get(gunKey) || null;
+    const tGun = tahsilatRaporGunHaritasi.get(gunKey) || null;
     const yGun = yuklemeGunHaritasi.get(gunKey) || null;
     const tahsilatGununSatirlari = tGun ? tGun.satirlar : [];
     // "Teslim Statüsü" değeri "Not Delivered" olan yükleme satırları hiçbir hesaplamaya dahil
@@ -4923,8 +4936,12 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
     genelToplamSatiri.stTahsilatLitre = genelToplamSatiri.litre > 0 ? (genelToplamSatiri.genelToplam / genelToplamSatiri.litre) : null;
 
     gunler[gunKey] = {
-      tahsilatTarihi: tGun ? tGun.tarih : (yGun ? yGun.tarih : null),
-      yuklemeTarihi: yGun ? yGun.tarih : (tGun ? tGun.tarih : null),
+      // tahsilatTarihi: gerçek tahsilat verisi bu rapor gününde varsa onun tarihi (sevkiyattan 1 gün
+      // önce); yoksa sevkiyat tarihinden geriye hesaplanan (görüntüleme amaçlı) bir gün önce.
+      tahsilatTarihi: tGun ? tGun.tarih : (yGun ? new Date(yGun.tarih.getTime() - 86400000) : null),
+      // yuklemeTarihi: gerçek sevkiyat verisi bu rapor gününde varsa onun tarihi; yoksa tahsilat
+      // tarihinden ileriye hesaplanan (görüntüleme amaçlı) bir gün sonrası.
+      yuklemeTarihi: yGun ? yGun.tarih : (tGun ? new Date(tGun.tarih.getTime() + 86400000) : null),
       kolonlar,
       temsilciler,
       genelToplamSatiri,
