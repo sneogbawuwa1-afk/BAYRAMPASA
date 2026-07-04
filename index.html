@@ -243,10 +243,6 @@
   thead th .arrow{opacity:.4;font-size:10px;margin-left:3px;}
   tbody td{padding:10px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
   tfoot td{padding:10px 12px;vertical-align:middle;}
-  #yuklemeTable tbody tr:hover{background:var(--bg);}
-  #yuklemeTable tbody tr.yukleme-tanimsiz td{color:var(--ink-faint);font-style:italic;}
-  #yuklemeTable .col-ayrac{border-left:1.5px solid var(--line);}
-  #yuklemeTable thead th.col-ayrac{border-left:1.5px solid var(--line);}
   tbody tr.data-row{cursor:pointer;transition:background .1s ease;}
   tbody tr.data-row:nth-child(even){background:rgba(19,34,63,0.02);}
   tbody tr.data-row:hover{background:var(--bg);}
@@ -285,6 +281,25 @@
   .musteri-daha-fazla-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:16px;}
   .musteri-daha-fazla-wrap .btn{padding:10px 22px;}
   .musteri-daha-fazla-info{font-size:12px;color:var(--ink-faint);}
+  .yukleme-head-left{display:flex;align-items:center;gap:13px;min-width:0;}
+  .yukleme-head-badge{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--navy) 0%, var(--accent) 100%);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+  .yukleme-head-chips{margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;}
+  .yukleme-head-chips .chip{font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;background:var(--navy-soft);color:var(--navy);white-space:nowrap;}
+  .yukleme-head-btn{display:flex;align-items:center;gap:7px;border:1px solid var(--accent);color:var(--accent-deep);background:var(--surface);}
+  .yukleme-head-btn:hover{background:var(--accent-soft);}
+  .yukleme-toplam-top{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+  .yukleme-toplam-label{font-size:11px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;}
+  .yukleme-toplam-val{font-family:'Space Grotesk';font-size:30px;font-weight:800;color:var(--navy);margin-top:2px;}
+  .yukleme-toplam-lt-chip{background:var(--accent-soft);color:var(--accent-deep);font-weight:700;font-size:12.5px;padding:8px 14px;border-radius:10px;white-space:nowrap;}
+  .yukleme-toplam-bar{display:flex;height:34px;border-radius:9px;overflow:hidden;margin-bottom:14px;}
+  .yukleme-toplam-bar span{display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;}
+  .yukleme-toplam-legend{display:flex;gap:16px;flex-wrap:wrap;}
+  .yukleme-toplam-legend-item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-soft);}
+  .yukleme-toplam-legend-item i{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+  .yukleme-toplam-legend-item b{color:var(--ink);font-family:'Space Grotesk';}
+  .cust-card.yukleme-tanimsiz{background:var(--line-soft);}
+  .cust-card.yukleme-tanimsiz .musteri-name{color:var(--ink-faint);font-style:italic;}
+  .yukleme-lt{margin-top:8px;font-size:11.5px;color:var(--accent-deep);font-weight:600;text-align:right;}
   .cust-card-top{display:flex;align-items:flex-start;gap:11px;margin-bottom:11px;}
   .cust-avatar{width:38px;height:38px;border-radius:10px;background:var(--navy-soft);color:var(--navy);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;font-size:13px;flex-shrink:0;}
   .cust-info{flex:1;min-width:0;}
@@ -646,7 +661,7 @@
 
   <div class="topbar">
     <div class="brand">
-      <div class="brand-mark" translate="no">V1</div>
+      <div class="brand-mark" translate="no">V2</div>
       <div>
         <h1 translate="no">Keşan Bayi Takip Paneli</h1>
         <p class="brand-tag" translate="no">Akgün Meşrubat Gıda · Berat Çağlar CAN</p>
@@ -1004,21 +1019,31 @@
     <div id="yuklemeView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-yukleme">
 
       <div class="panel" id="yuklemePanel" style="display:none;">
-        <div class="panel-head">
-          <div><h2 id="yuklemeTitle">ST Tahsilat/Litre</h2><span class="count" id="yuklemeSubTitle"></span></div>
+        <div class="panel-head yukleme-head">
+          <div class="yukleme-head-left">
+            <div class="yukleme-head-badge">📦</div>
+            <div>
+              <h2 id="yuklemeTitle">ST Tahsilat/Litre</h2>
+              <div class="yukleme-head-chips" id="yuklemeSubTitle"></div>
+            </div>
+          </div>
           <div class="toolbar">
             <select class="filter-select" id="yuklemeTarihSelect"></select>
-            <button class="btn small" id="yuklemeYenileBtn" type="button">🔄 Arşivi Yenile</button>
+            <button class="btn yukleme-head-btn" id="yuklemeYenileBtn" type="button">🔄 Arşivi Yenile</button>
           </div>
         </div>
-        <div class="panel-body" style="padding:0;">
-          <div class="table-scroll">
-            <table id="yuklemeTable">
-              <thead><tr id="yuklemeTheadRow"></tr></thead>
-              <tbody id="yuklemeTbody"></tbody>
-              <tfoot id="yuklemeTfoot"></tfoot>
-            </table>
+        <div class="panel-body">
+          <div class="sort-bar">
+            <span class="sort-bar-label">Sırala</span>
+            <select class="filter-select" id="yuklemeSortSelect">
+              <option value="temsilci">Temsilci</option>
+              <option value="genelToplam">Genel Toplam</option>
+              <option value="litre">Sevkiyat (Lt)</option>
+            </select>
+            <button type="button" class="sort-dir-btn" id="yuklemeSortDirBtn" title="Sıralama yönünü değiştir" aria-label="Sıralama yönünü değiştir">↑</button>
           </div>
+          <div class="yukleme-toplam-wrap" id="yuklemeToplamWrap"></div>
+          <div class="cust-card-list" id="yuklemeTbody"></div>
         </div>
         <div class="panel-body" style="padding-top:0;">
           <div class="check-meta" id="yuklemeArsivBilgi" style="font-size:11.5px;"></div>
@@ -1387,6 +1412,8 @@ const state = {
   expanded: new Set(),
   faturaArsivCache: {},
   yuklemeReport: null,
+  yuklemeSort: { key:'temsilci', dir:1 },
+  yuklemeGosterilenRapor: null,
   yuklemeArsivCache: {},
   yuklemeSeciliGun: null,
   musteriMasterMap: new Map(),
@@ -4655,6 +4682,45 @@ function yuklemeKolonSirala(etiketler){
   return sonuc;
 }
 
+// Genel Toplam özetinde gösterilecek kolon adı: "Kredi Kartı (SÜPÜRME)" -> "Kredi Kartı ( Süpürme )",
+// "Kredi Kartı (İş Bankası)" -> "Kredi Kartı ( İş Bankası )". Diğer kolon adları değişmeden döner.
+function yuklemeGenelToplamKolonEtiketi(kolon){
+  if(kolon === 'Kredi Kartı (SÜPÜRME)') return 'Kredi Kartı ( Süpürme )';
+  const m = /^Kredi Kartı \((.+)\)$/.exec(kolon);
+  if(m) return `Kredi Kartı ( ${m[1]} )`;
+  return kolon;
+}
+
+// Temsilci kartlarında ayrıca "Banka havalesi" -> "Havale" olarak kısaltılır (kutucuğa sığması için).
+// "Kredi Kartı*" alt kolonları (Süpürme, banka adı vb.) kart tarafında zaten tek bir "Kredi Kartı"
+// kolonunda toplandığından (bkz. yuklemeKartKolonlariniIndirge), burada olduğu gibi geçer.
+function yuklemeKartKolonEtiketi(kolon){
+  if(kolon === 'Banka havalesi') return 'Havale';
+  return kolon;
+}
+
+// Kart görünümü için: Alınan Çek hariç tutulur, tüm "Kredi Kartı*" alt kolonları (Süpürme, banka adı vb.)
+// tek bir "Kredi Kartı" kolonunda birleştirilir (renk tutarlılığı için ilk alt kolonun paletteki
+// konumu kullanılır). Diğer kolonlar olduğu gibi ayrı ayrı kalır.
+function yuklemeKartKolonlariniIndirge(kolonlar){
+  const sonuc = [];
+  let krediKartiGrubu = null;
+  kolonlar.forEach((k, i)=>{
+    if(k === 'Alınan Çek') return;
+    if(k.startsWith('Kredi Kartı')){
+      if(!krediKartiGrubu){
+        krediKartiGrubu = {etiket:'Kredi Kartı', kaynaklar:[k], renkIndex:i};
+        sonuc.push(krediKartiGrubu);
+      } else {
+        krediKartiGrubu.kaynaklar.push(k);
+      }
+      return;
+    }
+    sonuc.push({etiket:k, kaynaklar:[k], renkIndex:i});
+  });
+  return sonuc;
+}
+
 function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
   if(!tahsilatRows || !tahsilatRows.length) throw new Error('Tahsilat Raporu\'nda satır bulunamadı.');
   if(!yuklemeRows || !yuklemeRows.length) throw new Error('Yükleme Raporu\'nda satır bulunamadı.');
@@ -4760,41 +4826,107 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
 
 const YUKLEME_LT2 = n => (n||0).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
 const YUKLEME_TL2 = n => (n||0).toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' ₺';
+const YUKLEME_RENK_PALETI = ['var(--navy)','var(--accent)','#5C6BC0','#F0A63A','#3C7A56','#B23A2C','#8E44AD','#16A085','#D97757','#54617A'];
+function yuklemeRenkAl(index){ return YUKLEME_RENK_PALETI[index % YUKLEME_RENK_PALETI.length]; }
 
-function renderYuklemeTable(report){
-  const theadRow = document.getElementById('yuklemeTheadRow');
-  const tbody = document.getElementById('yuklemeTbody');
-  const tfoot = document.getElementById('yuklemeTfoot');
-  const sevkiyatBaslik = fmtDate(report.yuklemeTarihi) + ' SEVKİYAT';
+function renderYuklemeToplamOzet(report){
+  const wrap = document.getElementById('yuklemeToplamWrap');
   const kolonlar = report.kolonlar || [];
-
-  theadRow.innerHTML = `<th>Satır Etiketleri</th>` +
-    kolonlar.map(k=>`<th class="num">${escapeHtml(k)}</th>`).join('') +
-    `<th class="num col-ayrac">Genel Toplam</th><th class="num">${escapeHtml(sevkiyatBaslik)}</th>`;
-
-  tbody.innerHTML = (report.temsilciler||[]).map(r=>{
-    const rKolonlar = r.kolonlar || {};
-    const tanimsizMi = String(r.temsilci||'').trim().toLocaleLowerCase('tr-TR') === 'tanımsız';
-    return `<tr class="${tanimsizMi?'yukleme-tanimsiz':''}">
-    <td>${escapeHtml(r.temsilci)}${tanimsizMi ? ' <span title="Bu litre miktarı, tahsilat dökümünde eşleşecek bir müşteri/temsilci bulunamadığı için hiçbir temsilciye yazılamadı">ⓘ</span>' : ''}</td>
-    ${kolonlar.map(k=> `<td class="num">${rKolonlar[k] ? YUKLEME_TL2(rKolonlar[k]) : '<span class="zero">—</span>'}</td>`).join('')}
-    <td class="num col-ayrac"><b>${YUKLEME_TL2(r.genelToplam)}</b></td>
-    <td class="num">${r.litre ? YUKLEME_LT2(r.litre) + ' Lt' : '<span class="zero">—</span>'}</td>
-  </tr>`;
-  }).join('');
-
   const g = report.genelToplamSatiri || {};
   const gKolonlar = g.kolonlar || {};
-  tfoot.innerHTML = `<tr class="totals-row">
-    <td>Genel Toplam</td>
-    ${kolonlar.map(k=> `<td class="num">${YUKLEME_TL2(gKolonlar[k]||0)}</td>`).join('')}
-    <td class="num col-ayrac">${YUKLEME_TL2(g.genelToplam)}</td>
-    <td class="num">${YUKLEME_LT2(g.litre)} Lt</td>
-  </tr>`;
+  const genelToplam = g.genelToplam || 0;
+
+  const barHTML = kolonlar.map((k, i)=>{
+    const tutar = gKolonlar[k] || 0;
+    if(tutar<=0) return '';
+    const pct = genelToplam>0 ? (tutar/genelToplam*100) : 0;
+    const gosterAdi = yuklemeGenelToplamKolonEtiketi(k);
+    const etiket = pct>=12 ? `${escapeHtml(gosterAdi)} · ${YUKLEME_TL2(tutar)}` : '';
+    return `<span style="width:${pct.toFixed(2)}%;background:${yuklemeRenkAl(i)};" title="${escapeHtml(gosterAdi)}: ${YUKLEME_TL2(tutar)}">${etiket}</span>`;
+  }).join('');
+
+  const legendHTML = kolonlar.map((k,i)=>{
+    const tutar = gKolonlar[k] || 0;
+    const pct = genelToplam>0 ? (tutar/genelToplam*100) : 0;
+    return `<div class="yukleme-toplam-legend-item"><i style="background:${yuklemeRenkAl(i)}"></i>${escapeHtml(yuklemeGenelToplamKolonEtiketi(k))} <b>${tutar ? YUKLEME_TL2(tutar) : '—'}</b> (%${pct.toFixed(1).replace('.',',')})</div>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div class="yukleme-toplam-top">
+      <div>
+        <div class="yukleme-toplam-label">Genel Toplam</div>
+        <div class="yukleme-toplam-val">${YUKLEME_TL2(genelToplam)}</div>
+      </div>
+      <div class="yukleme-toplam-lt-chip">📦 ${YUKLEME_LT2(g.litre)} Lt sevkiyat</div>
+    </div>
+    <div class="yukleme-toplam-bar">${barHTML}</div>
+    <div class="yukleme-toplam-legend">${legendHTML}</div>
+  `;
+}
+
+// "Key Account" temsilcisi seçilen sıralama kriteri ne olursa olsun listenin daima en sonunda kalır.
+function getYuklemeSiraliTemsilciler(report){
+  const {key, dir} = state.yuklemeSort;
+  const list = (report.temsilciler||[]).slice();
+  list.sort((a,b)=>{
+    const aKA = String(a.temsilci||'').trim().toLocaleLowerCase('tr-TR') === 'key account';
+    const bKA = String(b.temsilci||'').trim().toLocaleLowerCase('tr-TR') === 'key account';
+    if(aKA && !bKA) return 1;
+    if(bKA && !aKA) return -1;
+    if(aKA && bKA) return 0;
+    const av = a[key], bv = b[key];
+    if(typeof av === 'string') return dir*String(av).localeCompare(String(bv),'tr');
+    return dir*((av||0)-(bv||0));
+  });
+  return list;
+}
+
+function renderYuklemeTable(report){
+  state.yuklemeGosterilenRapor = report;
+  const kolonlar = report.kolonlar || [];
+  const sevkiyatBaslik = fmtDate(report.yuklemeTarihi) + ' SEVKİYAT';
+
+  renderYuklemeToplamOzet(report);
+
+  const list = document.getElementById('yuklemeTbody');
+  const siraliTemsilciler = getYuklemeSiraliTemsilciler(report);
+  if(!siraliTemsilciler.length){
+    list.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Gösterilecek temsilci bulunamadı.</div>`;
+  } else {
+    const kartKolonGruplari = yuklemeKartKolonlariniIndirge(kolonlar);
+    list.innerHTML = siraliTemsilciler.map(r=>{
+      const rKolonlar = r.kolonlar || {};
+      const tanimsizMi = String(r.temsilci||'').trim().toLocaleLowerCase('tr-TR') === 'tanımsız';
+      const compBar = kartKolonGruplari.map(kk=>{
+        const tutar = kk.kaynaklar.reduce((s,k)=> s + (rKolonlar[k]||0), 0);
+        if(tutar<=0 || !r.genelToplam) return '';
+        const pct = (tutar/r.genelToplam*100);
+        return `<span style="width:${pct.toFixed(2)}%;background:${yuklemeRenkAl(kk.renkIndex)}"></span>`;
+      }).join('');
+      const statChips = kartKolonGruplari.map(kk=>{
+        const tutar = kk.kaynaklar.reduce((s,k)=> s + (rKolonlar[k]||0), 0);
+        return `<div class="cust-stat-chip"><div class="l">${escapeHtml(yuklemeKartKolonEtiketi(kk.etiket))}</div><div class="v">${tutar ? YUKLEME_TL2(tutar) : '<span class="zero">—</span>'}</div></div>`;
+      }).join('');
+      return `<div class="cust-card${tanimsizMi?' yukleme-tanimsiz':''}">
+        <div class="cust-card-top">
+          <div class="cust-avatar">${escapeHtml(avatarBaslangic(r.temsilci))}</div>
+          <div class="cust-info">
+            <div class="musteri-name">${escapeHtml(r.temsilci)}${tanimsizMi ? ' <span title="Bu litre miktarı, tahsilat dökümünde eşleşecek bir müşteri/temsilci bulunamadığı için hiçbir temsilciye yazılamadı">ⓘ</span>' : ''}</div>
+          </div>
+        </div>
+        <div class="cust-kalan-row"><span class="cust-kalan-label">Genel Toplam</span><span class="cust-kalan-val">${YUKLEME_TL2(r.genelToplam)}</span></div>
+        <div class="risk-bar">${compBar}</div>
+        <div class="cust-stat-strip" style="grid-template-columns:repeat(auto-fit,minmax(72px,1fr));">${statChips}</div>
+        <div class="yukleme-lt">${r.litre ? YUKLEME_LT2(r.litre) + ' Lt sevkiyat' : '—'}</div>
+      </div>`;
+    }).join('');
+  }
 
   document.getElementById('yuklemePanel').style.display = 'block';
   document.getElementById('yuklemeTitle').textContent = 'ST Tahsilat/Litre — ' + sevkiyatBaslik;
-  document.getElementById('yuklemeSubTitle').textContent = 'Tahsilat tarihi: ' + fmtDate(report.tahsilatTarihi) + ' · ' + (report.temsilciler||[]).length.toLocaleString('tr-TR') + ' temsilci';
+  document.getElementById('yuklemeSubTitle').innerHTML =
+    `<span class="chip">📅 Tahsilat: ${escapeHtml(fmtDate(report.tahsilatTarihi))}</span>` +
+    `<span class="chip">👥 ${(report.temsilciler||[]).length.toLocaleString('tr-TR')} temsilci</span>`;
 }
 
 function yuklemeArsivReviver(key, value){
@@ -4962,6 +5094,20 @@ document.getElementById('yuklemeTarihSelect').addEventListener('change', (e)=>{
   if(rapor) renderYuklemeTable(rapor);
 });
 document.getElementById('yuklemeYenileBtn').addEventListener('click', renderYuklemeView);
+
+const yuklemeSortSelect = document.getElementById('yuklemeSortSelect');
+const yuklemeSortDirBtn = document.getElementById('yuklemeSortDirBtn');
+yuklemeSortSelect.value = state.yuklemeSort.key;
+yuklemeSortDirBtn.textContent = state.yuklemeSort.dir===1 ? '↑' : '↓';
+yuklemeSortSelect.addEventListener('change', ()=>{
+  state.yuklemeSort.key = yuklemeSortSelect.value;
+  if(state.yuklemeGosterilenRapor) renderYuklemeTable(state.yuklemeGosterilenRapor);
+});
+yuklemeSortDirBtn.addEventListener('click', ()=>{
+  state.yuklemeSort.dir *= -1;
+  yuklemeSortDirBtn.textContent = state.yuklemeSort.dir===1 ? '↑' : '↓';
+  if(state.yuklemeGosterilenRapor) renderYuklemeTable(state.yuklemeGosterilenRapor);
+});
 
 const BAYI_HAKEDIS_KDV_ORANI = 1.20;
 const ISKONTO_GRUP_TANIMLARI = new Set(['Fatura altı', 'Ciro Primi']);
