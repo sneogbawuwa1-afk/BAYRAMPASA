@@ -1040,6 +1040,7 @@
           <div class="toolbar">
             <select class="filter-select" id="yuklemeTarihSelect"></select>
             <button class="btn yukleme-head-btn" id="yuklemeYenileBtn" type="button">🔄 Arşivi Yenile</button>
+            <button class="btn small yukleme-head-btn" id="yuklemeArsivTemizleBtn" type="button" title="ST Tahsilat/Litre için biriktirilen tüm günlerin arşivini siler (şifre gerektirir)">🔒 Arşivi Temizle</button>
           </div>
         </div>
         <div class="panel-body">
@@ -4796,11 +4797,13 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
   const tahsilatParsed = tahsilatRows.map(r=>({
     sst: (r['SST']||'Tanımsız').toString().trim() || 'Tanımsız',
     musteriKodu: yuklemeKod(r['Müşt. Kodu']),
-    // Not: Burada excelDateToJS kullanılır (Arti1Gun DEĞİL) — aşağıdaki gün eşleştirme mantığı zaten
-    // kendi +1 günlük kaymasını (tahsilat günü + 1 = sevkiyat günü) uyguluyor; Arti1Gun'daki +1 ile
-    // üst üste binerse tarihler bir gün fazla ileri kayar (SEVKİYAT ve Tahsilat chip'i hep 1 gün
-    // yanlış görünür).
-    belgeTarihi: excelDateToJS(r['Belge Tarihi']),
+    // Not: excelDateToJSArti1Gun kullanılır (excelDateToJS DEĞİL). Tarayıcı Türkiye (+3) saat
+    // diliminde çalışırken, saf/naif Excel tarihleri (saat bileşeni olmayan) JS'e aktarılırken 1 gün
+    // geriye kayabiliyor; bu +1 düzeltmesi o kaymayı telafi eder. (Daha önce bunu gereksiz sanıp
+    // kaldırmıştım ama UTC ortamda test ettiğim için bu kaymayı görememiştim — gerçek arşiv verisiyle
+    // doğrulandı.) Aşağıdaki gün eşleştirme mantığı (tahsilat günü + 1 = sevkiyat günü) bu düzeltilmiş
+    // tarih üzerinden çalışır.
+    belgeTarihi: excelDateToJSArti1Gun(r['Belge Tarihi']),
     belgeNo: yuklemeKod(r['Belge No']),
     odemeTipi: r['Ödeme Tipi'],
     banka: r['Banka'],
@@ -4838,8 +4841,9 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
   const yuklemeParsed = yuklemeRows.map(r=>({
     musteriNo: yuklemeKod(r['Müşteri Numarası']),
     litre: yuklemeNumber(r['Litre Total']),
-    // Not: Burada da excelDateToJS kullanılır (Arti1Gun DEĞİL) — bkz. yukarıdaki belgeTarihi notu.
-    yuklemeTarihi: excelDateToJS(r['Yükleme Tarihi']),
+    // Not: excelDateToJSArti1Gun kullanılır — bkz. yukarıdaki belgeTarihi notu (saat dilimi kaynaklı
+    // 1 günlük kaymayı telafi eder).
+    yuklemeTarihi: excelDateToJSArti1Gun(r['Yükleme Tarihi']),
     siparisKodu: yuklemeKod(r['Sipariş Kodu']),
     teslimStatusu: String(r['Teslim Statüsü']||'').trim(),
   })).filter(r=> r.yuklemeTarihi);
@@ -4878,11 +4882,11 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
     const tGun = tahsilatRaporGunHaritasi.get(gunKey) || null;
     const yGun = yuklemeGunHaritasi.get(gunKey) || null;
     const tahsilatGununSatirlari = tGun ? tGun.satirlar : [];
-    // "Teslim Statüsü" değeri "Not Delivered" olan yükleme satırları hiçbir hesaplamaya dahil
-    // edilmez ve dolayısıyla arşive de yazılmaz (teslim edilmemiş sevkiyat litre'ye sayılmaz;
-    // arşivde önceden bu sipariş nedeniyle var olan bir kayıt varsa aşağıdaki tam-gün yeniden
-    // hesaplama sayesinde kendiliğinden düşer).
-    const yuklemeGununSatirlari = yGun ? yGun.satirlar.filter(r=> r.teslimStatusu !== 'Not Delivered') : [];
+    // "Teslim Statüsü" değeri "Not Delivered" veya "Rejected" olan yükleme satırları hiçbir
+    // hesaplamaya dahil edilmez ve dolayısıyla arşive de yazılmaz (teslim edilmemiş/reddedilmiş
+    // sevkiyat litre'ye sayılmaz; arşivde önceden bu sipariş nedeniyle var olan bir kayıt varsa
+    // aşağıdaki tam-gün yeniden hesaplama sayesinde kendiliğinden düşer).
+    const yuklemeGununSatirlari = yGun ? yGun.satirlar.filter(r=> r.teslimStatusu !== 'Not Delivered' && r.teslimStatusu !== 'Rejected') : [];
 
     const litreByMusteri = new Map();
     yuklemeGununSatirlari.forEach(r=>{
@@ -4914,10 +4918,10 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
       row.litre += litre;
     });
 
-    // Bu günün (Not Delivered hariç) yükleme satırlarında geçen tüm Sipariş Kodları toplanır; tıpkı
-    // Belge No'da olduğu gibi, arşiv senkronizasyonunda bu günün litre verisi bu listeyle eşitlenir:
-    // yeni Sipariş Kodu'na sahip veriler eklenir, artık bulunmayanlar (iptal/Not Delivered) düşer,
-    // aynı kalanlara tekrar dokunulmaz.
+    // Bu günün (Not Delivered/Rejected hariç) yükleme satırlarında geçen tüm Sipariş Kodları
+    // toplanır; tıpkı Belge No'da olduğu gibi, arşiv senkronizasyonunda bu günün litre verisi bu
+    // listeyle eşitlenir: yeni Sipariş Kodu'na sahip veriler eklenir, artık bulunmayanlar
+    // (iptal/Not Delivered/Rejected) düşer, aynı kalanlara tekrar dokunulmaz.
     const siparisKoduSeti = new Set();
     yuklemeGununSatirlari.forEach(r=>{ if(r.siparisKodu) siparisKoduSeti.add(r.siparisKodu); });
 
@@ -5163,7 +5167,7 @@ function yuklemeGunuLitreIleBirlestir(yeniGun, eskiGun){
 
 // yuklemeGunuLitreIleBirlestir'in AYNASI: Tahsilat Dökümü bu yüklemede bu günü kapsamıyorsa
 // (yeniGun.tahsilatVerisiVarMi === false) ama Yükleme Raporu kapsıyorsa, litre/Sipariş Kodu verisi
-// TAZE ve otoritedir (Not Delivered olanlar zaten elenmiş, yeni Sipariş Kodu'ları eklenmiş, artık
+// TAZE ve otoritedir (Not Delivered/Rejected olanlar zaten elenmiş, yeni Sipariş Kodu'ları eklenmiş, artık
 // olmayanlar düşmüştür); tahsilat rakamları (kolonlar/genelToplam) ise bu yüklemede güncellenmediği
 // için arşivdeki önceki haliyle korunur.
 function yuklemeGunuTahsilatIleBirlestir(yeniGun, eskiGun){
@@ -5255,6 +5259,15 @@ async function yuklemeArsivYenile(){
   if(!arsiv) arsiv = await loadYuklemeArsivFromLocal();
   state.yuklemeArsivCache = arsiv || {};
   return state.yuklemeArsivCache;
+}
+
+// Hesaplama mantığı değiştiğinde (örn. gün eşleştirme kuralı düzeltildiğinde) eski mantıkla
+// kaydedilmiş arşiv kayıtları artık geçersiz/tutarsız hale gelebilir; bu fonksiyon ST Tahsilat/Litre
+// arşivinin tamamını (bulut + cihaz) kalıcı olarak temizler.
+async function clearYuklemeArsiv(){
+  state.yuklemeArsivCache = {};
+  await saveYuklemeArsivToLocal({});
+  if(cloudEnabled()) await saveYuklemeArsivToCloud({});
 }
 
 function populateYuklemeTarihSelect(){
@@ -5360,6 +5373,22 @@ document.getElementById('yuklemeTarihSelect').addEventListener('change', (e)=>{
   if(rapor) renderYuklemeTable(rapor);
 });
 document.getElementById('yuklemeYenileBtn').addEventListener('click', renderYuklemeView);
+document.getElementById('yuklemeArsivTemizleBtn').addEventListener('click', async ()=>{
+  const gunSayisi = Object.keys(state.yuklemeArsivCache||{}).length;
+  if(!gunSayisi){ renderYuklemeArsivBilgi(); return; }
+  const girilenSifre = prompt('Bu işlem, buluttaki ST Tahsilat/Litre arşivindeki tüm günlerin verisini kalıcı olarak siler (tüm cihazlardan) ve geri alınamaz.\n\nDevam etmek için şifreyi girin:');
+  if(girilenSifre === null) return;
+  if(girilenSifre !== FATURA_ARSIV_TEMIZLEME_SIFRESI){
+    alert('Şifre yanlış. Arşiv silinmedi.');
+    return;
+  }
+  const onay = confirm(`Şifre doğru. Arşivdeki ${gunSayisi} günlük veri kalıcı olarak silinecek. Emin misiniz?`);
+  if(!onay) return;
+  await clearYuklemeArsiv();
+  state.yuklemeReport = null;
+  state.yuklemeSeciliGun = null;
+  await renderYuklemeView();
+});
 
 const yuklemeSortSelect = document.getElementById('yuklemeSortSelect');
 const yuklemeSortDirBtn = document.getElementById('yuklemeSortDirBtn');
