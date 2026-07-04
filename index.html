@@ -4796,7 +4796,11 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
   const tahsilatParsed = tahsilatRows.map(r=>({
     sst: (r['SST']||'Tanımsız').toString().trim() || 'Tanımsız',
     musteriKodu: yuklemeKod(r['Müşt. Kodu']),
-    belgeTarihi: excelDateToJSArti1Gun(r['Belge Tarihi']),
+    // Not: Burada excelDateToJS kullanılır (Arti1Gun DEĞİL) — aşağıdaki gün eşleştirme mantığı zaten
+    // kendi +1 günlük kaymasını (tahsilat günü + 1 = sevkiyat günü) uyguluyor; Arti1Gun'daki +1 ile
+    // üst üste binerse tarihler bir gün fazla ileri kayar (SEVKİYAT ve Tahsilat chip'i hep 1 gün
+    // yanlış görünür).
+    belgeTarihi: excelDateToJS(r['Belge Tarihi']),
     belgeNo: yuklemeKod(r['Belge No']),
     odemeTipi: r['Ödeme Tipi'],
     banka: r['Banka'],
@@ -4834,7 +4838,8 @@ function buildYuklemeRaporu(tahsilatRows, yuklemeRows){
   const yuklemeParsed = yuklemeRows.map(r=>({
     musteriNo: yuklemeKod(r['Müşteri Numarası']),
     litre: yuklemeNumber(r['Litre Total']),
-    yuklemeTarihi: excelDateToJSArti1Gun(r['Yükleme Tarihi']),
+    // Not: Burada da excelDateToJS kullanılır (Arti1Gun DEĞİL) — bkz. yukarıdaki belgeTarihi notu.
+    yuklemeTarihi: excelDateToJS(r['Yükleme Tarihi']),
     siparisKodu: yuklemeKod(r['Sipariş Kodu']),
     teslimStatusu: String(r['Teslim Statüsü']||'').trim(),
   })).filter(r=> r.yuklemeTarihi);
