@@ -279,8 +279,8 @@
   .cust-kalan-label{font-size:10px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
   .cust-kalan-val{font-family:'Space Grotesk';font-size:19px;font-weight:700;color:var(--ink);}
   .cust-card .risk-bar{width:100%;height:7px;border-radius:5px;margin-top:8px;margin-bottom:13px;}
-  .cust-stat-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-  @media(min-width:820px){.cust-stat-strip{grid-template-columns:repeat(5,1fr);}}
+  .cust-stat-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+  @media(min-width:820px){.cust-stat-strip{grid-template-columns:repeat(5,minmax(0,1fr));}}
   .cust-stat-chip{background:var(--bg);border-radius:9px;padding:7px 6px;text-align:center;}
   .cust-stat-chip .l{font-size:9px;color:var(--ink-faint);font-weight:700;text-transform:uppercase;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .cust-stat-chip .v{font-family:'Space Grotesk';font-size:12px;font-weight:700;margin-top:3px;}
@@ -293,6 +293,9 @@
   .expand-inner{padding:14px 18px 18px 44px;background:#F7F9FC;}
   .expand-inner h4{margin:0 0 8px;font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;}
   .mini-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px;}
+  .mini-table.compact{width:auto;min-width:0;}
+  .mini-table.compact th,.mini-table.compact td{padding:6px 22px 6px 10px;}
+  .mini-table.compact th:last-child,.mini-table.compact td:last-child{padding-right:10px;}
   .mini-table th{text-align:left;padding:6px 10px;font-size:10.5px;color:var(--ink-faint);border-bottom:1px solid var(--line);text-transform:uppercase;}
   .mini-table th.num,.mini-table td.num{text-align:right;}
   .mini-table td{padding:6px 10px;border-bottom:1px solid var(--line-soft);}
@@ -3901,8 +3904,8 @@ function renderMusteriDetail(m, showSenetBtn){
   const hakedisRapor = state.bayiHakedisReport;
   const hakedisKaydi = (hakedisRapor && Array.isArray(hakedisRapor.noktalar)) ? hakedisRapor.noktalar.find(n=>n.kod===m.musteri) : null;
   if(hakedisKaydi && hakedisKaydi.kayitlar && hakedisKaydi.kayitlar.length){
-    html += `<h4>Bayi Hakediş (${hakedisKaydi.kayitlar.length}) <span class="badge hakedis" style="margin-left:5px;">${TL(hakedisKaydi.toplamKdvli)} KDV Dahil</span></h4>
-    <div class="table-scroll"><table class="mini-table"><thead><tr>
+    html += `<h4>Bayi Hakediş (${hakedisKaydi.kayitlar.length})</h4>
+    <div class="table-scroll"><table class="mini-table compact"><thead><tr>
       <th>Tarih</th><th>Kategori</th><th class="num">Tutar (KDV Hariç)</th><th class="num">Tutar (KDV Dahil)</th>
     </tr></thead><tbody>`;
     html += hakedisKaydi.kayitlar.map(k=>`<tr>
