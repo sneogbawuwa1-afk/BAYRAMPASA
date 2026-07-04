@@ -26,6 +26,8 @@
     --danger-soft:#F4DED9;
     --success:#3C7A56;
     --success-soft:#DEEBE2;
+    --warn:#B8862E;
+    --warn-soft:#F5E9D4;
     --navy:#13233F;
     --navy-soft:#E3E8F2;
     --radius:10px;
@@ -96,6 +98,9 @@
     display:flex;align-items:center;gap:6px;
   }
   .pill.ok{background:var(--success-soft);color:var(--success);}
+  .pill.warn{background:var(--warn-soft);color:var(--warn);}
+  .pill.danger{background:var(--danger-soft);color:var(--danger);}
+  .pill.navy{background:var(--navy-soft);color:var(--navy);}
   .icon-btn{
     width:42px;height:42px;line-height:42px;text-align:center;flex-shrink:0;
     border:none;border-radius:50%;background:var(--surface);box-shadow:var(--shadow);
@@ -506,6 +511,32 @@
   .rep-card .rname{font-weight:700;font-size:13px;}
   .rep-card .rstat{font-size:11.5px;color:var(--ink-soft);margin-top:6px;display:flex;justify-content:space-between;}
 
+  .karne-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+  .karne-card{background:var(--surface);border:1px solid var(--line-soft);border-radius:14px;padding:15px;box-shadow:var(--shadow);}
+  .karne-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .karne-name{font-weight:700;font-size:14px;}
+  .karne-rank{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:800;color:var(--accent-deep);}
+  .karne-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+  .karne-lbl{font-size:10px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.02em;}
+  .karne-val{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;margin-top:2px;}
+
+  .rate-table input[type=number]{width:64px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:12.5px;text-align:right;}
+
+  .week-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line-soft);}
+  .week-row:last-child{border-bottom:none;}
+  .week-label{width:96px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--ink-soft);}
+  .week-track{flex:1;height:16px;background:var(--line-soft);border-radius:5px;overflow:hidden;position:relative;}
+  .week-fill{height:100%;border-radius:5px 0 0 5px;background:linear-gradient(90deg,var(--accent),var(--accent-deep));}
+  .week-val{width:118px;text-align:right;flex-shrink:0;font-size:12.5px;font-weight:700;font-family:'Space Grotesk',sans-serif;}
+
+  .insight-list{font-size:12.8px;line-height:1.95;}
+  .insight-list .ins-row{display:flex;gap:8px;align-items:flex-start;}
+
+  .formula-table td.formula-op{color:var(--ink-faint);width:24px;}
+  .formula-table tr.formula-total td{border-top:1.5px solid var(--line);font-weight:700;}
+  .grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;}
+  @media(max-width:820px){.grid2{grid-template-columns:1fr;}}
+
   .tabbar{
     display:flex;gap:2px;margin-bottom:22px;
     background:var(--navy-soft);border-radius:100px;padding:5px;
@@ -523,6 +554,40 @@
   }
   .tab-btn:hover{opacity:.85;}
   .tab-btn.active{opacity:1;background:#fff;box-shadow:0 2px 8px -2px rgba(19,34,63,.3);}
+
+  .tab-dropdown-btn{display:inline-flex;align-items:center;gap:5px;}
+  .tab-dropdown-btn .dd-arrow{font-size:10px;transition:transform .15s ease;display:inline-block;}
+  .tab-dropdown-btn.active .dd-arrow,.tab-dropdown-btn[aria-expanded="true"] .dd-arrow{transform:rotate(180deg);}
+  .tab-dropdown-menu{
+    position:fixed;top:0;left:0;display:none;flex-direction:column;gap:2px;
+    background:#fff;border-radius:14px;padding:6px;min-width:238px;
+    box-shadow:0 14px 34px -10px rgba(19,34,63,.38),0 0 0 1px rgba(19,34,63,.06);
+    z-index:200;
+  }
+  .tab-dropdown-menu.open{display:flex;}
+  .tab-dropdown-menu .dropdown-item{
+    text-align:left;opacity:.72;border-radius:9px;padding:10px 12px;width:100%;
+    box-shadow:none;background:transparent;
+  }
+  .tab-dropdown-menu .dropdown-item:hover{opacity:1;background:var(--navy-soft);}
+  .tab-dropdown-menu .dropdown-item.active{opacity:1;background:var(--navy-soft);color:var(--navy);font-weight:800;}
+
+  .info-box{background:var(--navy-soft);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden;}
+  .info-box summary{cursor:pointer;list-style:none;padding:12px 15px;font-size:12.8px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:8px;user-select:none;}
+  .info-box summary::-webkit-details-marker{display:none;}
+  .info-box summary::before{content:'▸';font-size:11px;color:var(--ink-faint);transition:transform .15s ease;flex-shrink:0;}
+  .info-box[open] summary::before{transform:rotate(90deg);}
+  .info-box summary:hover{opacity:.85;}
+  .info-box-body{padding:0 16px 15px 39px;font-size:12.5px;line-height:1.75;color:var(--ink-soft);}
+  .info-box-body p{margin:0 0 8px;}
+  .info-box-body p:last-child{margin-bottom:0;}
+  .info-box-body b{color:var(--navy);}
+  .info-box-body ul{margin:4px 0 8px;padding-left:18px;}
+  .info-box-body li{margin-bottom:5px;}
+  .info-box-body h4{margin:12px 0 5px;font-size:12.5px;color:var(--navy);font-weight:800;letter-spacing:.2px;}
+  .info-box-body h4:first-child{margin-top:0;}
+  @media(max-width:760px){.info-box-body{padding-left:16px;}}
+
   .storage-note{font-size:11.5px;font-weight:600;color:var(--success);display:inline-flex;align-items:center;gap:6px;background:var(--success-soft);padding:7px 14px;border-radius:100px;}
 
   .totals-row td{border-top:1.5px solid var(--line);background:var(--bg);font-weight:700;}
@@ -797,15 +862,33 @@
   <div id="reportSection">
 
     <div class="tabbar" id="tabBar" role="tablist" aria-label="Rapor sekmeleri">
-      <button class="tab-btn active" id="tabbtn-genel" data-view="genel" type="button" role="tab" aria-selected="true" aria-controls="genelView">📊 Genel Rapor</button>
-      <button class="tab-btn" id="tabbtn-sevk" data-view="sevk" type="button" role="tab" aria-selected="false" aria-controls="sevkView">🚚 Sevk Raporu</button>
-      <button class="tab-btn" id="tabbtn-yukleme" data-view="yukleme" type="button" role="tab" aria-selected="false" aria-controls="yuklemeView">📦 ST Tahsilat/Litre</button>
-      <button class="tab-btn" id="tabbtn-yaslandirma" data-view="yaslandirma" type="button" role="tab" aria-selected="false" aria-controls="yaslandirmaView">⏱️ Yaşlandırma Raporu</button>
-      <button class="tab-btn" id="tabbtn-ticariStok" data-view="ticariStok" type="button" role="tab" aria-selected="false" aria-controls="ticariStokView">🛢️ Ticari Stok Raporu</button>
-      <button class="tab-btn" id="tabbtn-faturaKontrol" data-view="faturaKontrol" type="button" role="tab" aria-selected="false" aria-controls="faturaKontrolView">🧾 Fatura Kontrol</button>
-      <button class="tab-btn" id="tabbtn-trend" data-view="trend" type="button" role="tab" aria-selected="false" aria-controls="trendView">📈 Trend Analizi</button>
+      <button class="tab-btn tab-dropdown-btn active" id="tabbtn-cariDetay" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="cariDetayDropdownMenu">📇 Cari Detay <span class="dd-arrow">▾</span></button>
+      <button class="tab-btn tab-dropdown-btn" id="tabbtn-dagitim" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="dagitimDropdownMenu">🚚 Dağıtım <span class="dd-arrow">▾</span></button>
       <button class="tab-btn" id="tabbtn-bayiHakedis" data-view="bayiHakedis" type="button" role="tab" aria-selected="false" aria-controls="bayiHakedisView">🏷️ Bayi Hakediş</button>
-      <button class="tab-btn" id="tabbtn-tahsilatVerimlilik" data-view="tahsilatVerimlilik" type="button" role="tab" aria-selected="false" aria-controls="tahsilatVerimlilikView">💹 Temsilci Tahsilat Verimliliği</button>
+      <button class="tab-btn tab-dropdown-btn" id="tabbtn-finansalAnaliz" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="finansalDropdownMenu">📊 Finansal Analiz <span class="dd-arrow">▾</span></button>
+    </div>
+
+    <div class="tab-dropdown-menu" id="cariDetayDropdownMenu" role="menu" aria-hidden="true" aria-labelledby="tabbtn-cariDetay">
+      <button class="tab-btn dropdown-item active" id="tabbtn-genel" data-view="genel" type="button" role="tab" aria-selected="true" aria-controls="genelView">📊 Genel Rapor</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-yaslandirma" data-view="yaslandirma" type="button" role="tab" aria-selected="false" aria-controls="yaslandirmaView">⏱️ Yaşlandırma Raporu</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-trend" data-view="trend" type="button" role="tab" aria-selected="false" aria-controls="trendView">📈 Trend Analizi</button>
+    </div>
+
+    <div class="tab-dropdown-menu" id="dagitimDropdownMenu" role="menu" aria-hidden="true" aria-labelledby="tabbtn-dagitim">
+      <button class="tab-btn dropdown-item" id="tabbtn-sevk" data-view="sevk" type="button" role="tab" aria-selected="false" aria-controls="sevkView">🚚 Sevk Raporu</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-faturaKontrol" data-view="faturaKontrol" type="button" role="tab" aria-selected="false" aria-controls="faturaKontrolView">🧾 Fatura Kontrol</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-yukleme" data-view="yukleme" type="button" role="tab" aria-selected="false" aria-controls="yuklemeView">📦 ST Tahsilat/Litre</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-ticariStok" data-view="ticariStok" type="button" role="tab" aria-selected="false" aria-controls="ticariStokView">🛢️ Ticari Stok Raporu</button>
+    </div>
+
+    <div class="tab-dropdown-menu" id="finansalDropdownMenu" role="menu" aria-hidden="true" aria-labelledby="tabbtn-finansalAnaliz">
+      <button class="tab-btn dropdown-item" id="tabbtn-temsilciKarnesi" data-view="temsilciKarnesi" type="button" role="tab" aria-selected="false" aria-controls="temsilciKarnesiView">🏆 Temsilci Karnesi</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-tahsilatVerimlilik" data-view="tahsilatVerimlilik" type="button" role="tab" aria-selected="false" aria-controls="tahsilatVerimlilikView">💹 Temsilci Tahsilat Verimliliği</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-cei" data-view="cei" type="button" role="tab" aria-selected="false" aria-controls="ceiView">🧮 Tahsilat Başarı Oranı</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-nakitAkis" data-view="nakitAkis" type="button" role="tab" aria-selected="false" aria-controls="nakitAkisView">💰 Nakit Akış Tahmini</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-supheliAlacak" data-view="supheliAlacak" type="button" role="tab" aria-selected="false" aria-controls="supheliAlacakView">⚠️ Şüpheli Alacak</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-dsoTrend" data-view="dsoTrend" type="button" role="tab" aria-selected="false" aria-controls="dsoTrendView">📉 DSO Trendi</button>
+      <button class="tab-btn dropdown-item" id="tabbtn-yonetimOzeti" data-view="yonetimOzeti" type="button" role="tab" aria-selected="false" aria-controls="yonetimOzetiView">🗂️ Yönetim Özeti</button>
     </div>
 
     <div class="modal-overlay" id="senetModalOverlay">
@@ -1339,6 +1422,22 @@
 
     <div id="tahsilatVerimlilikView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-tahsilatVerimlilik">
 
+      <details class="info-box">
+        <summary>ℹ️ Nasıl Yorumlanır?</summary>
+        <div class="info-box-body">
+          <h4>📌 Bu Rapor Ne İşe Yarar?</h4>
+          <p>Her satış temsilcisinin, kendi müşterilerinden <b>ne kadar tahsilat yapabildiğini</b> gösterir. Kısaca "temsilci elindeki borcu ne kadar nakde çevirebiliyor?" sorusunun cevabıdır.</p>
+          <h4>📊 Nasıl Yorumlanmalı?</h4>
+          <ul>
+            <li><b>Tahsilat Oranı yüksekse (örn. %80+):</b> temsilci borcu iyi takip ediyor, performansı güçlü.</li>
+            <li><b>Tahsilat Oranı düşükse:</b> müşteri borçları birikiyor olabilir; bu temsilcinin cari hesapları yakından izlenmelidir.</li>
+            <li><b>Cari Değişim eksi (−) ise:</b> ay içinde borç azalmış demektir — olumlu bir işaret.</li>
+            <li><b>Cari Değişim artı (+) ise:</b> borç büyümüş demektir — takip gerekir.</li>
+          </ul>
+          <p><b>Aksiyon:</b> Oranı düşük ve cari değişimi artı olan temsilcileri önceliklendirip, hangi müşterilerin borcu büyüttüğünü detay tablodan inceleyin.</p>
+        </div>
+      </details>
+
       <div class="panel" id="tvFiltrePanel">
         <div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
@@ -1406,6 +1505,286 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- DSO TRENDİ -->
+    <div id="dsoTrendView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-dsoTrend">
+      <details class="info-box">
+        <summary>ℹ️ Nasıl Yorumlanır?</summary>
+        <div class="info-box-body">
+          <h4>📌 Bu Rapor Ne İşe Yarar?</h4>
+          <p><b>DSO (Days Sales Outstanding)</b>, alacakların ortalama olarak kaç günde tahsil edildiğini gösterir. Basitçe: "param genelde kaç gün sonra elime geçiyor?" sorusunun cevabıdır.</p>
+          <h4>📊 Nasıl Yorumlanmalı?</h4>
+          <ul>
+            <li><b>DSO düşüyorsa:</b> tahsilat hızlanıyor, nakit döngüsü iyileşiyor — olumlu gelişme.</li>
+            <li><b>DSO yükseliyorsa:</b> müşteriler daha yavaş ödüyor, vadeler uzuyor — dikkat gerektirir.</li>
+            <li><b>"DSO'yu En Çok Yükselten Müşteriler" tablosu:</b> ortalama vadeyi yukarı çeken müşterileri gösterir.</li>
+          </ul>
+          <p><b>Aksiyon:</b> Bu tablodaki büyük bakiyeli/uzun vadeli müşterileri önceliklendirip tahsilat takibini bu müşteriler üzerinde yoğunlaştırın.</p>
+        </div>
+      </details>
+      <div class="panel" id="dsoTrendFiltrePanel">
+        <div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+          <div class="as-of" id="dsoTrendAsOf" style="margin:0;">Veri kaynağı: Fatura Kontrol arşivi (günlük müşteri anlık görüntüleri)</div>
+          <button type="button" class="btn small" id="dsoTrendYenileBtn" title="Buluttaki arşivi yeniden çeker">🔄 Yenile</button>
+        </div>
+      </div>
+      <div id="dsoTrendKpiGrid"></div>
+      <div class="panel" id="dsoTrendChartPanel">
+        <div class="panel-head"><div><h2>DSO Trendi</h2><span class="count" id="dsoTrendChartSub"></span></div></div>
+        <div class="panel-body"><div class="trend-chart-card"><div id="dsoTrendChart"></div></div></div>
+      </div>
+      <div class="panel" id="dsoTrendTablePanel">
+        <div class="panel-head"><div><h2>DSO'yu En Çok Yükselten Müşteriler</h2><span class="count">ağırlıklı vade katkısı — güncel duruma göre</span></div></div>
+        <div class="panel-body" style="padding:0;">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Müşteri</th><th>Temsilci</th><th class="num">Kalan Borç</th><th class="num">Ort. Vade (gün)</th></tr></thead>
+              <tbody id="dsoTrendTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="dsoTrendBosPanel" style="display:none;">
+        <div class="panel-body"><div class="empty-state">DSO trendi için yeterli arşiv verisi yok. "Genel Rapor"da en az birkaç gün "Raporu Oluştur"a bastıktan sonra burada geçmiş oluşmaya başlar.</div></div>
+      </div>
+    </div>
+
+    <!-- NAKİT AKIŞ TAHMİNİ -->
+    <div id="nakitAkisView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-nakitAkis">
+      <details class="info-box">
+        <summary>ℹ️ Nasıl Yorumlanır?</summary>
+        <div class="info-box-body">
+          <h4>📌 Bu Rapor Ne İşe Yarar?</h4>
+          <p>Önümüzdeki haftalarda <b>ne zaman ve ne kadar nakit girişi</b> beklendiğini tahmin eder — nakit planlaması ve ödeme takvimi için bir öngörü aracıdır.</p>
+          <h4>📊 Nasıl Yorumlanmalı?</h4>
+          <ul>
+            <li><b>Vadesi Gelen Bakiye:</b> o hafta vadesi dolacak toplam alacak tutarıdır.</li>
+            <li><b>Ağırlıklı Beklenen Tahsilat:</b> geçmiş gerçekleşme oranına göre, o vadeden fiilen ne kadarının tahsil edilmesinin beklendiğidir — "kağıt üstündeki" değil, gerçekçi tahmindir.</li>
+            <li><b>İki değer birbirine yakınsa:</b> güçlü bir nakit girişi bekleniyor demektir.</li>
+            <li><b>Aradaki fark büyükse:</b> o hafta için ekstra tahsilat takibi planlanmalıdır.</li>
+          </ul>
+          <p><b>Aksiyon:</b> Farkın büyük olduğu haftaları önceden fark edip, o dönem için tahsilat/nakit önlemi alın. Bu bir tahmindir, kesin garanti değildir.</p>
+        </div>
+      </details>
+      <div class="as-of" id="nakitAkisAsOf">Veri kaynağı: Kalemler (açık faturaların net vade tarihi) + geçmiş tahsilat gerçekleşme oranı</div>
+      <div id="nakitAkisKpiGrid"></div>
+      <div class="panel" id="nakitAkisChartPanel">
+        <div class="panel-head"><div><h2>Haftalık Vade Dağılımı</h2><span class="count">vadesi gelen bakiye / ağırlıklı beklenen tahsilat</span></div></div>
+        <div class="panel-body"><div id="nakitAkisChart"></div></div>
+      </div>
+      <div class="panel" id="nakitAkisTablePanel">
+        <div class="panel-head"><div><h2>Hafta Bazında Detay</h2></div></div>
+        <div class="panel-body" style="padding:0;">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Dönem</th><th class="num">Vadesi Gelen Bakiye</th><th class="num" id="nakitAkisOranBaslik">Ağırlıklı Beklenen Tahsilat</th></tr></thead>
+              <tbody id="nakitAkisTbody"></tbody>
+              <tfoot id="nakitAkisTfoot"></tfoot>
+            </table>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0;"><div class="note" id="nakitAkisNot" style="font-size:11.5px;color:var(--ink-soft);background:var(--navy-soft);border-radius:9px;padding:9px 12px;"></div></div>
+      </div>
+    </div>
+
+    <!-- ŞÜPHELİ ALACAK -->
+    <div id="supheliAlacakView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-supheliAlacak">
+      <details class="info-box">
+        <summary>ℹ️ Nasıl Yorumlanır?</summary>
+        <div class="info-box-body">
+          <h4>📌 Bu Rapor Ne İşe Yarar?</h4>
+          <p>Geciken alacaklardan <b>ne kadarının tahsil edilemeyebileceğini</b> (kayıp riskini) tahmin eder ve riskli müşterileri öne çıkarır.</p>
+          <h4>📊 Nasıl Yorumlanmalı?</h4>
+          <ul>
+            <li><b>Karşılık Oranı:</b> bir vade diliminin kaybedilme riski taşıdığı yüzdedir. Gecikme günü arttıkça bu oran otomatik olarak yükselir.</li>
+            <li><b>Önerilen Karşılık:</b> o dilimdeki bakiye üzerinden ayrılması önerilen tahmini kayıp tutarıdır.</li>
+            <li><b>Hukuki Takip Riski Taşıyan Müşteriler:</b> 90 günden fazla geciken, normal takiple tahsili zorlaşmış müşterilerdir.</li>
+          </ul>
+          <p><b>Aksiyon:</b> Dilim ne kadar sağa (daha eski vadeye) kayıyorsa, o kadar hızlı aksiyon alınmalı; hukuki risk listesindeki müşteriler öncelikli olarak ele alınmalıdır.</p>
+        </div>
+      </details>
+      <div class="as-of">Veri kaynağı: Kalemler (yaşlandırma) — karşılık oranları elle düzenlenebilir</div>
+      <div id="supheliAlacakKpiGrid"></div>
+      <div class="grid2" style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;">
+        <div class="panel">
+          <div class="panel-head"><div><h2>Yaşlandırma Bazlı Karşılık Matrisi</h2><span class="count">oranlar otomatik hesaplanır — dilimin gerçek ortalama gecikme gününe göre</span></div></div>
+          <div class="panel-body" style="padding:0;">
+            <div class="table-scroll">
+              <table class="rate-table">
+                <thead><tr><th>Vade Aralığı</th><th class="num">Bakiye</th><th class="num">Karşılık Oranı</th><th class="num">Önerilen Karşılık</th></tr></thead>
+                <tbody id="supheliMatrixTbody"></tbody>
+                <tfoot id="supheliMatrixTfoot"></tfoot>
+              </table>
+            </div>
+            <div class="panel-body" style="padding-top:0;"><div class="note" style="font-size:11.5px;color:var(--ink-soft);background:var(--navy-soft);border-radius:9px;padding:9px 12px;">
+              <b>Yöntem:</b> Her dilimin karşılık oranı, o dilimdeki müşterilerin bakiye-ağırlıklı GERÇEK ortalama gecikme gününden otomatik türetilir (her gecikme günü ~%0,5 kayıp riski, en fazla %95). Elle girilen/düzenlenen bir oran yoktur; portföy değiştikçe oranlar da kendiliğinden güncellenir.
+            </div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h2>Bakiye Dağılımı</h2></div></div>
+          <div class="panel-body"><div id="supheliAgingChart"></div></div>
+        </div>
+      </div>
+      <div class="panel" id="supheliHukukiPanel">
+        <div class="panel-head"><div><h2>Hukuki Takip Riski Taşıyan Müşteriler</h2><span class="count">90+ gün geciken, bakiyeye göre sıralı</span></div></div>
+        <div class="panel-body" style="padding:0;">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Müşteri</th><th>Temsilci</th><th class="num">Kalan Borç</th><th class="num">Gecikme (gün)</th><th class="num">Çek/Senet</th></tr></thead>
+              <tbody id="supheliHukukiTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEMSİLCİ KARNESİ -->
+    <div id="temsilciKarnesiView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-temsilciKarnesi">
+      <details class="info-box">
+        <summary>ℹ️ Nasıl Yorumlanır?</summary>
+        <div class="info-box-body">
+          <h4>📌 Bu Rapor Ne İşe Yarar?</h4>
+          <p>Her temsilcinin tahsilat performansını, <b>kendi portföyüne göre otomatik hesaplanan bir hedefle</b> karşılaştırır — temsilcileri adil şekilde kıyaslamayı sağlar.</p>
+          <h4>📊 Nasıl Yorumlanmalı?</h4>
+          <ul>
+            <li><b>Hedef:</b> elle girilmez; cari bakiye ve sipariş hacmi üzerinden otomatik hesaplanır ve portföy değiştikçe kendini güncelleştirir.</li>
+            <li><b>Gerçekleşen ≥ Hedef:</b> temsilci beklenen performansı yakalamış veya aşmış demektir.</li>
+            <li><b>Gerçekleşen &lt; Hedef:</b> tahsilat beklenenin altında kalmış demektir; nedeni araştırılmalıdır.</li>
+          </ul>
+          <p><b>Aksiyon:</b> Hedefin altında kalan temsilcilerle görüşüp gecikmenin müşteri kaynaklı mı yoksa takip eksikliğinden mi kaynaklandığını netleştirin.</p>
+        </div>
+      </details>
+      <div class="panel" id="karneFiltrePanel">
+        <div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+          <div class="as-of" id="karneAsOf" style="margin:0;">Veri kaynağı: Tahsilat + Kalemler + Bayi Hak Ediş (bu ay)</div>
+          <button type="button" class="btn small" id="karneYenileBtn" title="Buluttaki arşivi yeniden çeker">🔄 Yenile</button>
+        </div>
+      </div>
+      <div id="karneKpiGrid"></div>
+      <div class="panel" id="karneChartPanel">
+        <div class="panel-head"><div><h2>Hedef vs Gerçekleşen — Tahsilat</h2><span class="count" id="karneChartSub">hedef otomatik hesaplanır: cari yaşlandırma + sipariş tutarı</span></div></div>
+        <div class="panel-body">
+          <div id="karneChart"></div>
+          <div class="note" style="font-size:11.5px;color:var(--ink-soft);background:var(--navy-soft);border-radius:9px;padding:9px 12px;margin-top:12px;">
+            <b>Yöntem:</b> Hedef = (temsilcinin müşterilerinin kalan borcu × Şüpheli Alacak'taki otomatik tahsil edilebilirlik oranı) + (açık sipariş + emanet sipariş tutarı × son aylardaki gerçek ortalama tahsilat gerçekleşme oranı). Elle girilen bir hedef yoktur; cari yaşlandırma ve sipariş hacmi değiştikçe hedef de otomatik güncellenir.
+          </div>
+        </div>
+      </div>
+      <div class="panel-head" style="padding:0 0 10px;border:none;"><h2 style="font-size:14.5px;margin:0;">Temsilci Kartları</h2></div>
+      <div class="karne-grid" id="karneGrid"></div>
+    </div>
+
+    <!-- YÖNETİM ÖZETİ -->
+    <div id="yonetimOzetiView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-yonetimOzeti">
+      <details class="info-box">
+        <summary>ℹ️ Nasıl Yorumlanır?</summary>
+        <div class="info-box-body">
+          <h4>📌 Bu Rapor Ne İşe Yarar?</h4>
+          <p>Diğer tüm finansal raporların <b>özetini tek ekranda</b> sunar — genel durumu hızlıca görmek isteyen yöneticiler için tasarlanmıştır.</p>
+          <h4>📊 Nasıl Yorumlanmalı?</h4>
+          <ul>
+            <li><b>Bakiye ve Tahsilat Trendi:</b> çizgi yukarı gidiyorsa borç birikiyor; tahsilat çizgisi yüksekse tahsilat performansı iyi demektir.</li>
+            <li><b>Öne Çıkanlar:</b> 🟢 iyileşme, 🟡 kötüleşme, ➖ durağan durum anlamına gelir.</li>
+            <li><b>Aksiyon Gerektiren Konular:</b> öncelik sırasına göre harekete geçilmesi gereken riskli durumların listesidir.</li>
+          </ul>
+          <p><b>Aksiyon:</b> Kırmızı/sarı uyarı veren konuları öncelik sırasına göre ele alın; detaylı analiz için Finansal Analiz menüsündeki ilgili rapora (DSO Trendi, Şüpheli Alacak, Temsilci Karnesi vb.) geçin.</p>
+        </div>
+      </details>
+      <div class="panel" id="yoFiltrePanel">
+        <div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+          <div class="as-of" id="yoAsOf" style="margin:0;"></div>
+          <button type="button" class="btn small" id="yoYenileBtn" title="Buluttaki arşivi yeniden çeker">🔄 Yenile</button>
+        </div>
+      </div>
+      <div id="yoKpiGrid"></div>
+      <div class="grid2" style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;">
+        <div class="panel">
+          <div class="panel-head"><div><h2>Bakiye ve Tahsilat Trendi</h2><span class="count" id="yoChartSub"></span></div></div>
+          <div class="panel-body"><div class="trend-chart-card"><div id="yoChart"></div></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h2>Öne Çıkanlar</h2></div></div>
+          <div class="panel-body"><div class="insight-list" id="yoInsights"></div></div>
+        </div>
+      </div>
+      <div class="panel" id="yoAksiyonPanel">
+        <div class="panel-head"><div><h2>Aksiyon Gerektiren Konular</h2></div></div>
+        <div class="panel-body" style="padding:0;">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Konu</th><th>İlgili</th><th>Öncelik</th></tr></thead>
+              <tbody id="yoAksiyonTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAHSİLAT BAŞARI ORANI (CEI) -->
+    <div id="ceiView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-cei">
+      <details class="info-box">
+        <summary>ℹ️ Nasıl Yorumlanır?</summary>
+        <div class="info-box-body">
+          <h4>📌 Bu Rapor Ne İşe Yarar?</h4>
+          <p><b>CEI (Collection Effectiveness Index / Tahsilat Başarı Oranı)</b>, o dönemde <b>fiilen tahsil edilebilecek durumda olan (vadesi gelmiş)</b> alacağın ne kadarının gerçekten tahsil edildiğini gösterir. DSO'dan farkı budur: DSO alacağın ortalama kaç günde döndüğünü ölçer, CEI ise "tahsil edilmesi gereken paranın ne kadarını tahsil ettik?" sorusuna cevap verir.</p>
+          <h4>🧮 Vadesi Gelmiş / Vadesi Gelmemiş Nasıl Belirlenir?</h4>
+          <p>Bu hesaplamada fatura üzerindeki <b>Net Vade Tarihi kriteri kullanılmaz</b>. Yerine, açık faturaların <b>Kalan Borç</b> ve <b>Faturadan Sonr. Gün</b> verisi baz alınır: bir faturanın Faturadan Sonr. Gün değeri <b>23 ve üzeri</b> ise o faturanın kalan borcu <b>"vadesi gelmiş"</b> sayılır; altındaysa <b>"vadesi gelmemiş"</b> kabul edilir. (Not: Genel Rapor'daki "Ort. Vade" göstergesi bu 23 günlük eşikten etkilenmez, o gösterge her zaman genel raporun kendi ortalama vade hesaplamasını kullanır.)</p>
+          <h4>📊 Nasıl Yorumlanmalı?</h4>
+          <ul>
+            <li><b>CEI %90 ve üzerindeyse:</b> tahsil edilebilecek alacağın büyük kısmı tahsil edilmiş — güçlü bir performans.</li>
+            <li><b>CEI %70–%90 arasındaysa:</b> kabul edilebilir seviyede, ama takip sıkılaştırılabilir.</li>
+            <li><b>CEI %70'in altındaysa:</b> vadesi gelmiş alacağın önemli bir kısmı tahsil edilememiş — acil aksiyon gerektirir.</li>
+            <li><b>CEI, Genel Tahsilat Oranı'ndan çok düşükse:</b> sorun büyüklükte değil, vadesi gelmiş (23+ gün) faturaların tahsilatındadır.</li>
+            <li><b>Temsilci bazlı tablo:</b> hangi temsilcinin vadesi gelmiş bakiyeyi tahsil etmekte zorlandığını gösterir; düşük CEI'li temsilciler önceliklendirilmelidir.</li>
+          </ul>
+          <p><b>Aksiyon:</b> CEI düşük olan aylarda/temsilcilerde, "vadesi gelmiş" (Faturadan Sonr. Gün ≥ 23) faturaları listeleyip tahsilat takibini bu faturalar üzerine yoğunlaştırın.</p>
+        </div>
+      </details>
+      <div class="panel" id="ceiFiltrePanel">
+        <div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <label for="ceiAySelect" style="font-size:12.5px;font-weight:600;color:var(--ink-soft);">Ay:</label>
+            <select class="filter-select" id="ceiAySelect"></select>
+            <button type="button" class="btn small" id="ceiYenileBtn" title="Buluttaki arşivi yeniden çeker">🔄 Yenile</button>
+          </div>
+          <div class="as-of" id="ceiArsivBilgi" style="margin:0;"></div>
+        </div>
+      </div>
+      <div class="note" style="margin:0 0 16px;font-size:11.5px;color:var(--ink-soft);background:var(--navy-soft);border-radius:9px;padding:9px 12px;">
+        <b>Formül:</b> CEI = (Dönem Başı Bakiye + Dönem İçi Satış − Dönem Sonu Toplam Bakiye) ÷ (Dönem Başı Bakiye + Dönem İçi Satış − Dönem Sonu Vadesi Gelmemiş Bakiye) × 100.
+        DSO'dan farkı: CEI, o dönem tahsil edilebilecek (vadesi gelmiş — Faturadan Sonr. Gün ≥ 23) alacağın ne kadarının fiilen tahsil edildiğini ölçer.
+      </div>
+      <div id="ceiKpiGrid"></div>
+      <div class="grid2" style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;">
+        <div class="panel">
+          <div class="panel-head"><div><h2>Aylık CEI Trendi</h2><span class="count" id="ceiChartSub"></span></div></div>
+          <div class="panel-body"><div class="trend-chart-card"><div id="ceiChart"></div></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div><h2>Hesaplama Detayı</h2></div></div>
+          <div class="panel-body" style="padding:0;">
+            <table class="formula-table" style="width:100%;">
+              <tbody id="ceiFormulaBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="ceiRepPanel">
+        <div class="panel-head"><div><h2>Temsilci Bazında Tahsilat Başarı Oranı</h2><span class="count">detaylı görünüm: "Temsilci Tahsilat Verimliliği" sekmesi</span></div></div>
+        <div class="panel-body" style="padding:0;">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Temsilci</th><th class="num">Vadesi Gelen Bakiye</th><th class="num">Tahsil Edilen</th><th class="num">CEI</th><th>Durum</th></tr></thead>
+              <tbody id="ceiRepTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="ceiBosPanel" style="display:none;">
+        <div class="panel-body"><div class="empty-state">CEI hesaplaması için en az bir tam ayın arşiv verisi (ay başı ve ay sonu anlık görüntüsü) gerekir.</div></div>
+      </div>
     </div>
 
     <footer>Bu rapor yüklenen ham veri dosyalarından tarayıcınızda anlık olarak hesaplanmıştır. Hiçbir veri sunucuya gönderilmez.</footer>
@@ -1545,6 +1924,7 @@ function buildMusteriSnapshot(report){
   return (report.musteriler||[]).map(m=>({
     musteri: m.musteri, musteriAdi: m.musteriAdi, temsilci: m.temsilci,
     kalanBorc: m.kalanBorc, avgVadeGun: m.avgVadeGun, cekSenet: m.cekSenet, toplamRisk: m.toplamRisk,
+    vadesizBakiye: m.vadesizBakiye,
   }));
 }
 
@@ -1557,6 +1937,7 @@ function musteriSnapshotKisalt(uzunDizi){
   return (uzunDizi||[]).map(m=>({
     k: m.musteri, n: m.musteriAdi, t: m.temsilci,
     b: m.kalanBorc, v: m.avgVadeGun, c: m.cekSenet, r: m.toplamRisk,
+    z: m.vadesizBakiye,
   }));
 }
 function musteriSnapshotUzat(dizi){
@@ -1566,6 +1947,7 @@ function musteriSnapshotUzat(dizi){
     return {
       musteri: m.k, musteriAdi: m.n, temsilci: m.t,
       kalanBorc: m.b, avgVadeGun: m.v, cekSenet: m.c, toplamRisk: m.r,
+      vadesizBakiye: m.z,
     };
   });
 }
@@ -2686,6 +3068,8 @@ async function resetAll(){
   document.querySelectorAll('.tab-btn').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
   const genelTab = document.querySelector('.tab-btn[data-view="genel"]');
   if(genelTab){ genelTab.classList.add('active'); genelTab.setAttribute('aria-selected','true'); }
+  const cariDetayTab = document.getElementById('tabbtn-cariDetay');
+  if(cariDetayTab) cariDetayTab.classList.add('active');
   document.getElementById('genelView').style.display='block';
   document.getElementById('sevkView').style.display='none';
   document.getElementById('yuklemeView').style.display='none';
@@ -2695,6 +3079,12 @@ async function resetAll(){
   document.getElementById('trendView').style.display='none';
   document.getElementById('bayiHakedisView').style.display='none';
   document.getElementById('tahsilatVerimlilikView').style.display='none';
+  document.getElementById('dsoTrendView').style.display='none';
+  document.getElementById('nakitAkisView').style.display='none';
+  document.getElementById('supheliAlacakView').style.display='none';
+  document.getElementById('temsilciKarnesiView').style.display='none';
+  document.getElementById('yonetimOzetiView').style.display='none';
+  document.getElementById('ceiView').style.display='none';
 }
 resetBtn.addEventListener('click', resetAll);
 
@@ -2944,18 +3334,24 @@ function buildReport(files, musteriMasterMap){
       }
     });
 
-    let kalanBorcToplam = 0, vAgirlikliToplam = 0, agirlikBorc = 0;
+    let kalanBorcToplam = 0, vAgirlikliToplam = 0, agirlikBorc = 0, vadesiGelmisBakiye = 0;
     m.invoices.forEach(inv=>{
       kalanBorcToplam += inv.kalanBorc;
       if(inv.gunFatura!=null && inv.kalanBorc!==0){
         vAgirlikliToplam += inv.kalanBorc * inv.gunFatura;
         agirlikBorc += inv.kalanBorc;
+        // Vadesi gelen fatura mantığı: fatura vadesi (Net Vade Tarihi) kriteri değil, açık faturanın
+        // kalan borcu + Faturadan Sonr. Gün verisi baz alınır — Faturadan Sonr. Gün 23 ve üstü ise
+        // o faturanın kalan borcu "vadesi gelmiş" sayılır.
+        if(inv.gunFatura>=23) vadesiGelmisBakiye += inv.kalanBorc;
       }
     });
     m.kalanBorc = kalanBorcToplam;
     m.vadeAgirlikliToplam = vAgirlikliToplam;
     m.agirlikBorc = agirlikBorc;
     m.avgVadeGun = agirlikBorc!==0 ? Math.round(vAgirlikliToplam / agirlikBorc) : 0;
+    m.vadesiGelmisBakiye = vadesiGelmisBakiye;
+    m.vadesizBakiye = kalanBorcToplam - vadesiGelmisBakiye;
 
     m.toplamRisk = m.kalanBorc + m.siparisTutari + m.cekSenet;
     const sp = siparisMusterileri.get(musteri);
@@ -3074,7 +3470,7 @@ function canliGunlerleGuncelle(report){
   if(!report || !report.asOf || !report.musteriler) return report;
   const farkGun = Math.round((turkiyeBugun().getTime() - new Date(report.asOf).getTime()) / 86400000);
   report.musteriler.forEach(m=>{
-    let vAgirlik = 0, aBorc = 0;
+    let vAgirlik = 0, aBorc = 0, vadesiGelmis = 0;
     (m.invoices||[]).forEach(inv=>{
       if(inv.gunFaturaHam == null) inv.gunFaturaHam = inv.gunFatura;
       if(inv.gunVadeHam == null) inv.gunVadeHam = inv.gunVade;
@@ -3083,11 +3479,16 @@ function canliGunlerleGuncelle(report){
       if(inv.gunFatura != null && inv.kalanBorc !== 0){
         vAgirlik += inv.kalanBorc * inv.gunFatura;
         aBorc += inv.kalanBorc;
+        // Vadesi gelen fatura mantığı burada da fatura vadesi (netVade) yerine kalan borç +
+        // Faturadan Sonr. Gün'e göre uygulanır: 23 gün ve üstü ise vadesi gelmiş sayılır.
+        if(inv.gunFatura>=23) vadesiGelmis += inv.kalanBorc;
       }
     });
     m.avgVadeGun = aBorc !== 0 ? Math.round(vAgirlik / aBorc) : 0;
     m.vadeAgirlikliToplam = vAgirlik;
     m.agirlikBorc = aBorc;
+    m.vadesiGelmisBakiye = vadesiGelmis;
+    m.vadesizBakiye = (m.kalanBorc||0) - vadesiGelmis;
   });
   report.canliGunFarki = farkGun;
   return report;
@@ -3167,12 +3568,60 @@ function renderReport(report){
   renderTicariStokView(report);
 }
 
+const FINANSAL_ANALIZ_VIEWS = ['temsilciKarnesi','tahsilatVerimlilik','cei','nakitAkis','supheliAlacak','dsoTrend','yonetimOzeti'];
+const CARI_DETAY_VIEWS = ['genel','yaslandirma','trend'];
+const DAGITIM_VIEWS = ['sevk','faturaKontrol','yukleme','ticariStok'];
+const TAB_DROPDOWNS = [
+  {btn: document.getElementById('tabbtn-cariDetay'), menu: document.getElementById('cariDetayDropdownMenu'), views: CARI_DETAY_VIEWS},
+  {btn: document.getElementById('tabbtn-dagitim'), menu: document.getElementById('dagitimDropdownMenu'), views: DAGITIM_VIEWS},
+  {btn: document.getElementById('tabbtn-finansalAnaliz'), menu: document.getElementById('finansalDropdownMenu'), views: FINANSAL_ANALIZ_VIEWS},
+];
+function closeDropdown(d){
+  d.menu.classList.remove('open');
+  d.btn.setAttribute('aria-expanded','false');
+  d.menu.setAttribute('aria-hidden','true');
+}
+function closeAllDropdowns(except){
+  TAB_DROPDOWNS.forEach(d=>{ if(d!==except) closeDropdown(d); });
+}
+function openDropdown(d){
+  closeAllDropdowns(d);
+  const r = d.btn.getBoundingClientRect();
+  const menuWidth = d.menu.offsetWidth || 238;
+  let left = r.left;
+  const maxLeft = window.innerWidth - menuWidth - 8;
+  if(left > maxLeft) left = Math.max(8, maxLeft);
+  d.menu.style.top = (r.bottom + 6) + 'px';
+  d.menu.style.left = left + 'px';
+  d.menu.classList.add('open');
+  d.btn.setAttribute('aria-expanded','true');
+  d.menu.setAttribute('aria-hidden','false');
+}
+TAB_DROPDOWNS.forEach(d=>{
+  d.btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if(d.menu.classList.contains('open')) closeDropdown(d); else openDropdown(d);
+  });
+});
+document.addEventListener('click', (e)=>{
+  TAB_DROPDOWNS.forEach(d=>{
+    if(d.menu.classList.contains('open') && !d.menu.contains(e.target) && e.target!==d.btn && !d.btn.contains(e.target)){
+      closeDropdown(d);
+    }
+  });
+});
+window.addEventListener('resize', ()=>{ TAB_DROPDOWNS.forEach(d=>{ if(d.menu.classList.contains('open')) openDropdown(d); }); });
+document.querySelector('.tabbar')?.addEventListener('scroll', ()=>closeAllDropdowns());
+
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
+    if(TAB_DROPDOWNS.some(d=>d.btn===btn)) return;
     document.querySelectorAll('.tab-btn').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
     btn.classList.add('active');
     btn.setAttribute('aria-selected','true');
     const view = btn.getAttribute('data-view');
+    TAB_DROPDOWNS.forEach(d=> d.btn.classList.toggle('active', d.views.includes(view)));
+    if(btn.classList.contains('dropdown-item')) closeAllDropdowns();
     document.getElementById('genelView').style.display = view==='genel' ? 'block' : 'none';
     document.getElementById('sevkView').style.display = view==='sevk' ? 'block' : 'none';
     document.getElementById('yuklemeView').style.display = view==='yukleme' ? 'block' : 'none';
@@ -3182,6 +3631,12 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.getElementById('trendView').style.display = view==='trend' ? 'block' : 'none';
     document.getElementById('bayiHakedisView').style.display = view==='bayiHakedis' ? 'block' : 'none';
     document.getElementById('tahsilatVerimlilikView').style.display = view==='tahsilatVerimlilik' ? 'block' : 'none';
+    document.getElementById('dsoTrendView').style.display = view==='dsoTrend' ? 'block' : 'none';
+    document.getElementById('nakitAkisView').style.display = view==='nakitAkis' ? 'block' : 'none';
+    document.getElementById('supheliAlacakView').style.display = view==='supheliAlacak' ? 'block' : 'none';
+    document.getElementById('temsilciKarnesiView').style.display = view==='temsilciKarnesi' ? 'block' : 'none';
+    document.getElementById('yonetimOzetiView').style.display = view==='yonetimOzeti' ? 'block' : 'none';
+    document.getElementById('ceiView').style.display = view==='cei' ? 'block' : 'none';
     if(view==='sevk' && state.report) renderSevkView(state.report);
     if(view==='yukleme') renderYuklemeView();
     if(view==='yaslandirma' && state.report) renderYaslandirmaView(state.report);
@@ -3190,6 +3645,12 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     if(view==='trend') renderTrendView(state.report);
     if(view==='bayiHakedis') renderBayiHakedisView();
     if(view==='tahsilatVerimlilik' && state.report) renderTahsilatVerimlilikView(state.report);
+    if(view==='dsoTrend' && state.report) renderDsoTrendView(state.report);
+    if(view==='nakitAkis' && state.report) renderNakitAkisView(state.report);
+    if(view==='supheliAlacak' && state.report) renderSupheliAlacakView(state.report);
+    if(view==='temsilciKarnesi' && state.report) renderTemsilciKarnesiView(state.report);
+    if(view==='yonetimOzeti' && state.report) renderYonetimOzetiView(state.report);
+    if(view==='cei' && state.report) renderCeiView(state.report);
   });
 });
 
@@ -6087,6 +6548,663 @@ const debouncedRenderTvTable = debounce(()=>renderTahsilatVerimlilikTable());
 wireSearchInput('tvSearchInput', 'tvSearchClearBtn', debouncedRenderTvTable);
 wireSearchClear('tvSearchInput', 'tvSearchClearBtn', renderTahsilatVerimlilikTable);
 wireSortableTable('tvTable', 'tvSort', renderTahsilatVerimlilikTable);
+
+// ============================================================================
+// 6 YENİ RAPOR: DSO Trendi, Nakit Akış Tahmini, Şüpheli Alacak, Temsilci
+// Karnesi, Yönetim Özeti, Tahsilat Başarı Oranı (CEI). Hepsi GERÇEK verilerden
+// (Kalemler, Tahsilat, Fatura, Bayi Hak Ediş, ST Tahsilat/Litre ve Fatura
+// Kontrol'ün günlük musteriSnapshot arşivinden) beslenir; hiçbir sayı
+// uydurulmaz. Geçmişe dayalı trend grafikleri (DSO, CEI, Yönetim Özeti),
+// arşiv ne kadar geriye gidiyorsa o kadarını gösterir.
+// ============================================================================
+
+// --- fmtTrendDeger'e yüzde birimi eklenir (DSO/CEI için 'gun' ve 'yuzde' kullanılır) ---
+function fmtTrendDeger(v, birim){
+  if(birim==='gun') return Math.round(v).toLocaleString('tr-TR')+' gün';
+  if(birim==='yuzde') return '%'+v.toFixed(1).replace('.',',');
+  return TL(v);
+}
+
+// --- Ortak arşiv çekme yardımcısı: Fatura Kontrol arşivinden SADECE son `gunSayisi` günü
+// (Tahsilat Verimliliği'nde olduğu gibi bir ARALIK isteğiyle) çeker ve state.faturaArsivCache'e
+// birleştirir — arşivin tamamı hiçbir zaman indirilmez. Aynı pencere bu oturumda zaten çekildiyse
+// (zorla verilmedikçe) tekrar istek atılmaz.
+const genelRaporArsivPencereleri = new Set();
+async function genelRaporlarIcinArsivGetir(gunSayisi, zorla){
+  if(!cloudEnabled()) return state.faturaArsivCache || {};
+  const pencereAnahtari = String(gunSayisi);
+  if(genelRaporArsivPencereleri.has(pencereAnahtari) && !zorla) return state.faturaArsivCache || {};
+  const bugunKey = dateKeyLocal(new Date());
+  const baslangic = gunKeyEkle(bugunKey, -gunSayisi);
+  const aralik = await loadFaturaKontrolArsivAraligiFromCloud(baslangic, bugunKey);
+  if(aralik !== null){
+    state.faturaArsivCache = Object.assign({}, state.faturaArsivCache, aralik);
+    genelRaporArsivPencereleri.add(pencereAnahtari);
+  }
+  return state.faturaArsivCache || {};
+}
+
+// --- Fatura Kontrol arşivindeki HER günün musteriSnapshot'ını (o günün TÜM müşterileri için
+// kalanBorc + avgVadeGun) şirket geneline indirgeyerek günlük bir zaman serisi üretir: toplam
+// bakiye, bakiye-ağırlıklı ortalama vade (DSO) ve "vadesi gelmemiş" (Vadesinde bucket) bakiye.
+// DSO Trendi, Yönetim Özeti ve CEI hesaplamalarının TAMAMI bu tek fonksiyondan beslenir.
+function gunlukSirketOzetleriniHesapla(){
+  const gunler = Object.keys(state.faturaArsivCache||{}).sort();
+  const seri = [];
+  gunler.forEach(gunKey=>{
+    const g = state.faturaArsivCache[gunKey];
+    const snap = (g && g.musteriSnapshot || []).filter(m=>musteriTvIcinGecerliMi(m.musteri));
+    if(!snap.length) return;
+    let toplamBakiye=0, agirlikliVadeToplami=0, agirlikBorc=0, vadesindeBakiye=0;
+    snap.forEach(m=>{
+      const b = m.kalanBorc||0;
+      toplamBakiye += b;
+      if(b!==0){ agirlikliVadeToplami += b*(m.avgVadeGun||0); agirlikBorc += b; }
+      if((m.avgVadeGun||0) <= 0) vadesindeBakiye += b;
+    });
+    seri.push({
+      tarih: gunKey,
+      gunKey,
+      musteriSayisi: snap.length,
+      toplamBakiye,
+      dso: agirlikBorc!==0 ? (agirlikliVadeToplami/agirlikBorc) : 0,
+      vadesindeBakiye,
+    });
+  });
+  return seri;
+}
+
+// ============================================================================
+// 1) DSO TRENDİ
+// ============================================================================
+function computeDsoTrend(report){
+  const seri = gunlukSirketOzetleriniHesapla();
+  if(!seri.length) return {yok:true};
+  const guncel = seri[seri.length-1];
+  const degerler = seri.map(s=>s.dso);
+  const ortalama = degerler.reduce((a,b)=>a+b,0)/degerler.length;
+  let enIyi = seri[0], enKotu = seri[0];
+  seri.forEach(s=>{ if(s.dso<enIyi.dso) enIyi=s; if(s.dso>enKotu.dso) enKotu=s; });
+  const oncekiIndex = Math.max(0, seri.length-8);
+  const onceki = seri[oncekiIndex];
+  const degisim = (onceki && onceki!==guncel) ? guncel.dso-onceki.dso : 0;
+
+  const katkilar = (report.musteriler||[])
+    .filter(m=>(m.avgVadeGun||0)>0 && (m.kalanBorc||0)>0)
+    .map(m=>({musteri:m.musteri, musteriAdi:m.musteriAdi, temsilci:m.temsilci||'—', kalanBorc:m.kalanBorc, avgVadeGun:m.avgVadeGun}))
+    .sort((a,b)=>(b.kalanBorc*b.avgVadeGun)-(a.kalanBorc*a.avgVadeGun))
+    .slice(0,10);
+
+  return {seri, guncel, ortalama, enIyi, enKotu, degisim, katkilar};
+}
+
+async function renderDsoTrendView(report, zorla){
+  const asOfEl = document.getElementById('dsoTrendAsOf');
+  asOfEl.textContent = 'Buluttan yükleniyor…';
+  await genelRaporlarIcinArsivGetir(400, zorla);
+  const dso = computeDsoTrend(report);
+  const gunSayisi = Object.keys(state.faturaArsivCache||{}).length;
+  asOfEl.textContent = 'Veri kaynağı: Fatura Kontrol arşivi — '+gunSayisi.toLocaleString('tr-TR')+' günlük anlık görüntü';
+
+  if(dso.yok){
+    document.getElementById('dsoTrendKpiGrid').innerHTML='';
+    document.getElementById('dsoTrendChartPanel').style.display='none';
+    document.getElementById('dsoTrendTablePanel').style.display='none';
+    document.getElementById('dsoTrendBosPanel').style.display='block';
+    return;
+  }
+  document.getElementById('dsoTrendChartPanel').style.display='block';
+  document.getElementById('dsoTrendTablePanel').style.display='block';
+  document.getElementById('dsoTrendBosPanel').style.display='none';
+
+  const yon = dso.degisim>0.5 ? '🔺 Bozulma eğiliminde' : (dso.degisim<-0.5 ? '🟢 İyileşme eğiliminde' : '➖ Durağan');
+  const items = [
+    {label:'Güncel DSO', icon:'📉', value:null, display:Math.round(dso.guncel.dso)+' gün', sub:yon},
+    {label:'Arşiv Ortalaması', icon:'📈', value:null, display:Math.round(dso.ortalama)+' gün'},
+    {label:'En İyi Gün', icon:'🏅', value:null, display:Math.round(dso.enIyi.dso)+' gün', sub:fmtDate(new Date(dso.enIyi.gunKey+'T00:00:00'))},
+    {label:'En Kötü Gün', icon:'🚩', value:null, display:Math.round(dso.enKotu.dso)+' gün', sub:fmtDate(new Date(dso.enKotu.gunKey+'T00:00:00'))},
+    {label:'DSO\'yu En Çok Yükselten', icon:'👥', value:null, display:dso.katkilar.length.toLocaleString('tr-TR')+' müşteri'},
+  ];
+  renderKpiHeroRow(items, 'dsoTrendKpiGrid');
+  document.getElementById('dsoTrendChartSub').textContent = dso.seri.length.toLocaleString('tr-TR')+' günlük arşiv';
+  renderTrendChart('dsoTrendChart', dso.seri, 'dso', 'var(--accent)', 'gun');
+  document.getElementById('dsoTrendTbody').innerHTML = dso.katkilar.map(k=>`
+    <tr><td>${escapeHtml(k.musteriAdi)}</td><td>${escapeHtml(k.temsilci)}</td><td class="num num-strong">${TL(k.kalanBorc)}</td><td class="num neg">${k.avgVadeGun}</td></tr>`).join('')
+    || '<tr><td colspan="4" class="empty-state">Kayıt yok</td></tr>';
+}
+
+// ============================================================================
+// 2) NAKİT AKIŞ TAHMİNİ
+// ============================================================================
+async function ortalamaGecmisTahsilatOrani(report, ayAdedi){
+  const gunler = Object.keys(state.faturaArsivCache||{}).sort();
+  if(!gunler.length) return null;
+  const aylar = Array.from(new Set(gunler.map(g=>g.slice(0,7)))).sort();
+  const buAy = dateKeyLocal(new Date()).slice(0,7);
+  const tamamlanmisAylar = aylar.filter(a=>a<buAy).slice(-ayAdedi);
+  const hedefAylar = tamamlanmisAylar.length ? tamamlanmisAylar : aylar.slice(-1);
+  let toplamOran=0, sayi=0;
+  for(const ay of hedefAylar){
+    const rep = await computeTahsilatVerimlilikAy(report, ay, false);
+    if(rep && !rep.yok && rep.genel.tahsilatOrani!=null){ toplamOran += rep.genel.tahsilatOrani; sayi++; }
+  }
+  return sayi ? (toplamOran/sayi/100) : null;
+}
+
+function haftaEtiketi(baslangic, bitis){
+  const f = d=>d.toLocaleDateString('tr-TR',{day:'2-digit',month:'short'});
+  return f(baslangic)+' – '+f(bitis);
+}
+
+function computeNakitAkisTahmini(report, gerceklesmeOrani){
+  const today = turkiyeBugun();
+  const tumFaturalar = [];
+  (report.musteriler||[]).forEach(m=>{
+    (m.invoices||[]).forEach(inv=>{ if((inv.kalanBorc||0) > 0) tumFaturalar.push(inv); });
+  });
+
+  const HAFTA_MS = 7*86400000;
+  const bucketSayisi = 6;
+  let vadesiGecmis = 0;
+  tumFaturalar.forEach(inv=>{
+    if(!inv.netVade || inv.netVade.getTime() < today.getTime()) vadesiGecmis += inv.kalanBorc;
+  });
+  const buckets = [];
+  for(let i=0;i<bucketSayisi;i++){
+    const baslangic = new Date(today.getTime() + i*HAFTA_MS);
+    const bitis = new Date(today.getTime() + (i+1)*HAFTA_MS - 86400000);
+    buckets.push({etiket:haftaEtiketi(baslangic,bitis), baslangic, bitis, vadesiGelenBakiye:0});
+  }
+  tumFaturalar.forEach(inv=>{
+    if(!inv.netVade) return;
+    const t = inv.netVade.getTime();
+    if(t < today.getTime()) return;
+    for(const b of buckets){
+      if(t>=b.baslangic.getTime() && t<=b.bitis.getTime()+86399999){ b.vadesiGelenBakiye += inv.kalanBorc; break; }
+    }
+  });
+
+  const oranVarMi = gerceklesmeOrani != null;
+  buckets.forEach(b=>{ b.beklenenTahsilat = oranVarMi ? b.vadesiGelenBakiye*gerceklesmeOrani : null; });
+  const toplamVadesiGelen = buckets.reduce((a,b)=>a+b.vadesiGelenBakiye,0);
+  const toplamBeklenen = oranVarMi ? buckets.reduce((a,b)=>a+b.beklenenTahsilat,0) : null;
+
+  return {buckets, vadesiGecmis, oran:gerceklesmeOrani, oranVarMi, toplamVadesiGelen, toplamBeklenen};
+}
+
+async function renderNakitAkisView(report){
+  document.getElementById('nakitAkisAsOf').textContent = 'Geçmiş tahsilat oranı hesaplanıyor…';
+  await genelRaporlarIcinArsivGetir(200, false);
+  const oran = await ortalamaGecmisTahsilatOrani(report, 3);
+  const veri = computeNakitAkisTahmini(report, oran);
+  document.getElementById('nakitAkisAsOf').textContent = 'Veri kaynağı: Kalemler (açık faturaların net vade tarihi)'
+    + (veri.oranVarMi ? ' + son aylardaki ortalama tahsilat gerçekleşme oranı (%'+Math.round(oran*100)+')' : ' — geçmiş tahsilat oranı hesaplanamadı, sadece vade bazlı bakiye gösteriliyor');
+
+  const items = [
+    {label:'Önümüzdeki 6 Hafta — Vadesi Gelen', icon:'📅', value:veri.toplamVadesiGelen},
+    {label:'Ağırlıklı Beklenen Tahsilat', icon:'⬆️', value:veri.oranVarMi?veri.toplamBeklenen:0, display:veri.oranVarMi?undefined:'—'},
+    {label:'Vadesi Çoktan Geçmiş', icon:'⏰', value:veri.vadesiGecmis, sub:'ayrıca takip gerekir, tahmine dahil değil'},
+    {label:'Gerçekleşme Oranı (Geçmiş Ort.)', icon:'🎯', value:null, display:veri.oranVarMi?('%'+Math.round(veri.oran*100)):'—'},
+  ];
+  renderKpiHeroRow(items, 'nakitAkisKpiGrid');
+
+  const maksDeger = Math.max(...veri.buckets.map(b=>b.vadesiGelenBakiye), 1);
+  document.getElementById('nakitAkisChart').innerHTML = veri.buckets.map(b=>`
+    <div class="week-row">
+      <div class="week-label">${escapeHtml(b.etiket)}</div>
+      <div class="week-track"><div class="week-fill" style="width:${Math.max(2,b.vadesiGelenBakiye/maksDeger*100).toFixed(1)}%;"></div></div>
+      <div class="week-val">${TL(b.vadesiGelenBakiye)}</div>
+    </div>`).join('');
+
+  document.getElementById('nakitAkisOranBaslik').textContent = veri.oranVarMi ? 'Ağırlıklı Beklenen Tahsilat (%'+Math.round(veri.oran*100)+')' : 'Ağırlıklı Beklenen Tahsilat';
+  document.getElementById('nakitAkisTbody').innerHTML = veri.buckets.map(b=>`
+    <tr><td>${escapeHtml(b.etiket)}</td><td class="num">${TL(b.vadesiGelenBakiye)}</td><td class="num num-strong">${veri.oranVarMi?TL(b.beklenenTahsilat):'—'}</td></tr>`).join('');
+  document.getElementById('nakitAkisTfoot').innerHTML = `<tr><td><b>Toplam (6 hafta)</b></td><td class="num num-strong">${TL(veri.toplamVadesiGelen)}</td><td class="num num-strong">${veri.oranVarMi?TL(veri.toplamBeklenen):'—'}</td></tr>`;
+  document.getElementById('nakitAkisNot').textContent = 'Yöntem: Her haftanın vadesi gelen açık bakiyesi (Kalemler dosyasındaki Net Vade Tarihi baz alınır)'
+    + (veri.oranVarMi ? ', geçmiş aylardaki gerçekleşen tahsilat oranıyla ağırlıklandırılır.' : '.')
+    + ' Vadesi çoktan geçmiş alacaklar ayrı gösterilir, daha az öngörülebilir olduğu için tahmine dahil edilmez.';
+}
+
+// ============================================================================
+// 3) ŞÜPHELİ ALACAK
+// ============================================================================
+// Karşılık oranı artık ELLE GİRİLMEZ/DÜZENLENMEZ — her yaşlandırma diliminin (AGING_BUCKETS)
+// GERÇEK bakiye-ağırlıklı ortalama gecikme günü hesaplanır, ardından standart bir aktüeryal eğriyle
+// (her gecikme günü için %0,5 kayıp riski, en fazla %95) karşılık oranı otomatik türetilir. Böylece
+// oran, o dilimdeki müşterilerin GERÇEKTEN ne kadar geciktiğine göre kendiliğinden güncellenir —
+// sabit/varsayılan bir yüzde değil.
+function computeOtomatikKarsilikOranlari(musteriler){
+  const toplamlar = AGING_BUCKETS.map(()=>({agirlikliGun:0, bakiye:0}));
+  (musteriler||[]).forEach(m=>{
+    const g = m.avgVadeGun||0;
+    const idx = AGING_BUCKETS.findIndex(b=>b.test(g));
+    if(idx<0) return;
+    const b = m.kalanBorc||0;
+    toplamlar[idx].bakiye += b;
+    if(b!==0) toplamlar[idx].agirlikliGun += b*g;
+  });
+  return toplamlar.map(t=>{
+    const ortalamaGun = t.bakiye!==0 ? (t.agirlikliGun/t.bakiye) : 0;
+    const oran = Math.max(0, Math.min(95, ortalamaGun*0.5));
+    return {ortalamaGun, oran};
+  });
+}
+
+function computeSupheliAlacak(report){
+  const {agingAmount} = computeAging(report.musteriler);
+  const otomatikOranlar = computeOtomatikKarsilikOranlari(report.musteriler);
+  const satirlar = agingAmount.map((b,i)=>{
+    const oran = otomatikOranlar[i] ? otomatikOranlar[i].oran : 0;
+    const ortalamaGun = otomatikOranlar[i] ? otomatikOranlar[i].ortalamaGun : 0;
+    return {label:b.label, bakiye:b.value, oran, ortalamaGun, karsilik: b.value*oran/100};
+  });
+  const toplamBakiye = satirlar.reduce((a,s)=>a+s.bakiye,0);
+  const toplamKarsilik = satirlar.reduce((a,s)=>a+s.karsilik,0);
+
+  const hukuki = (report.musteriler||[])
+    .filter(m=>(m.avgVadeGun||0)>90 && (m.kalanBorc||0)>0)
+    .sort((a,b)=>b.kalanBorc-a.kalanBorc)
+    .slice(0,25);
+
+  return {satirlar, toplamBakiye, toplamKarsilik, hukuki};
+}
+
+function renderSupheliAlacakView(report){
+  const veri = computeSupheliAlacak(report);
+  const en90Plus = veri.satirlar[veri.satirlar.length-1];
+  const items = [
+    {label:'Toplam Önerilen Karşılık', icon:'⚠️', value:veri.toplamKarsilik, sub: veri.toplamBakiye>0 ? ('toplam bakiyenin %'+(veri.toplamKarsilik/veri.toplamBakiye*100).toFixed(1)+"'i") : ''},
+    {label:'90+ Gün Geciken Müşteri', icon:'🚩', value:null, display:veri.hukuki.length.toLocaleString('tr-TR')},
+    {label:'90+ Gün Geciken Bakiye', icon:'🏦', value: en90Plus ? en90Plus.bakiye : 0},
+  ];
+  renderKpiHeroRow(items, 'supheliAlacakKpiGrid');
+
+  document.getElementById('supheliMatrixTbody').innerHTML = veri.satirlar.map((s,i)=>`
+    <tr>
+      <td>${escapeHtml(s.label)}</td>
+      <td class="num">${TL(s.bakiye)}</td>
+      <td class="num" title="ortalama gecikme: ${Math.round(s.ortalamaGun)} gün">%${s.oran.toFixed(1).replace('.',',')}</td>
+      <td class="num num-strong">${TL(s.karsilik)}</td>
+    </tr>`).join('');
+  document.getElementById('supheliMatrixTfoot').innerHTML =
+    `<tr><td><b>Toplam</b></td><td class="num num-strong">${TL(veri.toplamBakiye)}</td><td></td><td class="num num-strong" style="color:var(--danger);">${TL(veri.toplamKarsilik)}</td></tr>`;
+
+  const maksAging = Math.max(...veri.satirlar.map(s=>s.bakiye), 1);
+  const renkler = ['var(--accent)','#4E86C6','var(--warn)','#D08A4A','var(--danger)'];
+  document.getElementById('supheliAgingChart').innerHTML = veri.satirlar.map((s,i)=>`
+    <div class="aging-row">
+      <div class="aging-label">${escapeHtml(s.label)}</div>
+      <div class="aging-track"><div class="aging-fill" style="width:${Math.max(2,s.bakiye/maksAging*100).toFixed(1)}%;background:${renkler[i]||'var(--accent)'};"></div></div>
+      <div class="aging-value">${TL(s.bakiye)}</div>
+    </div>`).join('');
+
+  document.getElementById('supheliHukukiTbody').innerHTML = veri.hukuki.map(m=>`
+    <tr><td>${escapeHtml(m.musteriAdi)}</td><td>${escapeHtml(m.temsilci||'—')}</td><td class="num num-strong">${TL(m.kalanBorc)}</td><td class="num neg">${m.avgVadeGun}</td><td class="num">${TL(m.cekSenet||0)}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="empty-state">90+ gün geciken müşteri yok</td></tr>';
+}
+
+// ============================================================================
+// 4) TEMSİLCİ KARNESİ
+// ============================================================================
+// Hedef artık ELLE GİRİLMEZ — her temsilci için otomatik hesaplanır:
+//   Hedef = Σ(müşterinin kalan borcu × o yaşlandırma diliminin OTOMATİK tahsil edilebilirlik oranı,
+//            yani 100% − Şüpheli Alacak'taki otomatik karşılık oranı)
+//          + (açık sipariş + emanet sipariş tutarı) × son aylardaki GERÇEK ortalama tahsilat
+//            gerçekleşme oranı (Nakit Akış Tahmini'nde kullanılan oranla aynı fonksiyon)
+// Yani hedef, o temsilcinin GERÇEK cari yaşlandırması ve GERÇEK sipariş hacmine göre kendiliğinden
+// değişir; şirketin/kullanıcının uydurduğu sabit bir sayı değildir.
+function computeOtomatikTemsilciHedefi(musterilerBuTemsilci, otomatikKarsilikOranlari, gerceklesmeOrani){
+  let tahsilEdilebilirBakiye = 0;
+  let siparisTutari = 0;
+  musterilerBuTemsilci.forEach(m=>{
+    const g = m.avgVadeGun||0;
+    const idx = AGING_BUCKETS.findIndex(b=>b.test(g));
+    const karsilikOrani = (idx>=0 && otomatikKarsilikOranlari[idx]) ? otomatikKarsilikOranlari[idx].oran : 0;
+    tahsilEdilebilirBakiye += (m.kalanBorc||0) * (1 - karsilikOrani/100);
+    siparisTutari += (m.siparisTutari||0) + (m.emanetSiparis||0);
+  });
+  const oran = gerceklesmeOrani!=null ? gerceklesmeOrani : 0.7; // geçmiş veri yoksa temkinli varsayılan
+  return tahsilEdilebilirBakiye + siparisTutari*oran;
+}
+
+function karneDurumPill(gerceklesme){
+  if(gerceklesme==null) return {label:'—', cls:''};
+  if(gerceklesme>=100) return {label:'Hedef Üstü', cls:'good'};
+  if(gerceklesme>=90) return {label:'Hedefte', cls:'navy'};
+  if(gerceklesme>=70) return {label:'Hedef Altı', cls:'warn'};
+  return {label:'Zayıf', cls:'danger'};
+}
+function ceiDurumPill(oran){
+  if(oran==null) return {label:'—', cls:''};
+  if(oran>=90) return {label:'Hedef Üstü', cls:'good'};
+  if(oran>=70) return {label:'Hedefte', cls:'navy'};
+  if(oran>=40) return {label:'Hedef Altı', cls:'warn'};
+  return {label:'Zayıf', cls:'danger'};
+}
+
+async function computeTemsilciKarnesi(report, zorla){
+  const buAy = dateKeyLocal(new Date()).slice(0,7);
+  const tv = await computeTahsilatVerimlilikAy(report, buAy, zorla);
+  if(!tv || tv.yok) return {yok:true};
+
+  const otomatikKarsilikOranlari = computeOtomatikKarsilikOranlari(report.musteriler);
+  const gerceklesmeOrani = await ortalamaGecmisTahsilatOrani(report, 3);
+
+  const musterilerByRep = new Map();
+  const agingByRep = new Map();
+  (report.musteriler||[]).forEach(m=>{
+    const key = m.temsilci || '—';
+    if(!musterilerByRep.has(key)) musterilerByRep.set(key, []);
+    musterilerByRep.get(key).push(m);
+    if(!agingByRep.has(key)) agingByRep.set(key, {agirlikliVade:0, agirlikBorc:0, riskliSayisi:0});
+    const r = agingByRep.get(key);
+    if((m.kalanBorc||0)!==0){ r.agirlikliVade += m.kalanBorc*(m.avgVadeGun||0); r.agirlikBorc += m.kalanBorc; }
+    if((m.avgVadeGun||0)>90) r.riskliSayisi += 1;
+  });
+
+  const rows = tv.rows.map(r=>{
+    const aging = agingByRep.get(r.temsilci) || {agirlikliVade:0, agirlikBorc:0, riskliSayisi:0};
+    const ortVade = aging.agirlikBorc!==0 ? Math.round(aging.agirlikliVade/aging.agirlikBorc) : null;
+    const musterileri = musterilerByRep.get(r.temsilci) || [];
+    const hedef = computeOtomatikTemsilciHedefi(musterileri, otomatikKarsilikOranlari, gerceklesmeOrani);
+    const gerceklesme = hedef>0 ? (r.toplamTahsilat/hedef*100) : null;
+    return Object.assign({}, r, {ortVade, riskliMusteriSayisi:aging.riskliSayisi, hedef, gerceklesme});
+  }).sort((a,b)=>(b.gerceklesme||0)-(a.gerceklesme||0));
+
+  return {rows, genel:tv.genel, ayKey:buAy, gerceklesmeOrani};
+}
+
+async function renderTemsilciKarnesiView(report, zorla){
+  document.getElementById('karneAsOf').textContent = 'Yükleniyor…';
+  const karne = await computeTemsilciKarnesi(report, zorla);
+  if(karne.yok){
+    document.getElementById('karneAsOf').textContent = 'Bu ay için arşiv verisi henüz yok.';
+    document.getElementById('karneKpiGrid').innerHTML='';
+    document.getElementById('karneChartPanel').style.display='none';
+    document.getElementById('karneGrid').innerHTML = '<div class="empty-state">Veri yok</div>';
+    return;
+  }
+  document.getElementById('karneChartPanel').style.display='block';
+  const oranMetni = karne.gerceklesmeOrani!=null ? (' · sipariş ağırlıklandırması için %'+Math.round(karne.gerceklesmeOrani*100)+' geçmiş tahsilat gerçekleşme oranı kullanıldı') : '';
+  document.getElementById('karneAsOf').textContent = 'Veri kaynağı: Tahsilat + Kalemler + Bayi Hak Ediş — '+fmtDate(new Date(karne.ayKey+'-01'))+' ayı'+oranMetni;
+
+  const hedefiTutturan = karne.rows.filter(r=>r.gerceklesme!=null && r.gerceklesme>=100).length;
+  const vadeliRows = karne.rows.filter(r=>r.ortVade!=null);
+  const ortVadeEkip = vadeliRows.length ? Math.round(vadeliRows.reduce((a,r)=>a+r.ortVade,0)/vadeliRows.length) : null;
+  const items = [
+    {label:'Aktif Temsilci', icon:'👥', value:null, display:karne.rows.length.toLocaleString('tr-TR')},
+    {label:'Hedefi Tutturan', icon:'🎯', value:null, display:hedefiTutturan+' / '+karne.rows.length},
+    {label:'Genel Tahsilat Oranı', icon:'💹', value:null, display:fmtYuzde(karne.genel.tahsilatOrani)},
+    {label:'Ort. Vade (Ekip)', icon:'⏱️', value:null, display: ortVadeEkip!=null ? ortVadeEkip+' gün' : '—'},
+  ];
+  renderKpiHeroRow(items, 'karneKpiGrid');
+
+  const maksTahsilat = Math.max(...karne.rows.map(r=>Math.max(r.toplamTahsilat, r.hedef)), 1);
+  document.getElementById('karneChart').innerHTML = karne.rows.map(r=>`
+    <div class="week-row">
+      <div class="week-label" title="${escapeHtml(r.temsilci)}">${escapeHtml(r.temsilci)}</div>
+      <div class="week-track" style="position:relative;">
+        <div style="position:absolute;left:${Math.min(100,r.hedef/maksTahsilat*100).toFixed(1)}%;top:0;bottom:0;width:2px;background:var(--ink);opacity:.4;"></div>
+        <div class="week-fill" style="width:${Math.max(2,r.toplamTahsilat/maksTahsilat*100).toFixed(1)}%;background:${verimRenk(r.gerceklesme!=null?Math.min(r.gerceklesme,100):null)};"></div>
+      </div>
+      <div class="week-val">${TL(r.toplamTahsilat)}</div>
+    </div>`).join('');
+
+  document.getElementById('karneGrid').innerHTML = karne.rows.map((r,i)=>{
+    const durum = karneDurumPill(r.gerceklesme);
+    return `
+    <div class="karne-card">
+      <div class="karne-top">
+        <div><div class="karne-name">${escapeHtml(r.temsilci)}</div><span class="pill ${durum.cls}">${durum.label}</span></div>
+        <div class="karne-rank">#${i+1}</div>
+      </div>
+      <div class="karne-metrics">
+        <div><div class="karne-lbl">Tahsilat</div><div class="karne-val">${TL(r.toplamTahsilat)}<div style="font-size:10px;color:var(--ink-faint);font-weight:500;">/ ${TL(r.hedef)} (otomatik)</div></div></div>
+        <div><div class="karne-lbl">Gerçekleşme</div><div class="karne-val" style="color:${verimRenk(r.gerceklesme!=null?Math.min(r.gerceklesme,100):null)};">${r.gerceklesme!=null?fmtYuzde(r.gerceklesme):'—'}</div></div>
+        <div><div class="karne-lbl">Ort. Vade</div><div class="karne-val">${r.ortVade!=null?r.ortVade+' gün':'—'}</div></div>
+        <div><div class="karne-lbl">Riskli Müşteri</div><div class="karne-val">${r.riskliMusteriSayisi}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================================
+// 5) YÖNETİM ÖZETİ
+// ============================================================================
+async function yuklemeArsivGerekirseYukle(zorla){
+  // ST Tahsilat/Litre arşivi (state.yuklemeArsivCache) normalde yalnızca o sekme açıldığında
+  // yükleniyor. Yönetim Özeti kullanıcı hiç o sekmeyi açmadan doğrudan ziyaret edilirse, arşiv boş
+  // kalır ve "Haftalık Sevkiyat" yanlışlıkla 0 Lt görünür. Bu yüzden burada da (gerekirse) çekilir.
+  if(!zorla && state.yuklemeArsivCache && Object.keys(state.yuklemeArsivCache).length>0) return state.yuklemeArsivCache;
+  await yuklemeArsivYenile();
+  return state.yuklemeArsivCache;
+}
+
+async function computeYonetimOzeti(report, zorla){
+  await genelRaporlarIcinArsivGetir(60, zorla);
+  await yuklemeArsivGerekirseYukle(zorla);
+  const seri = gunlukSirketOzetleriniHesapla();
+  const birlesikArsiv = await faturaKontrolArsivBirlestirCached(state.faturaArsivCache);
+
+  const bugunKey = dateKeyLocal(new Date());
+  const haftaOncesi = gunKeyEkle(bugunKey, -7);
+
+  let haftalikTahsilat = 0;
+  (birlesikArsiv.tahsilatArsiv||[]).forEach(r=>{
+    if(!r.belgeTarihi || !musteriTvIcinGecerliMi(r.musteri)) return;
+    const gk = dateKeyLocal(r.belgeTarihi);
+    if(gk && gk>haftaOncesi && gk<=bugunKey) haftalikTahsilat += r.tutar||0;
+  });
+  let haftalikHakedis = 0;
+  (birlesikArsiv.bayiHakedisArsiv||[]).forEach(r=>{
+    if(!r.tahsilatTarihi || !musteriTvIcinGecerliMi(r.musteri)) return;
+    const gk = dateKeyLocal(r.tahsilatTarihi);
+    if(gk && gk>haftaOncesi && gk<=bugunKey) haftalikHakedis += r.tutar||0;
+  });
+
+  let haftalikLitre = 0;
+  Object.keys(state.yuklemeArsivCache||{}).forEach(gunKey=>{
+    if(gunKey>haftaOncesi && gunKey<=bugunKey){
+      const g = state.yuklemeArsivCache[gunKey];
+      if(g && g.genelToplamSatiri) haftalikLitre += g.genelToplamSatiri.litre||0;
+    }
+  });
+
+  const {agingCount} = computeAging(report.musteriler);
+  const dikkatSayisi = agingCount.length ? agingCount[agingCount.length-1].value : 0;
+
+  const toplamBakiye = sum(report.musteriler,'kalanBorc');
+  const guncelDso = seri.length ? seri[seri.length-1].dso : null;
+  const haftaOncekiSeri = seri.filter(s=>s.gunKey<=haftaOncesi);
+  const dsoOncesi = haftaOncekiSeri.length ? haftaOncekiSeri[haftaOncekiSeri.length-1].dso : null;
+  const dsoDegisim = (guncelDso!=null && dsoOncesi!=null) ? guncelDso-dsoOncesi : null;
+
+  return {seri, toplamBakiye, haftalikTahsilat, haftalikHakedis, haftalikLitre, dikkatSayisi, guncelDso, dsoDegisim};
+}
+
+function computeYonetimInsights(ozet, karne){
+  const insights = [];
+  if(ozet.dsoDegisim!=null){
+    if(ozet.dsoDegisim<=-0.5) insights.push('🟢 DSO son 1 haftada '+Math.abs(ozet.dsoDegisim).toFixed(1)+' gün iyileşti');
+    else if(ozet.dsoDegisim>=0.5) insights.push('🟡 DSO son 1 haftada '+ozet.dsoDegisim.toFixed(1)+' gün arttı');
+    else insights.push('➖ DSO son 1 haftada durağan seyretti');
+  }
+  if(ozet.dikkatSayisi>0) insights.push('🔴 '+ozet.dikkatSayisi.toLocaleString('tr-TR')+' müşteri 90+ gün gecikmede');
+  insights.push('💰 Bu hafta '+TL(ozet.haftalikTahsilat)+' tahsilat yapıldı');
+  if(ozet.haftalikLitre>0) insights.push('📦 Bu hafta '+Math.round(ozet.haftalikLitre).toLocaleString('tr-TR')+' Lt sevkiyat gerçekleşti');
+  if(ozet.haftalikHakedis>0) insights.push('🏷️ Bu hafta '+TL(ozet.haftalikHakedis)+' bayi hakediş tahakkuk etti');
+  if(karne && karne.rows && karne.rows.length){
+    const enIyi = karne.rows[0];
+    if(enIyi && enIyi.gerceklesme!=null) insights.push('🏆 En yüksek tahsilat gerçekleşmesi: '+enIyi.temsilci+' ('+fmtYuzde(enIyi.gerceklesme)+')');
+  }
+  return insights;
+}
+
+async function renderYonetimOzetiView(report, zorla){
+  document.getElementById('yoAsOf').textContent = 'Yükleniyor…';
+  const ozet = await computeYonetimOzeti(report, zorla);
+  const karne = await computeTemsilciKarnesi(report, false);
+  const supheli = computeSupheliAlacak(report);
+  document.getElementById('yoAsOf').textContent = 'Otomatik oluşturulan özet · '+fmtDate(new Date())+' itibarıyla, son 7 gün';
+
+  const items = [
+    {label:'Toplam Açık Bakiye', icon:'💼', value:ozet.toplamBakiye},
+    {label:'Haftalık Tahsilat', icon:'💵', value:ozet.haftalikTahsilat},
+    {label:'Haftalık Sevkiyat', icon:'📦', value:null, display:Math.round(ozet.haftalikLitre).toLocaleString('tr-TR')+' Lt'},
+    {label:'Dikkat Gerektiren Müşteri', icon:'⚠️', value:null, display:ozet.dikkatSayisi.toLocaleString('tr-TR'), sub:'90+ gün ortalama vade'},
+  ];
+  renderKpiHeroRow(items, 'yoKpiGrid');
+
+  document.getElementById('yoChartSub').textContent = ozet.seri.length.toLocaleString('tr-TR')+' günlük arşiv — toplam bakiye';
+  renderTrendChart('yoChart', ozet.seri, 'toplamBakiye', 'var(--navy)', 'tl');
+
+  const insights = computeYonetimInsights(ozet, karne);
+  document.getElementById('yoInsights').innerHTML = insights.length
+    ? insights.map(t=>`<div class="ins-row"><span>${t}</span></div>`).join('')
+    : '<div class="empty-state">Henüz yeterli veri yok</div>';
+
+  const aksiyonlar = [];
+  supheli.hukuki.slice(0,3).forEach(m=>{
+    aksiyonlar.push({konu:escapeHtml(m.musteriAdi)+' — '+m.avgVadeGun+' gün gecikme', ilgili:escapeHtml(m.temsilci||'—'), oncelik:'Yüksek', pill:'danger'});
+  });
+  if(karne && karne.rows){
+    karne.rows.filter(r=>r.gerceklesme!=null && r.gerceklesme<70).forEach(r=>{
+      aksiyonlar.push({konu:escapeHtml(r.temsilci)+' ekibinde tahsilat hedefin altında', ilgili:'Satış Müdürü', oncelik:'Orta', pill:'warn'});
+    });
+  }
+  document.getElementById('yoAksiyonTbody').innerHTML = aksiyonlar.length
+    ? aksiyonlar.map(a=>`<tr><td>${a.konu}</td><td>${a.ilgili}</td><td><span class="pill ${a.pill}">${a.oncelik}</span></td></tr>`).join('')
+    : '<tr><td colspan="3" class="empty-state">Aksiyon gerektiren belirgin bir konu yok</td></tr>';
+}
+
+// ============================================================================
+// 6) TAHSİLAT BAŞARI ORANI (CEI)
+// ============================================================================
+async function computeCeiAy(report, ayKey, zorla){
+  const tv = await computeTahsilatVerimlilikAy(report, ayKey, zorla);
+  if(!tv || tv.yok) return {yok:true};
+  const {ilkKey, sonKey} = ayGunAraligi(ayKey);
+  const birlesikArsiv = await faturaKontrolArsivBirlestirCached(state.faturaArsivCache);
+
+  let donemIciSatis = 0;
+  (birlesikArsiv.faturaArsiv||[]).forEach(r=>{
+    if(!r.faturaTarihi || !musteriTvIcinGecerliMi(r.musteri)) return;
+    const gk = dateKeyLocal(r.faturaTarihi);
+    if(gk && gk>=ilkKey && gk<=sonKey) donemIciSatis += r.tutar||0;
+  });
+
+  const bitisSnap = ((state.faturaArsivCache[tv.bitisGunu] && state.faturaArsivCache[tv.bitisGunu].musteriSnapshot) || []).filter(m=>musteriTvIcinGecerliMi(m.musteri));
+  // Vadesi gelen fatura kriteri: fatura vadesi (Net Vade Tarihi) DEĞİL — açık faturaların kalan borcu +
+  // Faturadan Sonr. Gün verisi baz alınır (Faturadan Sonr. Gün >= 23 ise vadesi gelmiş sayılır). Bu
+  // dağılım müşteri bazında vadesizBakiye alanında saklanır (bkz. buildReport/canliGunlerleGuncelle).
+  // Bu alanın henüz bulunmadığı eski arşiv günleri için, aynı 23 gün eşiği müşterinin genel rapordaki
+  // ortalama vade hesaplamasına (avgVadeGun) uygulanarak yaklaşık bir değer üretilir.
+  const donemSonuVadesizBakiye = bitisSnap.reduce((a,m)=> a + (m.vadesizBakiye!=null ? m.vadesizBakiye : ((m.avgVadeGun||0)<23 ? (m.kalanBorc||0) : 0)), 0);
+
+  const donemBasiBakiye = tv.cariDegisimVarMi ? tv.genel.toplamKalanBorcBaslangic : null;
+  const donemSonuBakiye = tv.genel.toplamKalanBorc;
+  const tahsilat = tv.genel.toplamTahsilat;
+
+  let cei=null, pay=null, payda=null;
+  if(donemBasiBakiye!=null){
+    pay = donemBasiBakiye + donemIciSatis - donemSonuBakiye;
+    payda = donemBasiBakiye + donemIciSatis - donemSonuVadesizBakiye;
+    cei = payda!==0 ? (pay/payda*100) : null;
+  }
+
+  return {ayKey, donemBasiBakiye, donemIciSatis, donemSonuBakiye, donemSonuVadesizBakiye, tahsilat, pay, payda, cei,
+    tvRows: tv.rows, tvGenel: tv.genel, baslangicYaklasik: tv.baslangicYaklasik};
+}
+
+async function computeCeiTrend(report, ayAdedi, zorla){
+  const gunler = Object.keys(state.faturaArsivCache||{}).sort();
+  const aylar = Array.from(new Set(gunler.map(g=>g.slice(0,7)))).sort();
+  const hedefAylar = aylar.slice(-ayAdedi);
+  const seri = [];
+  for(const ay of hedefAylar){
+    const r = await computeCeiAy(report, ay, zorla);
+    if(r && !r.yok && r.cei!=null) seri.push({tarih:ay+'-01', gunKey:ay, cei:r.cei});
+  }
+  return seri;
+}
+
+async function populateCeiAySelect(){
+  const gunler = Object.keys(state.faturaArsivCache||{}).sort();
+  const aylar = Array.from(new Set(gunler.map(g=>g.slice(0,7)))).sort();
+  const sel = document.getElementById('ceiAySelect');
+  const mevcutSecim = state.ceiAy;
+  sel.innerHTML = aylar.map(a=>`<option value="${a}">${fmtDate(new Date(a+'-01'))}</option>`).join('');
+  if(mevcutSecim && aylar.includes(mevcutSecim)) sel.value = mevcutSecim;
+  else if(aylar.length){ sel.value = aylar[aylar.length-1]; state.ceiAy = aylar[aylar.length-1]; }
+  else state.ceiAy = null;
+}
+
+async function renderCeiView(report, zorla){
+  document.getElementById('ceiArsivBilgi').textContent = 'Buluttan yükleniyor…';
+  await genelRaporlarIcinArsivGetir(400, zorla);
+  await populateCeiAySelect();
+  await recomputeAndRenderCei(report, zorla);
+}
+
+async function recomputeAndRenderCei(report, zorla){
+  const gunler = Object.keys(state.faturaArsivCache||{}).sort();
+  document.getElementById('ceiArsivBilgi').textContent = gunler.length.toLocaleString('tr-TR')+' günlük arşiv verisi mevcut';
+  const ayKey = state.ceiAy;
+  if(!ayKey){
+    document.getElementById('ceiBosPanel').style.display='block';
+    document.getElementById('ceiKpiGrid').innerHTML='';
+    document.getElementById('ceiRepTbody').innerHTML='';
+    return;
+  }
+  const ay = await computeCeiAy(report, ayKey, zorla);
+  if(ay.yok || ay.cei==null){
+    document.getElementById('ceiBosPanel').style.display='block';
+    document.getElementById('ceiKpiGrid').innerHTML='';
+    document.getElementById('ceiRepTbody').innerHTML='';
+    return;
+  }
+  document.getElementById('ceiBosPanel').style.display='none';
+
+  const trend = await computeCeiTrend(report, 12, false);
+
+  const items = [
+    {label:'Tahsilat Başarı Oranı (CEI)', icon:'🧮', value:null, display:fmtYuzde(ay.cei), sub: ay.baslangicYaklasik?'yaklaşık (ay başı verisi yok)':(fmtDate(new Date(ayKey+'-01'))+' ayı')},
+    {label:'Dönem Başı Bakiye', icon:'📥', value:ay.donemBasiBakiye},
+    {label:'Dönem İçi Satış', icon:'🧾', value:ay.donemIciSatis},
+    {label:'Dönem İçi Tahsilat', icon:'💵', value:ay.tahsilat},
+    {label:'Dönem Sonu Bakiye', icon:'📤', value:ay.donemSonuBakiye},
+  ];
+  renderKpiHeroRow(items, 'ceiKpiGrid');
+
+  document.getElementById('ceiChartSub').textContent = trend.length.toLocaleString('tr-TR')+' aylık trend';
+  renderTrendChart('ceiChart', trend, 'cei', 'var(--accent)', 'yuzde');
+
+  document.getElementById('ceiFormulaBody').innerHTML = `
+    <tr><td>Dönem Başı Bakiye</td><td class="num">${TL(ay.donemBasiBakiye)}</td></tr>
+    <tr><td>(+) Dönem İçi Satış</td><td class="num">${TL(ay.donemIciSatis)}</td></tr>
+    <tr><td>(−) Dönem Sonu Toplam Bakiye</td><td class="num neg">−${TL(ay.donemSonuBakiye)}</td></tr>
+    <tr class="formula-total"><td><b>= Pay (Fiilen Tahsil Edilebilen)</b></td><td class="num num-strong">${TL(ay.pay)}</td></tr>
+    <tr><td>(−) Dönem Sonu Vadesi Gelmemiş Bakiye</td><td class="num neg">−${TL(ay.donemSonuVadesizBakiye)}</td></tr>
+    <tr class="formula-total"><td><b>= Payda (Tahsili Gereken Azami Tutar)</b></td><td class="num num-strong">${TL(ay.payda)}</td></tr>
+    <tr class="formula-total"><td><b>CEI = Pay / Payda</b></td><td class="num num-strong" style="color:var(--accent-deep);">${fmtYuzde(ay.cei)}</td></tr>
+  `;
+
+  document.getElementById('ceiRepTbody').innerHTML = ay.tvRows.slice().sort((a,b)=>(b.tahsilatOrani||0)-(a.tahsilatOrani||0)).map(r=>{
+    const durum = ceiDurumPill(r.tahsilatOrani);
+    return `<tr><td>${escapeHtml(r.temsilci)}</td><td class="num">${TL(r.toplamTahsilat+r.toplamKalanBorc)}</td><td class="num num-strong">${TL(r.toplamTahsilat)}</td><td class="num num-strong">${fmtYuzde(r.tahsilatOrani)}</td><td><span class="pill ${durum.cls}">${durum.label}</span></td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty-state">Kayıt yok</td></tr>';
+}
+
+// --- Olay bağlamaları ---
+document.getElementById('dsoTrendYenileBtn').addEventListener('click', ()=> renderDsoTrendView(state.report || {musteriler:[]}, true));
+document.getElementById('karneYenileBtn').addEventListener('click', ()=> renderTemsilciKarnesiView(state.report || {musteriler:[]}, true));
+document.getElementById('yoYenileBtn').addEventListener('click', ()=> renderYonetimOzetiView(state.report || {musteriler:[]}, true));
+document.getElementById('ceiYenileBtn').addEventListener('click', ()=> renderCeiView(state.report || {musteriler:[]}, true));
+document.getElementById('ceiAySelect').addEventListener('change', (e)=>{
+  state.ceiAy = e.target.value || null;
+  recomputeAndRenderCei(state.report || {musteriler:[]}, false);
+});
+
 
 document.querySelectorAll('th[data-key]').forEach(th=>{
   th.setAttribute('tabindex','0');
