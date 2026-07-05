@@ -121,6 +121,11 @@
   .btn:disabled{opacity:.4;cursor:not-allowed;}
   .btn:disabled:active{transform:none;}
   .btn.small{padding:6px 11px;font-size:12px;}
+  .quick-access-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 0 16px;}
+  .quick-access-label{font-size:11px;font-weight:700;color:var(--ink-faint);letter-spacing:.03em;margin-right:2px;}
+  .quick-access-btn{background:var(--surface);border:1px solid var(--line);color:var(--ink-soft);padding:6px 13px;border-radius:100px;font-size:12px;font-weight:600;cursor:pointer;transition:border-color .15s ease,color .15s ease,background .15s ease;}
+  .quick-access-btn:hover{border-color:var(--accent);color:var(--accent-deep);}
+  .quick-access-btn.active{background:var(--navy);border-color:var(--navy);color:#fff;}
 
   .upload-card{
     background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
@@ -176,9 +181,8 @@
     color:#fff;box-shadow:var(--shadow);
   }
   .kpi-hero-card::before{
-    content:'';position:absolute;inset:0;opacity:.15;pointer-events:none;
-    background-image:radial-gradient(circle at 18% 22%, #fff 1px, transparent 1px);
-    background-size:18px 18px;
+    content:'';position:absolute;top:0;left:0;right:0;height:3px;pointer-events:none;
+    background:linear-gradient(90deg, #8FD1FF 0%, rgba(143,209,255,0) 100%);
   }
   .kpi-hero-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;gap:10px;flex-wrap:wrap;}
   .kpi-hero-label{font-size:11.5px;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.75);}
@@ -190,7 +194,11 @@
   .kpi-row-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px;}
   .kpi-row-card{background:var(--surface);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:11px;transition:transform .15s ease;}
   .kpi-row-card:hover{transform:translateY(-1px);}
-  .kpi-row-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:var(--navy-soft);color:var(--navy);}
+  .kpi-row-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:var(--line-soft);color:var(--ink-soft);}
+  .kpi-row-icon.accent{background:var(--navy-soft);color:var(--navy);}
+  .kpi-row-icon.danger{background:var(--danger-soft);color:var(--danger);}
+  .kpi-row-icon.success{background:var(--success-soft);color:var(--success);}
+  .kpi-row-icon.warn{background:var(--warn-soft);color:var(--warn);}
   .kpi-row-text{min-width:0;}
   .kpi-row-text .kpi-row-lbl{font-size:10.5px;color:var(--ink-soft);font-weight:700;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .kpi-row-text .kpi-row-val{font-family:'Space Grotesk';font-size:15.5px;font-weight:700;margin-top:2px;line-height:1.15;color:var(--ink);}
@@ -201,6 +209,7 @@
   .kpi-row-chip{flex:1;min-width:118px;border-radius:9px;padding:6px 10px;}
   .kpi-row-chip-lbl{font-size:10.5px;font-weight:700;opacity:.85;}
   .kpi-row-chip-val{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;margin-top:1px;}
+  .trend-arrow{font-size:11px;font-weight:700;margin-left:6px;white-space:nowrap;}
 
   .panel{
     background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
@@ -554,11 +563,25 @@
   /* .sellout-card artık .cust-card temel sınıfını kullanıyor; tıklanabilirlik ve is-open
      (tam genişlik açılma) davranışı zaten .cust-card / .cust-card.is-open kurallarından gelir. */
   .karne-expand-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:11px;padding-top:11px;border-top:1px dashed var(--line);font-size:12px;font-weight:700;color:var(--accent-deep);}
-  .karne-expanded{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);cursor:default;}
-  .karne-nokta-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;}
-  .karne-nokta-item{background:var(--surface);border:1px solid var(--line-soft);border-radius:9px;padding:9px 11px;font-size:12.5px;min-width:0;}
-  .karne-nokta-item .adi{font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .karne-nokta-item .kod{font-size:10.5px;color:var(--ink-faint);margin-top:2px;}
+  .karne-expanded{max-height:0;opacity:0;overflow:hidden;margin-top:0;padding-top:0;border-top:none;transition:max-height .22s ease, opacity .18s ease, margin-top .22s ease, padding-top .22s ease;}
+  .karne-expanded.open{max-height:1600px;opacity:1;margin-top:12px;padding-top:14px;border-top:none;background:var(--bg);border-radius:12px;padding:14px;margin-top:12px;}
+  .karne-nokta-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;}
+  .karne-nokta-item{background:var(--surface);border:1px solid var(--line-soft);border-radius:12px;padding:12px 14px;font-size:12.5px;min-width:0;}
+  .karne-nokta-item .nokta-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .karne-nokta-item .nokta-avatar{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;font-size:12px;flex-shrink:0;background:var(--accent-soft);color:var(--accent-deep);}
+  .karne-nokta-item.risk-orta .nokta-avatar{background:var(--warn-soft);color:var(--warn);}
+  .karne-nokta-item.risk-yuksek .nokta-avatar{background:var(--danger-soft);color:var(--danger);}
+  .karne-nokta-item .nokta-info{min-width:0;flex:1;}
+  .karne-nokta-item .adi{font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .karne-nokta-item .kod{font-size:10.5px;color:var(--ink-faint);}
+  .karne-nokta-item .nokta-bottom{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;border-top:1px dashed var(--line);padding-top:10px;}
+  .karne-nokta-item .nokta-badges{display:flex;gap:6px;flex-wrap:wrap;}
+  .karne-nokta-item .nokta-badge{background:var(--bg);color:var(--ink-soft);font-size:10.5px;padding:3px 9px;border-radius:100px;white-space:nowrap;}
+  .karne-nokta-item .nokta-badge.vade{background:var(--accent-soft);color:var(--accent-deep);}
+  .karne-nokta-item.risk-orta .nokta-badge.vade{background:var(--warn-soft);color:var(--warn);}
+  .karne-nokta-item.risk-yuksek .nokta-badge.vade{background:var(--danger-soft);color:var(--danger);}
+  .nokta-detay-btn{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 11px;font-size:11.5px;font-weight:600;color:var(--ink);cursor:pointer;font-family:inherit;transition:border-color .15s ease,color .15s ease;white-space:nowrap;}
+  .nokta-detay-btn:hover{border-color:var(--accent);color:var(--accent-deep);}
   .fkns-empty{font-size:12px;color:var(--ink-faint);padding:4px 0;}
   /* --- SSM Karneleri görsel dili (Tasarım 1) — hem SSM kartlarında hem temsilci kartında kullanılır --- */
   .ssm-karne-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;}
@@ -783,7 +806,7 @@
 <div id="authGate" style="position:fixed;inset:0;background:var(--bg,#EEF1F6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
   <div style="background:#fff;border-radius:16px;padding:36px 32px;max-width:380px;width:100%;box-shadow:0 12px 36px rgba(0,0,0,.10);border:1px solid var(--line,#DBE2EC);">
     <div style="text-align:center;margin-bottom:22px;">
-      <div style="width:44px;height:44px;border-radius:11px;background:var(--navy,#13233F);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;margin:0 auto 12px;" translate="no">V2.1</div>
+      <div style="width:44px;height:44px;border-radius:11px;background:var(--navy,#13233F);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;margin:0 auto 12px;" translate="no">V2</div>
       <h2 style="margin:0;font-size:18px;" translate="no">Keşan Bayi Takip Paneli</h2>
       <p style="margin:6px 0 0;color:var(--ink-soft,#54617A);font-size:13px;">Devam etmek için giriş yapın</p>
     </div>
@@ -949,6 +972,14 @@
       <button class="tab-btn tab-dropdown-btn" id="tabbtn-finansalAnaliz" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="finansalDropdownMenu">📊 Finansal Analiz <span class="dd-arrow">▾</span></button>
     </div>
 
+    <div class="quick-access-bar">
+      <span class="quick-access-label">SIK KULLANILAN</span>
+      <button class="tab-btn quick-access-btn" data-view="sevk" type="button">🚚 Sevk Raporu</button>
+      <button class="tab-btn quick-access-btn" data-view="yukleme" type="button">📦 ST Tahsilat/Litre</button>
+      <button class="tab-btn quick-access-btn" data-view="faturaKontrol" type="button">🧾 Fatura Kontrol</button>
+      <button class="tab-btn quick-access-btn" data-view="sellOut" type="button">📈 Sell Out Raporu</button>
+    </div>
+
     <div class="tab-dropdown-menu" id="cariDetayDropdownMenu" role="menu" aria-hidden="true" aria-labelledby="tabbtn-cariDetay">
       <button class="tab-btn dropdown-item active" id="tabbtn-genel" data-view="genel" type="button" role="tab" aria-selected="true" aria-controls="genelView">📊 Genel Rapor</button>
       <button class="tab-btn dropdown-item" id="tabbtn-yaslandirma" data-view="yaslandirma" type="button" role="tab" aria-selected="false" aria-controls="yaslandirmaView">⏱️ Yaşlandırma Raporu</button>
@@ -1033,32 +1064,7 @@
       <div class="alert-banner-cta">Görüntüle →</div>
     </div>
 
-    <div class="modal-overlay" id="dikkatModalOverlay">
-      <div class="modal modal--danger" id="dikkatModal" role="dialog" aria-modal="true" aria-labelledby="dikkatModalTitle">
-        <div class="panel-head">
-          <div><h2 id="dikkatModalTitle">⚠️ Dikkat Gerektiren Müşteriler</h2><span class="count" id="dikkatCount"></span></div>
-          <div class="toolbar">
-            <select class="filter-select" id="dikkatTemsilciFilter"><option value="">Tüm temsilciler</option></select>
-          </div>
-          <button class="modal-close" id="dikkatModalClose" type="button" aria-label="Kapat">✕</button>
-        </div>
-        <div class="modal-sub">Ortalama vadesi <span id="dikkatEsikModal"></span> gün ve üzeri olan noktalar</div>
-        <div class="modal-body">
-          <div class="table-scroll">
-            <table id="dikkatTable">
-              <thead><tr>
-                <th>Müşteri</th>
-                <th>Satış Temsilcisi</th>
-                <th class="num">Kalan Borç</th>
-                <th class="num">Ortalama Vade (gün)</th>
-                <th class="num">Toplam Risk</th>
-              </tr></thead>
-              <tbody id="dikkatTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
+
 
     <div class="panel" id="musteriPanel">
       <div class="panel-head">
@@ -1952,6 +1958,57 @@
 </div>
 
 <div id="senetYazdirmaAlani"></div>
+
+
+    <div class="modal-overlay" id="dikkatModalOverlay">
+      <div class="modal modal--danger" id="dikkatModal" role="dialog" aria-modal="true" aria-labelledby="dikkatModalTitle">
+        <div class="panel-head">
+          <div><h2 id="dikkatModalTitle">⚠️ Dikkat Gerektiren Müşteriler</h2><span class="count" id="dikkatCount"></span></div>
+          <div class="toolbar">
+            <select class="filter-select" id="dikkatTemsilciFilter"><option value="">Tüm temsilciler</option></select>
+          </div>
+          <button class="modal-close" id="dikkatModalClose" type="button" aria-label="Kapat">✕</button>
+        </div>
+        <div class="modal-sub">Ortalama vadesi <span id="dikkatEsikModal"></span> gün ve üzeri olan noktalar</div>
+        <div class="modal-body">
+          <div class="table-scroll">
+            <table id="dikkatTable">
+              <thead><tr>
+                <th>Müşteri</th>
+                <th>Satış Temsilcisi</th>
+                <th class="num">Kalan Borç</th>
+                <th class="num">Ortalama Vade (gün)</th>
+                <th class="num">Toplam Risk</th>
+              </tr></thead>
+              <tbody id="dikkatTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="faturaModalOverlay">
+      <div class="modal" id="faturaModal" role="dialog" aria-modal="true" aria-labelledby="faturaModalTitle" style="max-width:520px;">
+        <div class="panel-head">
+          <div><h2 id="faturaModalTitle">Açık Faturalar</h2><span class="count" id="faturaModalSub"></span></div>
+          <button class="modal-close" id="faturaModalClose" type="button" aria-label="Kapat">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="table-scroll" style="padding:0 20px;">
+            <table id="faturaModalTable">
+              <thead><tr>
+                <th>Belge No</th>
+                <th>Tarih</th>
+                <th class="num">Kalan Borç</th>
+                <th class="num">Gün</th>
+              </tr></thead>
+              <tbody id="faturaModalTbody"></tbody>
+            </table>
+          </div>
+          <div id="faturaModalToplam" style="display:flex;justify-content:space-between;padding:12px 20px 18px;font-size:13px;font-weight:700;border-top:1px solid var(--line-soft);margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
 
 <script>
 const state = {
@@ -4307,10 +4364,12 @@ document.querySelector('.tabbar')?.addEventListener('scroll', ()=>closeAllDropdo
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     if(TAB_DROPDOWNS.some(d=>d.btn===btn)) return;
-    document.querySelectorAll('.tab-btn').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
-    btn.classList.add('active');
-    btn.setAttribute('aria-selected','true');
     const view = btn.getAttribute('data-view');
+    document.querySelectorAll('.tab-btn[data-view]').forEach(b=>{
+      const match = b.getAttribute('data-view')===view;
+      b.classList.toggle('active', match);
+      b.setAttribute('aria-selected', match ? 'true' : 'false');
+    });
     TAB_DROPDOWNS.forEach(d=> d.btn.classList.toggle('active', d.views.includes(view)));
     if(btn.classList.contains('dropdown-item')) closeAllDropdowns();
     document.getElementById('genelView').style.display = view==='genel' ? 'block' : 'none';
@@ -4694,7 +4753,7 @@ function renderKpiHeroRow(items, elId){
           <span class="kpi-hero-label">${hero.icon||''} ${hero.label}</span>
           ${hero.sub ? `<span class="kpi-hero-chip">${hero.sub}</span>` : ''}
         </div>
-        <div class="kpi-hero-value">${hero.display!==undefined ? hero.display : TL(hero.value)}</div>
+        <div class="kpi-hero-value">${hero.display!==undefined ? hero.display : TL(hero.value)}${hero.trend ? `<span class="trend-arrow" style="color:${hero.trend.color};">${hero.trend.arrow}</span>` : ''}</div>
       </div>
     </div>`;
   // "ring:true" verilen kartlarda ikon yerine yüzdesel halka grafiği (fknsRingSvg — Sell Out/Temsilci
@@ -4709,7 +4768,7 @@ function renderKpiHeroRow(items, elId){
         <div class="kpi-row-icon"${it.ring?' style="background:none;padding:0;"':''}>${it.ring ? fknsRingSvg(it.oran) : (it.icon||'•')}</div>
         <div class="kpi-row-text">
           <div class="kpi-row-lbl">${it.label}</div>
-          <div class="kpi-row-val"${it.valueColor?` style="color:${it.valueColor}"`:''}>${it.display!==undefined ? it.display : TL(it.value)}</div>
+          <div class="kpi-row-val"${it.valueColor?` style="color:${it.valueColor}"`:''}>${it.display!==undefined ? it.display : TL(it.value)}${it.trend ? `<span class="trend-arrow" style="color:${it.trend.color};">${it.trend.arrow}</span>` : ''}</div>
           ${it.sub ? `<div class="kpi-row-extra">${it.sub}</div>` : ''}
         </div>
       </div>
@@ -4836,6 +4895,39 @@ document.getElementById('dikkatBanner').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openDikkatModal(); }
 });
 document.getElementById('dikkatModalClose').addEventListener('click', closeDikkatModal);
+
+function faturaModalAc(musteriKod, musteriAdi){
+  try{
+    const report = state.report;
+    const kod = String(musteriKod||'').trim();
+    const m = report && report.musteriler ? report.musteriler.find(x=>String(x.musteri||'').trim()===kod) : null;
+    document.getElementById('faturaModalTitle').textContent = musteriAdi + ' — Açık Faturalar';
+    document.getElementById('faturaModalSub').textContent = musteriKod;
+    const faturalar = (m && m.invoices) ? m.invoices.filter(inv=>inv.kalanBorc !== 0) : [];
+    document.getElementById('faturaModalTbody').innerHTML = faturalar.length ? faturalar.map(inv=>{
+      const gun = inv.gunFatura;
+      const gunCls = gun>60 ? 'neg' : (gun>30 ? '' : '');
+      return `<tr><td>${escapeHtml(inv.belgeNo||'—')}</td><td>${fmtDate(inv.faturaTarihi)}</td><td class="num num-strong">${TL(inv.kalanBorc)}</td><td class="num ${gunCls}">${gun!=null?gun:'—'}</td></tr>`;
+    }).join('') : `<tr><td colspan="4" class="empty-state">${m ? 'Açık fatura bulunamadı' : 'Bu müşteri güncel raporda bulunamadı — lütfen Genel Rapor sekmesinde raporun yüklü olduğundan emin olun'}</td></tr>`;
+    const toplam = faturalar.reduce((a,inv)=>a+(inv.kalanBorc||0),0);
+    document.getElementById('faturaModalToplam').innerHTML = `<span>Toplam Kalan Borç</span><span>${TL(toplam)}</span>`;
+    document.getElementById('faturaModalOverlay').classList.add('open');
+  }catch(err){
+    console.error('Fatura modali açılırken hata:', err);
+    document.getElementById('faturaModalTitle').textContent = (musteriAdi||'') + ' — Açık Faturalar';
+    document.getElementById('faturaModalSub').textContent = musteriKod||'';
+    document.getElementById('faturaModalTbody').innerHTML = '<tr><td colspan="4" class="empty-state">Bir hata oluştu: '+escapeHtml(err.message)+'</td></tr>';
+    document.getElementById('faturaModalToplam').innerHTML = '';
+    document.getElementById('faturaModalOverlay').classList.add('open');
+  }
+}
+function faturaModalKapat(){
+  document.getElementById('faturaModalOverlay').classList.remove('open');
+}
+document.getElementById('faturaModalClose').addEventListener('click', faturaModalKapat);
+document.getElementById('faturaModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='faturaModalOverlay') faturaModalKapat();
+});
 document.getElementById('dikkatModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'dikkatModalOverlay') closeDikkatModal();
 });
@@ -7522,9 +7614,12 @@ async function renderDsoTrendView(report, zorla){
   document.getElementById('dsoTrendTablePanel').style.display='block';
   document.getElementById('dsoTrendBosPanel').style.display='none';
 
-  const yon = dso.degisim>0.5 ? '🔺 Bozulma eğiliminde' : (dso.degisim<-0.5 ? '🟢 İyileşme eğiliminde' : '➖ Durağan');
+  const trendYon = dso.degisim>0.5 ? {arrow:'▲ '+Math.abs(dso.degisim).toFixed(1)+' gün', color:'var(--danger)'}
+    : (dso.degisim<-0.5 ? {arrow:'▼ '+Math.abs(dso.degisim).toFixed(1)+' gün', color:'var(--success)'}
+    : {arrow:'— durağan', color:'var(--ink-faint)'});
+  const yon = dso.degisim>0.5 ? 'Bozulma eğiliminde' : (dso.degisim<-0.5 ? 'İyileşme eğiliminde' : 'Durağan');
   const items = [
-    {label:'Güncel DSO', icon:'📉', value:null, display:Math.round(dso.guncel.dso)+' gün', sub:yon},
+    {label:'Güncel DSO', icon:'📉', value:null, display:Math.round(dso.guncel.dso)+' gün', sub:yon, trend:trendYon},
     {label:'Arşiv Ortalaması', icon:'📈', value:null, display:Math.round(dso.ortalama)+' gün'},
     {label:'En İyi Gün', icon:'🏅', value:null, display:Math.round(dso.enIyi.dso)+' gün', sub:fmtDate(new Date(dso.enIyi.gunKey+'T00:00:00'))},
     {label:'En Kötü Gün', icon:'🚩', value:null, display:Math.round(dso.enKotu.dso)+' gün', sub:fmtDate(new Date(dso.enKotu.gunKey+'T00:00:00'))},
@@ -7866,7 +7961,22 @@ async function renderTemsilciKarnesiView(report, zorla){
           </select>
           <button type="button" class="sort-dir-btn karne-riskli-sort-dir-btn" data-temsilci-key="${escapeHtml(r.temsilci)}" title="Sıralama yönünü değiştir">${riskliSort.dir===1?'↓':'↑'}</button>
         </div>
-        <div class="karne-nokta-list">`+riskliListe.map(n=>`<div class="karne-nokta-item"><div class="adi" title="${escapeHtml(n.adi)}">${escapeHtml(n.adi)}</div><div class="kod">${escapeHtml(n.kod)} · Ort. Vade ${n.ortVade} gün · ${TL(n.kalanBorc)}</div></div>`).join('')+'</div>'
+        <div class="karne-nokta-list">`+riskliListe.map(n=>{
+          const riskCls = n.ortVade>=60 ? 'risk-yuksek' : (n.ortVade>=30 ? 'risk-orta' : '');
+          return `<div class="karne-nokta-item ${riskCls}">
+            <div class="nokta-top">
+              <div class="nokta-avatar">${escapeHtml(avatarBaslangic(n.adi))}</div>
+              <div class="nokta-info"><div class="adi" title="${escapeHtml(n.adi)}">${escapeHtml(n.adi)}</div><div class="kod">${escapeHtml(n.kod)}</div></div>
+            </div>
+            <div class="nokta-bottom">
+              <div class="nokta-badges">
+                <span class="nokta-badge">${TL(n.kalanBorc)}</span>
+                <span class="nokta-badge vade">${n.ortVade} gün</span>
+              </div>
+              <button type="button" class="nokta-detay-btn fatura-detay-btn" data-musteri-kod="${escapeHtml(n.kod)}" data-musteri-adi="${escapeHtml(n.adi)}">Faturaları gör ↗</button>
+            </div>
+          </div>`;
+        }).join('')+'</div>'
       : '<div class="fkns-empty">Riskli müşteri yok 🎉</div>';
     return `
     <div class="cust-card karne-card${expanded?' is-open':''}" data-temsilci-key="${escapeHtml(r.temsilci)}">
@@ -7891,7 +8001,7 @@ async function renderTemsilciKarnesiView(report, zorla){
         <span class="g-val" style="color:${r.riskliMusteriSayisi>0?'var(--danger)':'inherit'};">${r.riskliMusteriSayisi}</span>
       </div>
       <div class="karne-expand-toggle"><span>Riskli müşteriler (${r.riskliMusteriSayisi})</span><span class="cust-chevron" style="margin:0;">${expanded?'⌄':'›'}</span></div>
-      ${expanded ? `<div class="karne-expanded">${riskliListeHtml}</div>` : ''}
+      <div class="karne-expanded${expanded?' open':''}">${riskliListeHtml}</div>
     </div>`;
   }).join('');
 
@@ -7899,8 +8009,13 @@ async function renderTemsilciKarnesiView(report, zorla){
     card.addEventListener('click', (e)=>{
       if(e.target.closest('.karne-expanded')) return;
       const key = 'karne_'+card.getAttribute('data-temsilci-key');
-      if(state.expanded.has(key)) state.expanded.delete(key); else state.expanded.add(key);
-      renderTemsilciKarnesiView(report, false);
+      const willOpen = !state.expanded.has(key);
+      if(willOpen) state.expanded.add(key); else state.expanded.delete(key);
+      card.classList.toggle('is-open', willOpen);
+      const expandedEl = card.querySelector('.karne-expanded');
+      const chevronEl = card.querySelector('.karne-expand-toggle .cust-chevron');
+      if(expandedEl) expandedEl.classList.toggle('open', willOpen);
+      if(chevronEl) chevronEl.textContent = willOpen ? '⌄' : '›';
     });
   });
   document.querySelectorAll('.karne-riskli-sort-select').forEach(sel=>{
@@ -8891,6 +9006,12 @@ document.getElementById('sellOutYenileBtn').addEventListener('click', async ()=>
 // --- Olay bağlamaları ---
 document.getElementById('dsoTrendYenileBtn').addEventListener('click', ()=> renderDsoTrendView(state.report || {musteriler:[]}, true));
 document.getElementById('karneYenileBtn').addEventListener('click', ()=> renderTemsilciKarnesiView(state.report || {musteriler:[]}, true));
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('#karneGrid .fatura-detay-btn');
+  if(!btn) return;
+  e.stopPropagation();
+  faturaModalAc(btn.getAttribute('data-musteri-kod'), btn.getAttribute('data-musteri-adi'));
+});
 document.getElementById('yoYenileBtn').addEventListener('click', ()=> renderYonetimOzetiView(state.report || {musteriler:[]}, true));
 document.getElementById('ceiYenileBtn').addEventListener('click', ()=> renderCeiView(state.report || {musteriler:[]}, true));
 document.getElementById('ceiAySelect').addEventListener('change', (e)=>{
@@ -8939,5 +9060,7 @@ document.querySelectorAll('th[data-key]').forEach(th=>{
   });
 })();
 </script>
+
+
 </body>
 </html>
