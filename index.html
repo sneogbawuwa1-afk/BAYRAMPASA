@@ -815,7 +815,7 @@
     <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Excel dosyalarını sürükleyip bırakın veya seçmek için Enter'a basın">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#5C6577" stroke-width="1.6" aria-hidden="true"><path d="M12 3v12m0-12 4 4m-4-4-4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
       <div class="dz-title">Excel dosyalarını buraya sürükleyin ya da tıklayıp seçin</div>
-      <div class="dz-sub">11 dosyayı aynı anda seçebilirsiniz — sistem her birini <b>otomatik tanır</b> (Kalemler, Sipariş, Tahsilat, Çek/Senet, Ticari Stok, Fatura Dökümü, Bayi Hak Ediş, Yükleme Raporu, Müşteri Master, Ciro Primi, Dönemsel İskonto)</div>
+      <div class="dz-sub">12 dosyayı aynı anda seçebilirsiniz — sistem her birini <b>otomatik tanır</b> (Kalemler, Sipariş, Tahsilat, Çek/Senet, Ticari Stok, Fatura Dökümü, Bayi Hak Ediş, Yükleme Raporu, Müşteri Master, Ciro Primi, Dönemsel İskonto, Depozito Tahsilatı)</div>
     </div>
     <input type="file" id="fileInput" accept=".xlsx,.xls" multiple />
 
@@ -873,6 +873,14 @@
         <div>
           <div class="check-name">Bayi Hak Ediş <span class="check-tag opt">Opsiyonel</span></div>
           <div class="check-desc">Tutar, Efes Payı % kolonlarını içeren hak ediş dökümü — Fatura Tarihi tahsilat tarihi, Tutar %20 KDV'li olarak Trend Analizi'nde tahsilat gibi sayılır (opsiyonel, buluta arşivlenmez — her gün güncel dosyayla yüklenir)</div>
+          <div class="check-meta"></div>
+        </div>
+      </div>
+      <div class="check-item" data-type="depozitoTahsilat">
+        <div class="check-icon"></div>
+        <div>
+          <div class="check-name">Depozito Tahsilatı <span class="check-tag opt">Opsiyonel</span></div>
+          <div class="check-desc">Fatura Belge No, Sipariş Net Tutar, İstenilen Sevk Tarihi kolonlarını içeren depozito iade sipariş dökümü — sadece Fatura Belge No dolu olan satırlar (diğerleri es geçilir) müşteri TAHSİLATI olarak tüm finans raporlarına ve Trend Analizi'ne yansır (opsiyonel)</div>
           <div class="check-meta"></div>
         </div>
       </div>
@@ -1941,7 +1949,7 @@
 
 <script>
 const state = {
-  files: { kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null, bayiHakedis:null, yukleme:null, musteriMaster:null, ciroPrimi:null, donemselIskonto:null, sellOut:null },
+  files: { kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null, bayiHakedis:null, yukleme:null, musteriMaster:null, ciroPrimi:null, donemselIskonto:null, sellOut:null, depozitoTahsilat:null },
   report: null,
   sort: { key:'kalanBorc', dir:-1 },
   sevkSort: { key:'toplamRisk', dir:-1 },
@@ -2297,6 +2305,31 @@ function arsivGunlereDagitVeDegistir(mevcutArsivGunler, yeniSatirlar, tarihAlani
   return {arsiv: yeniArsiv, etkilenenGunSayisi: gunBazliYeni.size};
 }
 
+// Fatura Dökümü'ndeki "Bozuk İade Faturası" ve Depozito Tahsilatı dosyasındaki (Fatura Belge No'lu)
+// satırlarından türeyen tahsilat kredilerini (bkz. buildReport'taki bozukIadeTahsilat/depozitoTahsilat)
+// kendi tarihlerine göre ilgili arşiv gününün tahsilatArsiv'ine ekler. Tahsilat Format A/B
+// mekanizmasından TAMAMEN BAĞIMSIZDIR — sadece o günün ÖNCEDEN eklenmiş, AYNI etikete sahip
+// satırlarını bu yüklemenin güncel haliyle değiştirir (mükerrer birikmeyi önlemek için), diğer TÜM
+// tahsilat kayıtlarına (Format A/B veya farklı etiketli krediler) dokunmaz.
+function tahsilatKredisiGunlereEkleVeDegistir(mevcutArsivGunler, yeniSatirlar, etiket){
+  const gunBazliYeni = new Map();
+  (yeniSatirlar||[]).forEach(r=>{
+    if(!r || !r.belgeTarihi) return;
+    const gunKey = dateKeyLocal(new Date(r.belgeTarihi));
+    if(!gunKey) return;
+    if(!gunBazliYeni.has(gunKey)) gunBazliYeni.set(gunKey, []);
+    gunBazliYeni.get(gunKey).push(r);
+  });
+  const yeniArsiv = Object.assign({}, mevcutArsivGunler);
+  gunBazliYeni.forEach((satirlar, gunKey)=>{
+    const mevcutGun = yeniArsiv[gunKey] || {};
+    const eskiTahsilat = mevcutGun.tahsilatArsiv || [];
+    const digerTahsilatlar = eskiTahsilat.filter(r=> r.formatKaynagi !== etiket);
+    yeniArsiv[gunKey] = Object.assign({}, mevcutGun, {tahsilatArsiv: digerTahsilatlar.concat(satirlar)});
+  });
+  return {arsiv: yeniArsiv, etkilenenGunSayisi: gunBazliYeni.size};
+}
+
 async function faturaKontrolArsivineKaydetVeSenkronizeEt(report){
   const bugunKey = dateKeyLocal(new Date());
   const musteriSnapshotUzun = buildMusteriSnapshot(report); // hafızada her zaman canonical (uzun) alan adları kullanılır
@@ -2346,19 +2379,30 @@ async function faturaKontrolArsivineKaydetVeSenkronizeEt(report){
   const {arsiv: faturaIslenmisArsiv} = arsivGunlereDagitVeDegistir(siparisIslenmisArsiv, report.faturaArsiv || [], 'faturaTarihi', 'faturaArsiv');
   const {arsiv: hakedisIslenmisArsiv} = arsivGunlereDagitVeDegistir(faturaIslenmisArsiv, report.bayiHakedis || [], 'tahsilatTarihi', 'bayiHakedisArsiv');
 
+  // Fatura Dökümü'ndeki "Bozuk İade Faturası" ve Depozito Tahsilatı dosyasındaki (Fatura Belge
+  // No'lu) satırlarından türeyen tahsilat kredileri (bkz. buildReport'taki bozukIadeTahsilat/
+  // depozitoTahsilat), Tahsilat Format A/B mekanizmasından TAMAMEN BAĞIMSIZ olarak, kendi
+  // tarihlerine göre ilgili arşiv gününün tahsilatArsiv'ine eklenir/güncellenir — sadece o günün
+  // ÖNCEDEN eklenmiş AYNI etiketli satırları bu yüklemenin güncel haliyle değiştirilir, diğer tüm
+  // Format A/B tahsilat kayıtlarına dokunulmaz (bkz. tahsilatKredisiGunlereEkleVeDegistir).
+  const {arsiv: bozukIadeIslenmisArsiv} = tahsilatKredisiGunlereEkleVeDegistir(hakedisIslenmisArsiv, report.bozukIadeTahsilat || [], 'FaturaIade');
+  const {arsiv: depozitoIslenmisArsiv} = tahsilatKredisiGunlereEkleVeDegistir(bozukIadeIslenmisArsiv, report.depozitoTahsilat || [], 'DepozitoTahsilat');
+
   // Müşteri Snapshot: bu SADECE bugünün altına yazılmaya devam eder — çünkü bu, Kalemler
   // dosyasının o ANKİ (rapor oluşturma anındaki) donmuş bakiye özetidir; geçmiş bir tarihe
   // dağıtılamaz (geçmişe dönük yeniden hesaplanamaz). Rapor oluşturmadığınız günler için bu alan
   // hâlâ boş kalır — bu, arşivin doğası gereği kaçınılmazdır.
-  const bugunGunOncesi = hakedisIslenmisArsiv[bugunKey] || {};
+  const bugunGunOncesi = depozitoIslenmisArsiv[bugunKey] || {};
   const bugununKaydiTaban = report.tahsilatFormatB
     ? bugunGunOncesi
-    : Object.assign({}, bugunGunOncesi, {tahsilatArsiv: report.tahsilatArsiv || []});
+    // Format A: SADECE bugünün 'A' etiketli kısmı bu yüklemenin yeni satırlarıyla değiştirilir;
+    // 'B', 'FaturaIade' (Bozuk İade kredisi) ve 'DepozitoTahsilat' etiketli kayıtlara dokunulmaz.
+    : Object.assign({}, bugunGunOncesi, {tahsilatArsiv: (bugunGunOncesi.tahsilatArsiv||[]).filter(r=>r.formatKaynagi!=='A').concat(report.tahsilatArsiv || [])});
   const bugununKaydi = Object.assign({}, bugununKaydiTaban, {
     musteriSnapshot: musteriSnapshotUzun,
     kayitZamani: new Date().toISOString(),
   });
-  const yeniArsivTumu = Object.assign({}, hakedisIslenmisArsiv, {[bugunKey]: bugununKaydi});
+  const yeniArsivTumu = Object.assign({}, depozitoIslenmisArsiv, {[bugunKey]: bugununKaydi});
 
   // Yerel önbellek her durumda güncellenir; Trend/Tahsilat Verimliliği gibi ekranlar bugünün
   // verisini hemen görsün.
@@ -3333,8 +3377,9 @@ const SIGNATURES = {
   ciroPrimi: [['Grup Tanım','Efpa Payı Tutar','Net Tutar']],
   donemselIskonto: [['Nokta Kodu','Hakediş Tutar','Perid']],
   sellOut: [['Müşteri Kanalı Tnm.','Açık/Otel Tnm.','Hacim Segmenti Tnm.']],
+  depozitoTahsilat: [['Fatura Belge No','Sipariş Net Tutar','İstenilen Sevk Tarihi']],
 };
-const LABELS = { kalemler:'Kalemler (Fatura / Bakiye)', siparis:'Sipariş Dökümü', tahsilat:'Tahsilat Dökümü', cekSenet:'Çek / Senet Riski', ticariStok:'Ticari Stok', fatura:'Fatura Dökümü', bayiHakedis:'Bayi Hak Ediş', yukleme:'Yükleme Raporu', musteriMaster:'Müşteri Master', ciroPrimi:'Ciro Primi', donemselIskonto:'Dönemsel İskonto', sellOut:'Sell Out Raporu' };
+const LABELS = { kalemler:'Kalemler (Fatura / Bakiye)', siparis:'Sipariş Dökümü', tahsilat:'Tahsilat Dökümü', cekSenet:'Çek / Senet Riski', ticariStok:'Ticari Stok', fatura:'Fatura Dökümü', bayiHakedis:'Bayi Hak Ediş', yukleme:'Yükleme Raporu', musteriMaster:'Müşteri Master', ciroPrimi:'Ciro Primi', donemselIskonto:'Dönemsel İskonto', sellOut:'Sell Out Raporu', depozitoTahsilat:'Depozito Tahsilatı' };
 
 function detectType(headers){
   const set = new Set(headers.map(h=>String(h||'').trim()));
@@ -3533,7 +3578,7 @@ syncBtn.addEventListener('click', async ()=>{
 });
 
 async function resetAll(){
-  state.files = {kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null, bayiHakedis:null, yukleme:null, musteriMaster:null, ciroPrimi:null, donemselIskonto:null, sellOut:null};
+  state.files = {kalemler:null, siparis:null, tahsilat:null, cekSenet:null, ticariStok:null, fatura:null, bayiHakedis:null, yukleme:null, musteriMaster:null, ciroPrimi:null, donemselIskonto:null, sellOut:null, depozitoTahsilat:null};
   state.report = null;
   state.expanded.clear();
   state.yuklemeReport = null;
@@ -3542,7 +3587,7 @@ async function resetAll(){
   state.bayiHakedisHata = null;
   state.sellOutReport = null;
   await clearStoredReport();
-  const ICON_NUMS = {kalemler:'', siparis:'', tahsilat:'', cekSenet:'', ticariStok:'', fatura:'', bayiHakedis:'', yukleme:'', musteriMaster:'', ciroPrimi:'', donemselIskonto:'', sellOut:''};
+  const ICON_NUMS = {kalemler:'', siparis:'', tahsilat:'', cekSenet:'', ticariStok:'', fatura:'', bayiHakedis:'', yukleme:'', musteriMaster:'', ciroPrimi:'', donemselIskonto:'', sellOut:'', depozitoTahsilat:''};
   document.querySelectorAll('.check-item').forEach(el=>{
     el.classList.remove('done');
     el.querySelector('.check-icon').textContent = ICON_NUMS[el.getAttribute('data-type')] || '';
@@ -3803,25 +3848,91 @@ function buildReport(files, musteriMasterMap){
         tahsilatArsiv.push({musteri: musteriArsiv, belgeTarihi, tutar: tutarArsiv, formatKaynagi: formatA ? 'A' : 'B', gecerli});
       }
     });
+  }
 
-    // Genel Rapor/Sevk Raporu'ndaki tahsilat KPI'sı artık ne "dosyadaki en güncel gün"e ne de
-    // sadece "bu dosyadaki günler"e göre değil, bu yüklemenin arşive yansıyacağı haliyle ARŞİVDEKİ
-    // TÜM tahsilat günleri arasından bugüne EN YAKIN olan güne göre gösterilir — Format A/Format B
-    // farkı gözetilmeksizin, hangi formatın kaydı arşivde en güncelse o gösterilir. Bunun için,
-    // arşive gerçekten kaydedilecek durumun AYNISI (bkz. tahsilatEfektifGunMapHesapla) burada da
-    // -henüz kaydetmeden- simüle edilip, dolu (veri içeren) tüm günler arasından bugüne en yakın
-    // olan seçilir.
-    const bugunGunKeyTahsilat = dateKeyLocal(today);
-    const efektifGunMap = tahsilatEfektifGunMapHesapla(state.faturaArsivCache || {}, tahsilatArsiv, tahsilatFormatB, bugunGunKeyTahsilat);
-    const doluGunler = Array.from(efektifGunMap.keys()).filter(gk=> (efektifGunMap.get(gk)||[]).length > 0);
-    const hedefTahsilatGunKey = enYakinGunKey(doluGunler, bugunGunKeyTahsilat);
+  const faturaArsiv = [];
+  const bozukIadeTahsilat = [];
+  if(files.fatura){
+    files.fatura.data.forEach(r=>{
+      const musteri = String(r['Müşteri Numarası']||'').trim();
+      if(!musteri) return;
+      // "EFES" Müşteri Numarası gerçek bir cari değil (dahili/şirket içi kayıt) — bu satırlar
+      // tamamen göz ardı edilir: ne faturaArsiv'e, ne bozukIadeTahsilat'a eklenir, ne de arşivlenir.
+      if(musteri.toUpperCase() === 'EFES') return;
+      const musteriAdi = r['Müşteri Adı'] || musteri;
+      const temsilci = r['Satış Temsilcisi Adı'] || null;
+      const tutar = Number(r['Ödenecek Tutar'])||0;
+      const litre = Number(r['Toplam Litre'])||0;
+      // Not: excelDateToJSArti1Gun kullanılır (excelDateToJS DEĞİL) — Türkiye (+3) saat dilimi
+      // düzeltmesi; bkz. Sell Out/Yükleme Raporu'ndaki aynı notla birebir aynı sebep.
+      const faturaTarihi = excelDateToJSArti1Gun(r['Fatura Tarihi']);
+      const faturaTuru = String(r['Fatura Türü Adı']||'').trim();
 
-    if(hedefTahsilatGunKey){
-      (efektifGunMap.get(hedefTahsilatGunKey)||[]).forEach(r=>{
-        if(r.gecerli === false) return;
-        tahsilatMap.set(r.musteri, (tahsilatMap.get(r.musteri)||0) + r.tutar);
-      });
-    }
+      // "Bozuk İade Faturası": Ödenecek Tutar burada NEGATİF gelir (müşterinin borcundan düşülen
+      // bir iade/mahsup tutarıdır) — bu yüzden SATIŞ/FATURA tutarı olarak değil, müşteri TAHSİLATI
+      // olarak sayılır ve tüm analiz raporlarına (Trend Analiz, DSO, CEI, Yönetim Özeti, Şüpheli
+      // Alacak, Temsilci Karnesi vb.) tahsilatArsiv üzerinden aynı şekilde yansır (bkz.
+      // bozukIadeTahsilatGunlereEkleVeDegistir). Diğer fatura türleri (Satış Fatura, Depozito İade,
+      // KA Sanal İade Sip., Boş Kap İade vb.) eskisi gibi faturaArsiv'e (satış tutarı) eklenir.
+      if(faturaTuru === 'Bozuk İade Faturası'){
+        bozukIadeTahsilat.push({musteri, musteriAdi, belgeTarihi: faturaTarihi, tutar: Math.abs(tutar), formatKaynagi:'FaturaIade', gecerli:true, faturaNo: r['Fatura Numarası']});
+        return;
+      }
+      faturaArsiv.push({musteri, musteriAdi, temsilci, tutar, litre, faturaTarihi});
+    });
+  }
+
+  // Depozito Tahsilatı: "Bozuk İade Faturası" ile AYNI mantık — Fatura Belge No dolu olan satırlar
+  // müşteri TAHSİLATI olarak sayılır (Sipariş Net Tutar tutarınca), Fatura Belge No BOŞ olan
+  // satırlar tamamen es geçilir (ne tahsilatArsiv'e, ne başka bir yere eklenir, ne kaydedilir).
+  const depozitoTahsilat = [];
+  if(files.depozitoTahsilat){
+    files.depozitoTahsilat.data.forEach(r=>{
+      const faturaBelgeNo = String(r['Fatura Belge No']||'').trim();
+      if(!faturaBelgeNo) return; // tek kriter: Fatura Belge No zorunlu — yoksa satır tamamen es geçilir
+      const musteri = String(r['Müşteri Numarası']||'').trim();
+      if(!musteri) return;
+      const musteriAdi = r['Müşteri Adı'] || musteri;
+      const tutar = Number(r['Sipariş Net Tutar'])||0;
+      // Not: excelDateToJSArti1Gun kullanılır — Türkiye (+3) saat dilimi düzeltmesi (bkz. yukarıdaki
+      // faturaTarihi notu ile aynı sebep).
+      const belgeTarihi = excelDateToJSArti1Gun(r['Fatura Tarihi']);
+      depozitoTahsilat.push({musteri, musteriAdi, belgeTarihi, tutar: Math.abs(tutar), formatKaynagi:'DepozitoTahsilat', gecerli:true, faturaBelgeNo});
+    });
+  }
+
+  // Genel Rapor/Sevk Raporu'ndaki tahsilat KPI'sı artık ne "dosyadaki en güncel gün"e ne de sadece
+  // "bu dosyadaki günler"e göre değil, bu yüklemenin arşive yansıyacağı haliyle ARŞİVDEKİ TÜM
+  // tahsilat günleri arasından bugüne EN YAKIN olan güne göre gösterilir — Format A/Format B farkı
+  // gözetilmeksizin, hangi formatın kaydı arşivde en güncelse o gösterilir. Artık Fatura
+  // Dökümü'ndeki "Bozuk İade Faturası" ve Depozito Tahsilatı'ndaki (Fatura Belge No'lu) satırlardan
+  // türeyen tahsilat kredileri de (bkz. bozukIadeTahsilat, depozitoTahsilat) bu hesaba dahildir —
+  // bunlar Tahsilat Dökümü'nden gelmese bile aynı KPI'ya katkı sağlar. Bunun için, arşive gerçekten
+  // kaydedilecek durumun AYNISI (bkz. tahsilatEfektifGunMapHesapla) burada da -henüz kaydetmeden-
+  // simüle edilip, üzerine bu krediler eklenir, sonra dolu (veri içeren) tüm günler arasından bugüne
+  // en yakın olan seçilir.
+  const bugunGunKeyTahsilat = dateKeyLocal(today);
+  const efektifGunMap = tahsilatEfektifGunMapHesapla(state.faturaArsivCache || {}, tahsilatArsiv, tahsilatFormatB, bugunGunKeyTahsilat);
+  bozukIadeTahsilat.forEach(r=>{
+    const gk = r.belgeTarihi ? dateKeyLocal(new Date(r.belgeTarihi)) : null;
+    if(!gk) return;
+    const mevcut = (efektifGunMap.get(gk) || []).filter(x=>x.formatKaynagi!=='FaturaIade');
+    efektifGunMap.set(gk, mevcut.concat([r]));
+  });
+  depozitoTahsilat.forEach(r=>{
+    const gk = r.belgeTarihi ? dateKeyLocal(new Date(r.belgeTarihi)) : null;
+    if(!gk) return;
+    const mevcut = (efektifGunMap.get(gk) || []).filter(x=>x.formatKaynagi!=='DepozitoTahsilat');
+    efektifGunMap.set(gk, mevcut.concat([r]));
+  });
+  const doluGunler = Array.from(efektifGunMap.keys()).filter(gk=> (efektifGunMap.get(gk)||[]).length > 0);
+  const hedefTahsilatGunKey = enYakinGunKey(doluGunler, bugunGunKeyTahsilat);
+
+  if(hedefTahsilatGunKey){
+    (efektifGunMap.get(hedefTahsilatGunKey)||[]).forEach(r=>{
+      if(r.gecerli === false) return;
+      tahsilatMap.set(r.musteri, (tahsilatMap.get(r.musteri)||0) + r.tutar);
+    });
   }
 
   const cekSenetMap = new Map();
@@ -3956,22 +4067,6 @@ function buildReport(files, musteriMasterMap){
     ozet: Array.from(ticariStokOzetMap.values()).sort((a,b)=>b.depodaKalanLt-a.depodaKalanLt),
   };
 
-  const faturaArsiv = [];
-  if(files.fatura){
-    files.fatura.data.forEach(r=>{
-      const musteri = String(r['Müşteri Numarası']||'').trim();
-      if(!musteri) return;
-      const musteriAdi = r['Müşteri Adı'] || musteri;
-      const temsilci = r['Satış Temsilcisi Adı'] || null;
-      const tutar = Number(r['Ödenecek Tutar'])||0;
-      const litre = Number(r['Toplam Litre'])||0;
-      // Not: excelDateToJSArti1Gun kullanılır (excelDateToJS DEĞİL) — Türkiye (+3) saat dilimi
-      // düzeltmesi; bkz. Sell Out/Yükleme Raporu'ndaki aynı notla birebir aynı sebep.
-      const faturaTarihi = excelDateToJSArti1Gun(r['Fatura Tarihi']);
-      faturaArsiv.push({musteri, musteriAdi, temsilci, tutar, litre, faturaTarihi});
-    });
-  }
-
   const bayiHakedis = [];
   if(files.bayiHakedis){
     files.bayiHakedis.data.forEach(r=>{
@@ -3992,7 +4087,7 @@ function buildReport(files, musteriMasterMap){
   return {
     asOf: today, musteriler, invoices, bakiyesiz, kpi, ticariStok,
     temsilciler: Array.from(repMap.values()).sort((a,b)=>b.kalanBorc-a.kalanBorc),
-    siparisArsiv, tahsilatArsiv, faturaArsiv, bayiHakedis, tahsilatFormatB,
+    siparisArsiv, tahsilatArsiv, faturaArsiv, bayiHakedis, bozukIadeTahsilat, depozitoTahsilat, tahsilatFormatB,
   };
 }
 function sum(arr,key){ return arr.reduce((a,b)=>a+(b[key]||0),0); }
