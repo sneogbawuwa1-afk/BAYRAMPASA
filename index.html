@@ -401,6 +401,8 @@
   /* faturaModalOverlay (Açık Faturalar), Riskli Müşteriler / Fatura Kesilmeyen Noktalar popup'larının
      İÇİNDEN de açılabiliyor (iç içe popup) — bu yüzden üstte görünmesi için daha yüksek z-index gerekir. */
   #faturaModalOverlay{z-index:1010;}
+  #cekSenetModalOverlay{z-index:1020;}
+  #hakedisModalOverlay{z-index:1020;}
   #analizModalOverlay{z-index:1020;}
   .modal{
     background:var(--surface);border-radius:14px;box-shadow:0 24px 60px -12px rgba(24,34,51,0.35);
@@ -2173,9 +2175,11 @@
               <div class="modal-head-navy-sub">Açık Faturalar</div>
             </div>
           </div>
-          <div class="modal-head-navy-pill-row" style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+          <div class="modal-head-navy-pill-row" style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div class="modal-head-navy-pill" id="faturaModalSub" style="margin-top:0;"></div>
             <button type="button" class="modal-head-navy-analiz-btn" id="faturaModalAnalizBtn">📊 Analiz</button>
+            <button type="button" class="modal-head-navy-analiz-btn" id="faturaModalCekSenetBtn" style="display:none;">📄 Çek/Senet</button>
+            <button type="button" class="modal-head-navy-analiz-btn" id="faturaModalHakedisBtn" style="display:none;">🏷️ Hakediş</button>
           </div>
           <button class="modal-close" id="faturaModalClose" type="button" aria-label="Kapat">✕</button>
         </div>
@@ -2193,23 +2197,35 @@
           </div>
           <div class="fatura-toplam-divider"></div>
           <div id="faturaModalToplam" class="fatura-toplam-strip"></div>
-          <div id="faturaModalHakedisWrap" style="display:none;padding:2px 20px 18px;border-top:1px solid var(--line-soft);">
-            <div class="cust-expanded-risk" style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.04em;margin-bottom:8px;">BAYİ HAKEDİŞ (<span id="faturaModalHakedisSayi"></span>)</div>
-            <div class="table-scroll">
-              <table id="faturaModalHakedisTable">
-                <thead><tr><th>Tarih</th><th>Kategori</th><th class="num">KDV Hariç</th><th class="num">KDV Dahil</th></tr></thead>
-                <tbody id="faturaModalHakedisTbody"></tbody>
-              </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="cekSenetModalOverlay">
+      <div class="modal" id="cekSenetModal" role="dialog" aria-modal="true" aria-labelledby="cekSenetModalTitle" style="max-width:520px;">
+        <div class="panel-head modal-head-navy">
+          <div class="modal-head-navy-top">
+            <div class="modal-head-navy-avatar" id="cekSenetModalAvatar"></div>
+            <div style="min-width:0;">
+              <div class="modal-head-navy-name" id="cekSenetModalTitle"></div>
+              <div class="modal-head-navy-sub">Çek / Senet Detayı</div>
             </div>
           </div>
-          <div id="faturaModalCekSenetWrap" style="display:none;padding:2px 20px 18px;border-top:1px solid var(--line-soft);">
-            <div class="cust-expanded-risk" style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.04em;margin-bottom:8px;">ÇEK / SENET DETAYI (<span id="faturaModalCekSenetSayi"></span>)</div>
-            <div class="table-scroll">
-              <table id="faturaModalCekSenetTable">
-                <thead><tr><th>No</th><th>Tip</th><th>Belge Tarihi</th><th>Vade Tarihi</th><th class="num">Tutar</th></tr></thead>
-                <tbody id="faturaModalCekSenetTbody"></tbody>
-              </table>
-            </div>
+          <div class="modal-head-navy-pill" id="cekSenetModalSub"></div>
+          <button class="modal-close" id="cekSenetModalClose" type="button" aria-label="Kapat">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="table-scroll" style="padding:0 20px 18px;">
+            <table id="cekSenetModalTable">
+              <thead><tr>
+                <th>No</th>
+                <th>Tip</th>
+                <th>Belge Tarihi</th>
+                <th>Vade Tarihi</th>
+                <th class="num">Tutar</th>
+              </tr></thead>
+              <tbody id="cekSenetModalTbody"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -2857,6 +2873,25 @@ const SIPARIS_IPTAL_DURUMLARI = new Set(['Reddedildi', 'İptal Edildi', 'Teslim 
 function siparisArsivGunlereDagitVeTemizle(mevcutArsiv, yeniSiparisSatirlari){
   const yeniArsiv = Object.assign({}, mevcutArsiv);
 
+  // 0) DÜZELTME: Bu yüklemede gelen satırların Satış Belge No'larını topla ve bu numaralara ait
+  // ESKİ kayıtları, hangi takvim gününde (hangi eski İstenilen Tsl. Trh. altında) duruyor olursa
+  // olsun TÜM arşivden sil. Bu, bir siparişin teslim tarihi bir yüklemeden ötekine kaydığında
+  // (örn. 03.07 -> 04.07) eski günün kaydının arşivde "gölge" olarak kalıp yeni günün kaydıyla
+  // birlikte İKİ KEZ sayılmasını (Fatura Kontrol'de mükerrer sipariş tutarı) önler.
+  const buYuklemedekiBelgeNolari = new Set();
+  (yeniSiparisSatirlari||[]).forEach(r=>{ if(r && r.satisBelgeNo) buYuklemedekiBelgeNolari.add(r.satisBelgeNo); });
+  if(buYuklemedekiBelgeNolari.size){
+    Object.keys(yeniArsiv).forEach(gunKey=>{
+      const gun = yeniArsiv[gunKey];
+      const eski = (gun && gun.siparisArsiv) || [];
+      if(!eski.length) return;
+      const temiz = eski.filter(r=> !(r.satisBelgeNo && buYuklemedekiBelgeNolari.has(r.satisBelgeNo)));
+      if(temiz.length !== eski.length){
+        yeniArsiv[gunKey] = Object.assign({}, gun, {siparisArsiv: temiz});
+      }
+    });
+  }
+
   // 1) Yeni satırları kendi teslim tarihi gününe dağıt (o günün mevcut siparisArsiv'ine ekle).
   (yeniSiparisSatirlari||[]).forEach(r=>{
     if(!r || !r.istenilenTeslimTarihi || !r.satisBelgeNo) return;
@@ -2875,18 +2910,38 @@ function siparisArsivGunlereDagitVeTemizle(mevcutArsiv, yeniSiparisSatirlari){
     });
   });
 
+  // 3) DÜZELTME: Aynı Satış Belge No'nun mükerrer kayıtlarını artık GÜNE ÖZGÜ değil, TÜM ARŞİV
+  // ÜZERİNDE global olarak tekilleştiriyoruz. Böylece bu fonksiyon yeni satır eklemeden de
+  // (bkz. faturaKontrolArsivSikistir çağrısı) geçmişte bu bug nedeniyle birden fazla güne dağılmış
+  // kayıtları tarayıp temizleyebiliyor. Aynı belge no birden çok günde bulunuyorsa, takvim günü en
+  // büyük (en güncel/son) olan kayıt tutulur — bir siparişin en son bilinen teslim tarihi budur.
+  const gunlerSirali = Object.keys(yeniArsiv).sort();
+  const belgeNoKazananGun = new Map();
+  gunlerSirali.forEach(gunKey=>{
+    ((yeniArsiv[gunKey] && yeniArsiv[gunKey].siparisArsiv) || []).forEach(r=>{
+      if(r.satisBelgeNo) belgeNoKazananGun.set(r.satisBelgeNo, gunKey); // sıralı ilerlediğimiz için en son atama en son (en güncel) günü verir
+    });
+  });
+
   let silinenSatir = 0;
-  Object.keys(yeniArsiv).forEach(gunKey=>{
+  gunlerSirali.forEach(gunKey=>{
     const gun = yeniArsiv[gunKey];
     const orijinal = gun.siparisArsiv || [];
 
     // İptal belgesi olan tüm kayıtları çıkar.
     let sonraki = orijinal.filter(r=> !(r.satisBelgeNo && iptalBelgeNolari.has(r.satisBelgeNo)));
 
-    // Aynı gün içinde aynı Satış Belge No'nun mükerrer (2. ve sonrası) kayıtlarını çıkar.
-    const gorulenBelgeNo = new Set();
+    // Belge no'su bu günden BAŞKA bir günde "kazanan" olarak işaretlenmiş kayıtları çıkar (global mükerrer temizliği).
     sonraki = sonraki.filter(r=>{
       if(!r.satisBelgeNo) return true; // belge no'suz satır dokunulmaz
+      return belgeNoKazananGun.get(r.satisBelgeNo) === gunKey;
+    });
+
+    // Aynı gün içinde (yukarıdaki adımdan sonra) hâlâ kalan aynı Satış Belge No mükerrerlerini
+    // (örn. bir günün kendi içinde iki kez yüklenmiş olması) de temizle.
+    const gorulenBelgeNo = new Set();
+    sonraki = sonraki.filter(r=>{
+      if(!r.satisBelgeNo) return true;
       if(gorulenBelgeNo.has(r.satisBelgeNo)) return false;
       gorulenBelgeNo.add(r.satisBelgeNo);
       return true;
@@ -5482,34 +5537,14 @@ function faturaModalAc(musteriKod, musteriAdi){
       <div class="fatura-toplam-col"><div class="fatura-toplam-label">Ort. Vade Tarihi</div><div class="fatura-toplam-value">${ortTarih ? fmtDate(ortTarih) : '—'}</div></div>
     `;
 
-    // --- Bayi Hakediş (varsa) ---
+    // --- Bayi Hakediş (varsa) → sadece popup butonunu göster/gizle, içerik hakedisModalAc'te dolduruluyor ---
     const hakedisRapor = state.bayiHakedisReport;
     const hakedisKaydi = (hakedisRapor && Array.isArray(hakedisRapor.noktalar)) ? hakedisRapor.noktalar.find(n=>n.kod===kod) : null;
-    const hakedisWrap = document.getElementById('faturaModalHakedisWrap');
-    if(hakedisKaydi && hakedisKaydi.kayitlar && hakedisKaydi.kayitlar.length){
-      document.getElementById('faturaModalHakedisSayi').textContent = hakedisKaydi.kayitlar.length;
-      document.getElementById('faturaModalHakedisTbody').innerHTML = hakedisKaydi.kayitlar.map(k=>`<tr>
-        <td>${fmtDate(k.tarih)}</td><td>${escapeHtml(k.kategori)}</td>
-        <td class="num">${TL(k.tutarHaric)}</td><td class="num">${TL(k.tutarKdvli)}</td>
-      </tr>`).join('');
-      hakedisWrap.style.display = 'block';
-    } else {
-      hakedisWrap.style.display = 'none';
-    }
+    document.getElementById('faturaModalHakedisBtn').style.display = (hakedisKaydi && hakedisKaydi.kayitlar && hakedisKaydi.kayitlar.length) ? 'inline-flex' : 'none';
 
-    // --- Çek / Senet Detayı (varsa) ---
+    // --- Çek / Senet Detayı (varsa) → sadece popup butonunu göster/gizle, içerik cekSenetModalAc'te dolduruluyor ---
     const cekSenetDetay = (m && m.cekSenetDetay) ? m.cekSenetDetay : [];
-    const cekSenetWrap = document.getElementById('faturaModalCekSenetWrap');
-    if(cekSenetDetay.length){
-      document.getElementById('faturaModalCekSenetSayi').textContent = cekSenetDetay.length;
-      document.getElementById('faturaModalCekSenetTbody').innerHTML = cekSenetDetay.map(c=>`<tr>
-        <td>${escapeHtml(c.no||'—')}</td><td>${escapeHtml(c.tip||'—')}</td>
-        <td>${fmtDate(c.belgeTarihi)}</td><td>${fmtDate(c.vade)}</td><td class="num">${TL(c.tutar)}</td>
-      </tr>`).join('');
-      cekSenetWrap.style.display = 'block';
-    } else {
-      cekSenetWrap.style.display = 'none';
-    }
+    document.getElementById('faturaModalCekSenetBtn').style.display = cekSenetDetay.length ? 'inline-flex' : 'none';
 
     document.getElementById('faturaModalOverlay').classList.add('open');
   }catch(err){
@@ -5519,8 +5554,8 @@ function faturaModalAc(musteriKod, musteriAdi){
     document.getElementById('faturaModalSub').textContent = musteriKod||'';
     document.getElementById('faturaModalTbody').innerHTML = '<tr><td colspan="4" class="empty-state">Bir hata oluştu: '+escapeHtml(err.message)+'</td></tr>';
     document.getElementById('faturaModalToplam').innerHTML = '';
-    document.getElementById('faturaModalHakedisWrap').style.display = 'none';
-    document.getElementById('faturaModalCekSenetWrap').style.display = 'none';
+    document.getElementById('faturaModalHakedisBtn').style.display = 'none';
+    document.getElementById('faturaModalCekSenetBtn').style.display = 'none';
     document.getElementById('faturaModalOverlay').classList.add('open');
   }
 }
@@ -5530,6 +5565,29 @@ function faturaModalKapat(){
 document.getElementById('faturaModalClose').addEventListener('click', faturaModalKapat);
 document.getElementById('faturaModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='faturaModalOverlay') faturaModalKapat();
+});
+
+function cekSenetModalAc(musteriKod, musteriAdi){
+  const kod = String(musteriKod||'').trim();
+  const report = state.report;
+  const m = (report && report.musteriler ? report.musteriler.find(x=>String(x.musteri||'').trim()===kod) : null)
+    || state.faturaModalYedekMap.get(kod) || null;
+  const detay = (m && m.cekSenetDetay) ? m.cekSenetDetay : [];
+  document.getElementById('cekSenetModalAvatar').textContent = avatarBaslangic(musteriAdi);
+  document.getElementById('cekSenetModalTitle').textContent = musteriAdi||'';
+  document.getElementById('cekSenetModalSub').textContent = kod + ' · ' + detay.length + ' kayıt';
+  document.getElementById('cekSenetModalTbody').innerHTML = detay.length ? detay.map(c=>`<tr>
+    <td>${escapeHtml(c.no||'—')}</td><td>${escapeHtml(c.tip||'—')}</td>
+    <td>${fmtDate(c.belgeTarihi)}</td><td>${fmtDate(c.vade)}</td><td class="num">${TL(c.tutar)}</td>
+  </tr>`).join('') : `<tr><td colspan="5" class="empty-state">Çek/Senet kaydı bulunamadı.</td></tr>`;
+  document.getElementById('cekSenetModalOverlay').classList.add('open');
+}
+function cekSenetModalKapat(){
+  document.getElementById('cekSenetModalOverlay').classList.remove('open');
+}
+document.getElementById('cekSenetModalClose').addEventListener('click', cekSenetModalKapat);
+document.getElementById('cekSenetModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='cekSenetModalOverlay') cekSenetModalKapat();
 });
 
 async function analizModalAc(musteriKod, musteriAdi){
@@ -5606,6 +5664,16 @@ document.getElementById('faturaModalAnalizBtn').addEventListener('click', ()=>{
   const mevcut = state.faturaModalMevcut;
   if(!mevcut) return;
   analizModalAc(mevcut.kod, mevcut.adi);
+});
+document.getElementById('faturaModalCekSenetBtn').addEventListener('click', ()=>{
+  const mevcut = state.faturaModalMevcut;
+  if(!mevcut) return;
+  cekSenetModalAc(mevcut.kod, mevcut.adi);
+});
+document.getElementById('faturaModalHakedisBtn').addEventListener('click', ()=>{
+  const mevcut = state.faturaModalMevcut;
+  if(!mevcut) return;
+  hakedisModalAc(mevcut.kod);
 });
 document.getElementById('dikkatModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'dikkatModalOverlay') closeDikkatModal();
@@ -7596,7 +7664,14 @@ function renderBayiHakedisTable(resetSayfa=true){
 }
 
 function hakedisModalAc(kod){
-  const r = state.bayiHakedisKodMap && state.bayiHakedisKodMap.get(kod);
+  let r = state.bayiHakedisKodMap && state.bayiHakedisKodMap.get(kod);
+  // DÜZELTME: bayiHakedisKodMap SADECE "Bayi Hakediş" sekmesi bir kez render edildiğinde dolar.
+  // Bu popup artık Fatura Kontrol/Genel Rapor içindeki "Hakediş" butonundan da (o sekmeye hiç
+  // girilmeden) açılabildiği için, harita boşsa/kod bulunamazsa doğrudan state.bayiHakedisReport
+  // (rapor oluşturulduğu anda her zaman dolu olan asıl kaynak) üzerinden arıyoruz.
+  if(!r && state.bayiHakedisReport && Array.isArray(state.bayiHakedisReport.noktalar)){
+    r = state.bayiHakedisReport.noktalar.find(n=>n.kod===kod);
+  }
   if(!r){
     document.getElementById('hakedisModalAvatar').textContent = '';
     document.getElementById('hakedisModalTitle').textContent = 'Hakediş Kayıtları';
