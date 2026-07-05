@@ -7368,21 +7368,6 @@ function ceiDurumPill(oran){
   return {label:'Zayıf', cls:'danger'};
 }
 
-// ssmKanalRowHtml'in TL (tahsilat/hedef) versiyonu — Temsilci Karnesi kartında, Sell Out kartındaki
-// Açık/Kapalı Kanal satırıyla AYNI görsel hatları (ilerleme çubuğu, kalan bilgisi) kullanır.
-function karneTahsilatRowHtml(label, tahsilat, hedef){
-  const hedefVarMi = hedef>0;
-  const pct = hedefVarMi ? Math.min(100, tahsilat/hedef*100) : 0;
-  const renk = hedefVarMi ? sellOutRenk(pct) : 'var(--ink-faint)';
-  const valTxt = hedefVarMi ? `${TL(tahsilat)} <small>/ ${TL(hedef)} (otomatik)</small>` : `${TL(tahsilat)} <small>· hedef yok</small>`;
-  const kalanTxt = hedefVarMi ? `<div class="ssm-kanal-kalan">Kalan ${TL(Math.max(0, hedef-tahsilat))}</div>` : '';
-  return `<div class="ssm-kanal-row">
-    <div class="ssm-kanal-top"><span class="lbl">${escapeHtml(label)}</span><span class="val">${valTxt}</span></div>
-    <div class="ssm-kanal-track"><div class="ssm-kanal-fill" style="width:${pct.toFixed(1)}%;background:${renk};"></div></div>
-    ${kalanTxt}
-  </div>`;
-}
-
 async function computeTemsilciKarnesi(report, zorla){
   const buAy = dateKeyLocal(new Date()).slice(0,7);
   const tv = await computeTahsilatVerimlilikAy(report, buAy, zorla);
@@ -7481,25 +7466,15 @@ async function renderTemsilciKarnesiView(report, zorla){
       : '<div class="fkns-empty">Riskli müşteri yok 🎉</div>';
     return `
     <div class="cust-card karne-card${expanded?' is-open':''}" data-temsilci-key="${escapeHtml(r.temsilci)}">
-      <div class="ssm-karne-top">
-        <div class="cust-avatar">${escapeHtml(avatarBaslangic(r.temsilci))}</div>
-        <div class="cust-info">
-          <div class="ssm-karne-name">${escapeHtml(r.temsilci)} <span class="badge info">#${i+1}</span></div>
-          <span class="pill ${durum.cls}" style="margin-top:5px;display:inline-block;">${durum.label}</span>
-        </div>
-        <div class="ssm-fkns-ring-wrap">
-          ${fknsRingSvg(r.gerceklesme)}
-          <div class="ssm-fkns-ring-label">GERÇ.</div>
-        </div>
+      <div class="karne-top">
+        <div><div class="karne-name">${escapeHtml(r.temsilci)}</div><span class="pill ${durum.cls}">${durum.label}</span></div>
+        <div class="karne-rank">#${i+1}</div>
       </div>
-      ${karneTahsilatRowHtml('Tahsilat', r.toplamTahsilat, r.hedef)}
-      <div class="ssm-karne-foot">
-        <span class="g-lbl">Ort. Vade</span>
-        <span class="g-val">${r.ortVade!=null?r.ortVade+' gün':'—'}</span>
-      </div>
-      <div class="ssm-karne-foot">
-        <span class="g-lbl">Riskli Müşteri</span>
-        <span class="g-val" style="color:${r.riskliMusteriSayisi>0?'var(--danger)':'inherit'};">${r.riskliMusteriSayisi}</span>
+      <div class="karne-metrics">
+        <div><div class="karne-lbl">Tahsilat</div><div class="karne-val">${TL(r.toplamTahsilat)}<div style="font-size:10px;color:var(--ink-faint);font-weight:500;">/ ${TL(r.hedef)} (otomatik)</div></div></div>
+        <div><div class="karne-lbl">Gerçekleşme</div><div class="karne-val" style="color:${verimRenk(r.gerceklesme!=null?Math.min(r.gerceklesme,100):null)};">${r.gerceklesme!=null?fmtYuzde(r.gerceklesme):'—'}</div></div>
+        <div><div class="karne-lbl">Ort. Vade</div><div class="karne-val">${r.ortVade!=null?r.ortVade+' gün':'—'}</div></div>
+        <div><div class="karne-lbl">Riskli Müşteri</div><div class="karne-val">${r.riskliMusteriSayisi}</div></div>
       </div>
       <div class="karne-expand-toggle"><span>Riskli müşteriler (${r.riskliMusteriSayisi})</span><span class="cust-chevron" style="margin:0;">${expanded?'⌄':'›'}</span></div>
       ${expanded ? `<div class="karne-expanded">${riskliListeHtml}</div>` : ''}
