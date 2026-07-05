@@ -221,8 +221,8 @@
     display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
     background:linear-gradient(180deg,var(--surface),#FDFCFA);
   }
-  .panel-head h2{font-size:15.5px;margin:0;font-weight:700;}
-  .panel-head .count{font-size:12px;color:var(--ink-soft);font-weight:500;margin-left:6px;}
+  .panel-head h2{font-size:15.5px;margin:0;font-weight:700;color:var(--ink);}
+  .panel-head .count{display:block;font-size:12.5px;color:var(--accent);font-weight:600;margin:3px 0 0;letter-spacing:.005em;}
   .panel-body{padding:18px 20px 20px;}
 
   .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
@@ -894,6 +894,25 @@
   .stok-item-lt{text-align:right;font-weight:700;color:var(--ink);white-space:nowrap;}
   .stok-item-bar{height:6px;background:var(--line-soft);border-radius:3px;overflow:hidden;}
   .stok-item-bar-fill{height:100%;background:var(--accent);border-radius:3px;}
+
+  .stok-section-divider{
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+    margin:4px 0 18px;padding-top:18px;border-top:1px dashed var(--line);
+  }
+  .stok-section-divider-title{
+    font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:13.5px;
+    color:var(--ink-soft);letter-spacing:.01em;white-space:nowrap;
+    display:flex;align-items:center;gap:8px;
+  }
+  .stok-section-divider-title::before{
+    content:'';width:4px;height:15px;border-radius:3px;background:var(--accent);display:inline-block;
+  }
+  .stok-section-divider .toolbar{flex-wrap:wrap;}
+  @media(max-width:640px){
+    .stok-section-divider{flex-direction:column;align-items:stretch;}
+    .stok-section-divider .toolbar{width:100%;}
+    .stok-section-divider .toolbar > *{width:100%;}
+  }
 </style>
 </head>
 <body>
@@ -1163,24 +1182,27 @@
     <div class="panel" id="musteriPanel">
       <div class="panel-head">
         <div><h2>Müşteri Bazlı Cari Özet</h2><span class="count" id="musteriCount"></span></div>
-        <div class="toolbar">
-          <div class="search-box">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="text" id="searchInput" placeholder="Müşteri adı, kodu veya temsilci ara…" aria-label="Müşteri adı, kodu veya temsilci ara" />
-            <button type="button" id="searchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
-          </div>
-          <select class="filter-select" id="temsilciFilter"><option value="">Tüm temsilciler</option></select>
-          <select class="filter-select" id="riskFilter">
-            <option value="">Tüm müşteriler</option>
-            <option value="over60">60+ gün vadesi geçen</option>
-            <option value="hasCek">Çek/Senet riski olan</option>
-            <option value="hasSiparis">Açık siparişi olan</option>
-          </select>
-          <input type="number" id="vadeMinInput" class="filter-input" placeholder="Vade ≥ (En Az)" title="Yazılan sayı ve üzerindeki ortalama vadeleri gösterir" />
-          <input type="number" id="vadeMaxInput" class="filter-input" placeholder="Vade ≤ (En Çok)" title="Yazılan sayı ve altındaki ortalama vadeleri gösterir" />
-        </div>
       </div>
       <div class="panel-body">
+        <div class="stok-section-divider" style="margin-top:0;padding-top:0;border-top:none;">
+          <div class="stok-section-divider-title">Müşteri Ara ve Filtrele</div>
+          <div class="toolbar">
+            <div class="search-box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+              <input type="text" id="searchInput" placeholder="Müşteri adı, kodu veya temsilci ara…" aria-label="Müşteri adı, kodu veya temsilci ara" />
+              <button type="button" id="searchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
+            </div>
+            <select class="filter-select" id="temsilciFilter"><option value="">Tüm temsilciler</option></select>
+            <select class="filter-select" id="riskFilter">
+              <option value="">Tüm müşteriler</option>
+              <option value="over60">60+ gün vadesi geçen</option>
+              <option value="hasCek">Çek/Senet riski olan</option>
+              <option value="hasSiparis">Açık siparişi olan</option>
+            </select>
+            <input type="number" id="vadeMinInput" class="filter-input" placeholder="Vade ≥ (En Az)" title="Yazılan sayı ve üzerindeki ortalama vadeleri gösterir" />
+            <input type="number" id="vadeMaxInput" class="filter-input" placeholder="Vade ≤ (En Çok)" title="Yazılan sayı ve altındaki ortalama vadeleri gösterir" />
+          </div>
+        </div>
         <div class="sort-bar">
           <span class="sort-bar-label">Sırala</span>
           <select class="filter-select" id="musteriSortSelect">
@@ -1247,24 +1269,27 @@
       <div class="panel" id="sevkMusteriPanel">
         <div class="panel-head">
           <div><h2>Sevk Bekleyen Müşteriler</h2><span class="count" id="sevkMusteriCount"></span></div>
-          <div class="toolbar">
-            <div class="search-box">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <input type="text" id="sevkSearchInput" placeholder="Müşteri adı, kodu veya temsilci ara…" aria-label="Müşteri adı, kodu veya temsilci ara" />
-              <button type="button" id="sevkSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
-            </div>
-            <select class="filter-select" id="sevkTemsilciFilter"><option value="">Tüm temsilciler</option></select>
-            <select class="filter-select" id="sevkRiskFilter">
-              <option value="">Tüm müşteriler</option>
-              <option value="over60">60+ gün vadesi geçen</option>
-              <option value="hasCek">Çek/Senet riski olan</option>
-              <option value="hasSiparis">Açık siparişi olan</option>
-            </select>
-            <input type="number" id="sevkVadeMinInput" class="filter-input" placeholder="Vade ≥ (En Az)" title="Yazılan sayı ve üzerindeki ortalama vadeleri gösterir" />
-            <input type="number" id="sevkVadeMaxInput" class="filter-input" placeholder="Vade ≤ (En Çok)" title="Yazılan sayı ve altındaki ortalama vadeleri gösterir" />
-          </div>
         </div>
         <div class="panel-body">
+          <div class="stok-section-divider" style="margin-top:0;padding-top:0;border-top:none;">
+            <div class="stok-section-divider-title">Müşteri Ara ve Filtrele</div>
+            <div class="toolbar">
+              <div class="search-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="sevkSearchInput" placeholder="Müşteri adı, kodu veya temsilci ara…" aria-label="Müşteri adı, kodu veya temsilci ara" />
+                <button type="button" id="sevkSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
+              </div>
+              <select class="filter-select" id="sevkTemsilciFilter"><option value="">Tüm temsilciler</option></select>
+              <select class="filter-select" id="sevkRiskFilter">
+                <option value="">Tüm müşteriler</option>
+                <option value="over60">60+ gün vadesi geçen</option>
+                <option value="hasCek">Çek/Senet riski olan</option>
+                <option value="hasSiparis">Açık siparişi olan</option>
+              </select>
+              <input type="number" id="sevkVadeMinInput" class="filter-input" placeholder="Vade ≥ (En Az)" title="Yazılan sayı ve üzerindeki ortalama vadeleri gösterir" />
+              <input type="number" id="sevkVadeMaxInput" class="filter-input" placeholder="Vade ≤ (En Çok)" title="Yazılan sayı ve altındaki ortalama vadeleri gösterir" />
+            </div>
+          </div>
           <div class="sort-bar">
             <span class="sort-bar-label">Sırala</span>
             <select class="filter-select" id="sevkMusteriSortSelect">
@@ -1338,15 +1363,20 @@
       <div class="panel" id="yaslandirmaPanel">
         <div class="panel-head">
           <div><h2>Nokta Bazlı Yaşlandırma Raporu</h2><span class="count" id="yaslandirmaCount"></span></div>
-          <div class="toolbar">
-            <div class="search-box">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <input type="text" id="yaslandirmaSearchInput" placeholder="Nokta adı, kodu veya temsilci ara…" aria-label="Nokta adı, kodu veya temsilci ara" />
+        </div>
+        <div class="panel-body" style="padding:16px 20px 0;">
+          <div class="stok-section-divider" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">
+            <div class="stok-section-divider-title">Nokta Ara ve Filtrele</div>
+            <div class="toolbar">
+              <div class="search-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="yaslandirmaSearchInput" placeholder="Nokta adı, kodu veya temsilci ara…" aria-label="Nokta adı, kodu veya temsilci ara" />
+              </div>
+              <select class="filter-select" id="yaslandirmaTemsilciFilter"><option value="">Tüm temsilciler</option></select>
             </div>
-            <select class="filter-select" id="yaslandirmaTemsilciFilter"><option value="">Tüm temsilciler</option></select>
           </div>
         </div>
-        <div class="panel-body" style="padding:0;">
+        <div class="panel-body" style="padding:0 0 20px;">
           <div class="table-scroll aging-table-scroll">
             <table id="yaslandirmaTable" class="aging-table">
               <thead><tr>
@@ -1422,18 +1452,21 @@
       <div class="panel" id="ticariStokPanel">
         <div class="panel-head">
           <div><h2>Nokta Bazlı Ticari Stok Raporu</h2><span class="count" id="ticariStokCount"></span></div>
-          <div class="toolbar">
-            <div class="search-box">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <input type="text" id="ticariStokSearchInput" placeholder="Müşteri, ürün veya temsilci ara…" aria-label="Müşteri, ürün veya temsilci ara" />
-              <button type="button" id="ticariStokSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
-            </div>
-            <select class="filter-select" id="ticariStokTemsilciFilter"><option value="">Tüm temsilciler</option></select>
-          </div>
         </div>
         <div class="panel-body">
           <div class="stok-toplam-banner" id="ticariStokToplamBanner"></div>
           <div class="stok-ozet-grid" id="ticariStokOzetGrid"></div>
+          <div class="stok-section-divider">
+            <div class="stok-section-divider-title">Müşteri Bazlı Stok Detayı</div>
+            <div class="toolbar">
+              <div class="search-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="ticariStokSearchInput" placeholder="Müşteri, ürün veya temsilci ara…" aria-label="Müşteri, ürün veya temsilci ara" />
+                <button type="button" id="ticariStokSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
+              </div>
+              <select class="filter-select" id="ticariStokTemsilciFilter"><option value="">Tüm temsilciler</option></select>
+            </div>
+          </div>
           <div class="cust-card-list" id="ticariStokMusteriKartlar"></div>
           <div class="musteri-daha-fazla-wrap" id="ticariStokDahaFazlaWrap" style="display:none;">
             <button type="button" class="btn" id="ticariStokDahaFazlaBtn">Daha fazla göster</button>
@@ -1454,24 +1487,25 @@
     <div id="faturaKontrolView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-faturaKontrol">
 
       <div class="panel" id="faturaKontrolPanel">
-        <div class="panel-head" style="flex-direction:column;align-items:stretch;">
+        <div class="panel-head">
           <div><h2>Fatura Kontrol</h2><span class="count" id="faturaKontrolCount"></span></div>
-          <div class="toolbar" style="flex-direction:column;align-items:stretch;max-width:360px;">
-            <input type="date" id="faturaKontrolDateInput" class="filter-input" style="width:100%;" />
-            <select class="filter-select" id="faturaKontrolTemsilciFilter" style="width:100%;"><option value="">Tüm temsilciler</option></select>
-            <div class="search-box" style="width:100%;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <input type="text" id="faturaKontrolSearchInput" placeholder="Müşteri adı veya kodu ara…" aria-label="Müşteri adı veya kodu ara" style="width:100%;" />
-              <button type="button" id="faturaKontrolSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        </div>
+        <div class="panel-body">
+          <div class="stok-section-divider" style="margin-top:0;padding-top:0;border-top:none;">
+            <div class="stok-section-divider-title">Tarih Seç ve Filtrele</div>
+            <div class="toolbar">
+              <input type="date" id="faturaKontrolDateInput" class="filter-input" />
+              <select class="filter-select" id="faturaKontrolTemsilciFilter"><option value="">Tüm temsilciler</option></select>
+              <div class="search-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="faturaKontrolSearchInput" placeholder="Müşteri adı veya kodu ara…" aria-label="Müşteri adı veya kodu ara" />
+                <button type="button" id="faturaKontrolSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
+              </div>
               <button type="button" class="btn small" id="faturaKontrolArsivYenileBtn" title="Buluttaki arşivi yeniden çeker">🔄 Yenile</button>
               <button type="button" class="btn small" id="faturaKontrolArsivSikistirBtn" title="Tahsilat/Fatura için aynı takvim gününe ait daha eski/yinelenen yükleme kayıtlarını (gölge kayıtları) siler. Sipariş için ise Satış Belge No bazlı temizliği (Red/İptal/Teslim Edilemedi olan siparişlerin TÜM kayıtlarını ve aynı gün mükerrer kayıtlarını) arşivin tamamı üzerinde yeniden çalıştırır. Bakiye geçmişine (Trend Analizi) dokunmaz.">🧹 Arşivi Temizle</button>
               <button type="button" class="btn small" id="faturaKontrolArsivTemizleBtn" title="Fatura Kontrol için biriktirilen tüm günlerin arşivini siler (şifre gerektirir)">🔒 Arşivi Temizle</button>
             </div>
           </div>
-        </div>
-        <div class="panel-body">
           <div class="as-of" id="faturaKontrolArsivBilgi"></div>
           <div id="faturaKontrolEmptyDate" class="empty-state" style="display:none;">Sonuçları görmek için yukarıdan bir tarih seçin.</div>
           <div id="faturaKontrolSortWrap" style="display:none;">
@@ -1544,18 +1578,21 @@
     <div id="bayiHakedisView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-bayiHakedis">
 
       <div class="panel" id="bayiHakedisPanel" style="display:none;">
-        <div class="panel-head" style="flex-direction:column;align-items:stretch;">
+        <div class="panel-head">
           <div><h2>Bayi Hakediş</h2><span class="count" id="bayiHakedisCount"></span></div>
-          <div class="toolbar" style="flex-direction:column;align-items:stretch;max-width:360px;">
-            <div class="search-box" style="width:100%;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <input type="text" id="bayiHakedisSearchInput" placeholder="Müşteri numarası veya Müşteri adı ara…" aria-label="Müşteri numarası veya Müşteri adı ara" style="width:100%;" />
-              <button type="button" id="bayiHakedisSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
-            </div>
-            <select class="filter-select" id="bayiHakedisTemsilciFilter" style="width:100%;"><option value="">Tüm temsilciler</option></select>
-          </div>
         </div>
         <div class="panel-body">
+          <div class="stok-section-divider" style="margin-top:0;padding-top:0;border-top:none;">
+            <div class="stok-section-divider-title">Müşteri Ara ve Filtrele</div>
+            <div class="toolbar">
+              <div class="search-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="bayiHakedisSearchInput" placeholder="Müşteri numarası veya Müşteri adı ara…" aria-label="Müşteri numarası veya Müşteri adı ara" />
+                <button type="button" id="bayiHakedisSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
+              </div>
+              <select class="filter-select" id="bayiHakedisTemsilciFilter"><option value="">Tüm temsilciler</option></select>
+            </div>
+          </div>
           <div class="sort-bar">
             <span class="sort-bar-label">Sırala</span>
             <select class="filter-select" id="bayiHakedisSortSelect">
@@ -1720,15 +1757,20 @@
       <div class="panel" id="tvTablePanel">
         <div class="panel-head">
           <div><h2>Temsilci Tahsilat Verimliliği — Detay</h2><span class="count" id="tvCount"></span></div>
-          <div class="toolbar">
-            <div class="search-box">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <input type="text" id="tvSearchInput" placeholder="Temsilci ara…" aria-label="Temsilci ara" />
-              <button type="button" id="tvSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
+        </div>
+        <div class="panel-body" style="padding:16px 20px 0;">
+          <div class="stok-section-divider" style="margin-top:0;padding-top:0;border-top:none;margin-bottom:16px;">
+            <div class="stok-section-divider-title">Temsilci Ara</div>
+            <div class="toolbar">
+              <div class="search-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="tvSearchInput" placeholder="Temsilci ara…" aria-label="Temsilci ara" />
+                <button type="button" id="tvSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
+              </div>
             </div>
           </div>
         </div>
-        <div class="panel-body" style="padding:0;">
+        <div class="panel-body" style="padding:0 0 20px;">
           <div class="table-scroll">
             <table id="tvTable">
               <thead><tr>
@@ -1873,23 +1915,26 @@
       <div class="panel" id="supheliHukukiPanel">
         <div class="panel-head">
           <div><h2>Hukuki Takip Riski Taşıyan Müşteriler</h2><span class="count" id="supheliHukukiCount">90+ gün geciken, bakiyeye göre sıralı</span></div>
-          <div class="toolbar">
-            <div class="search-box">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-              <input type="text" id="hukukiSearchInput" placeholder="Müşteri adı, kodu veya temsilci ara…" aria-label="Müşteri adı, kodu veya temsilci ara" />
-              <button type="button" id="hukukiSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
-            </div>
-            <select class="filter-select" id="hukukiTemsilciFilter"><option value="">Tüm temsilciler</option></select>
-            <select class="filter-select" id="hukukiRiskFilter">
-              <option value="">Tüm müşteriler</option>
-              <option value="over180">180+ gün geciken</option>
-              <option value="hasCek">Çek/Senet riski olan</option>
-            </select>
-            <input type="number" id="hukukiVadeMinInput" class="filter-input" placeholder="Vade ≥ (En Az)" title="Yazılan sayı ve üzerindeki ortalama vadeleri gösterir" />
-            <input type="number" id="hukukiVadeMaxInput" class="filter-input" placeholder="Vade ≤ (En Çok)" title="Yazılan sayı ve altındaki ortalama vadeleri gösterir" />
-          </div>
         </div>
         <div class="panel-body" style="padding:16px 18px;">
+          <div class="stok-section-divider" style="margin-top:0;padding-top:0;border-top:none;">
+            <div class="stok-section-divider-title">Müşteri Ara ve Filtrele</div>
+            <div class="toolbar">
+              <div class="search-box">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" id="hukukiSearchInput" placeholder="Müşteri adı, kodu veya temsilci ara…" aria-label="Müşteri adı, kodu veya temsilci ara" />
+                <button type="button" id="hukukiSearchClearBtn" class="search-clear-btn" title="Aramayı temizle" aria-label="Aramayı temizle" style="display:none;">✕</button>
+              </div>
+              <select class="filter-select" id="hukukiTemsilciFilter"><option value="">Tüm temsilciler</option></select>
+              <select class="filter-select" id="hukukiRiskFilter">
+                <option value="">Tüm müşteriler</option>
+                <option value="over180">180+ gün geciken</option>
+                <option value="hasCek">Çek/Senet riski olan</option>
+              </select>
+              <input type="number" id="hukukiVadeMinInput" class="filter-input" placeholder="Vade ≥ (En Az)" title="Yazılan sayı ve üzerindeki ortalama vadeleri gösterir" />
+              <input type="number" id="hukukiVadeMaxInput" class="filter-input" placeholder="Vade ≤ (En Çok)" title="Yazılan sayı ve altındaki ortalama vadeleri gösterir" />
+            </div>
+          </div>
           <div id="supheliHukukiKartGrid" class="htk-grid"></div>
           <div class="musteri-daha-fazla-wrap" id="supheliHukukiDahaFazlaWrap" style="display:none;">
             <button type="button" class="btn" id="supheliHukukiDahaFazlaBtn">Daha fazla göster</button>
@@ -2058,13 +2103,16 @@
       <div class="modal modal--danger" id="dikkatModal" role="dialog" aria-modal="true" aria-labelledby="dikkatModalTitle">
         <div class="panel-head">
           <div><h2 id="dikkatModalTitle">⚠️ Dikkat Gerektiren Müşteriler</h2><span class="count" id="dikkatCount"></span></div>
-          <div class="toolbar">
-            <select class="filter-select" id="dikkatTemsilciFilter"><option value="">Tüm temsilciler</option></select>
-          </div>
           <button class="modal-close" id="dikkatModalClose" type="button" aria-label="Kapat">✕</button>
         </div>
         <div class="modal-sub">Ortalama vadesi <span id="dikkatEsikModal"></span> gün ve üzeri olan noktalar</div>
         <div class="modal-body">
+          <div class="stok-section-divider" style="margin-top:0;padding-top:0;border-top:none;">
+            <div class="stok-section-divider-title">Temsilciye Göre Filtrele</div>
+            <div class="toolbar">
+              <select class="filter-select" id="dikkatTemsilciFilter"><option value="">Tüm temsilciler</option></select>
+            </div>
+          </div>
           <div class="table-scroll">
             <table id="dikkatTable">
               <thead><tr>
@@ -4842,8 +4890,10 @@ function renderTicariStokTable(report, resetSayfa=true){
     card.addEventListener('click', (e)=>{
       if(e.target.closest('.cust-expanded')) return;
       const key = card.getAttribute('data-stok-musteri');
-      if(state.expanded.has(key)) state.expanded.delete(key); else state.expanded.add(key);
+      const willOpen = !state.expanded.has(key);
+      if(willOpen) state.expanded.add(key); else state.expanded.delete(key);
       renderTicariStokTable(state.report, false);
+      if(willOpen) scrollAcilanKartaGetir(`[data-stok-musteri="${cssEscapeYerel(key)}"]`);
     });
   });
 
@@ -5104,6 +5154,59 @@ function populateTemsilciFilter(musteriler, selectId){
 
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+// Bir kart açıldığında (expand), içine eklenen detay/tablo satırları kartın boyunu uzatır; bu da
+// bazı durumlarda tıklanan kartın alt kısmının (hatta tamamının) ekranın dışına kaymasına yol
+// açabiliyordu. Kart yeniden çizildikten (render) SONRA, DOM'a yeni eklenen elemanı bulup normal
+// akışta (sayfayı aniden zıplatmadan) görünür alana kaydırıyoruz — sadece kart AÇILDIĞINDA,
+// kapatıldığında değil.
+function cssEscapeYerel(s){
+  s = String(s);
+  return (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(s) : s.replace(/["\\]/g, '\\$&');
+}
+
+// scrollIntoView({block:'nearest'}) kartın alt kenarını ekranın en dibine SIFIR boşlukla
+// yapıştırıyordu: kart "tam" görünüyor gibi dursa da altında hiç nefes payı kalmıyor, bir alttaki
+// satırdan/karttan hiçbir ipucu görünmüyor ve kaydırma "yetersiz kalmış" gibi hissettiriyordu.
+// Aşağıdaki fonksiyon, sabit (sticky) üstteki topbar+tabbar yüksekliğini hesaba katarak kartın
+// üstünün başlığın arkasında kalmamasını, ALTINDA ise rahat bir boşluk (bir sonraki içeriğin
+// önizlemesi) kalacak şekilde biraz DAHA FAZLA kaydırılmasını sağlar.
+function scrollAcilanKartaGetir(selector){
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      const el = (typeof selector === 'string') ? document.querySelector(selector) : selector;
+      if(!el) return;
+
+      const topbarEl = document.querySelector('.topbar');
+      const tabbarEl = document.querySelector('.tabbar');
+      const sabitBaslikYuksekligi =
+        (topbarEl ? topbarEl.getBoundingClientRect().height : 0) +
+        (tabbarEl ? tabbarEl.getBoundingClientRect().height : 0);
+
+      const viewportH = window.innerHeight;
+      const rect = el.getBoundingClientRect();
+
+      const ustBosluk = sabitBaslikYuksekligi + 16;                 // başlığın altında bırakılacak pay
+      const altBosluk = Math.max(60, Math.min(220, viewportH * 0.22)); // kartın altında bırakılacak "nefes payı"
+
+      let delta = 0;
+      if(rect.top < ustBosluk){
+        // Kartın üstü sabit başlığın arkasında kalmış: yukarı doğru düzelt.
+        delta = rect.top - ustBosluk;
+      } else if(rect.bottom > viewportH - altBosluk){
+        // Kartın altı ekranın dibine yapışmış — eski "yetersiz kaydırma" hissi tam olarak buydu.
+        // Altta nefes payı kalacak şekilde biraz DAHA FAZLA aşağı kaydır.
+        delta = rect.bottom - (viewportH - altBosluk);
+        // Ama bu ek kaydırma kartın üstünü başlığın arkasına ittirmesin; kart viewport'tan uzun
+        // ise en azından başlangıcı (üst kısmı) görünür kalsın.
+        const yeniUst = rect.top - delta;
+        if(yeniUst < ustBosluk) delta = rect.top - ustBosluk;
+      }
+
+      if(Math.abs(delta) > 1) window.scrollBy({top: delta, behavior:'smooth'});
+    });
+  });
+}
+
 function debounce(fn, delay){
   let timer = null;
   return function(...args){
@@ -5361,8 +5464,10 @@ function renderMusteriTable(report, resetSayfa=true){
     card.addEventListener('click', (e)=>{
       if(e.target.closest('.cust-expanded')) return;
       const musteri = card.getAttribute('data-musteri');
-      if(state.expanded.has(musteri)) state.expanded.delete(musteri); else state.expanded.add(musteri);
+      const willOpen = !state.expanded.has(musteri);
+      if(willOpen) state.expanded.add(musteri); else state.expanded.delete(musteri);
       renderMusteriTable(state.report, false);
+      if(willOpen) scrollAcilanKartaGetir(`#musteriTbody [data-musteri="${cssEscapeYerel(musteri)}"]`);
     });
   });
 
@@ -5809,8 +5914,10 @@ function renderSevkMusteriTable(report, resetSayfa=true){
       if(e.target.closest('.cust-expanded')) return;
       const musteri = card.getAttribute('data-musteri');
       const expandKey = 'sevk_'+musteri;
-      if(state.expanded.has(expandKey)) state.expanded.delete(expandKey); else state.expanded.add(expandKey);
+      const willOpen = !state.expanded.has(expandKey);
+      if(willOpen) state.expanded.add(expandKey); else state.expanded.delete(expandKey);
       renderSevkMusteriTable(state.report, false);
+      if(willOpen) scrollAcilanKartaGetir(`#sevkMusteriTbody [data-musteri="${cssEscapeYerel(musteri)}"]`);
     });
   });
 
@@ -6009,8 +6116,10 @@ async function renderFaturaKontrolTable(report, resetSayfa=true){
       if(e.target.closest('.cust-expanded')) return;
       const musteri = card.getAttribute('data-musteri');
       const expandKey = 'fk_'+musteri;
-      if(state.expanded.has(expandKey)) state.expanded.delete(expandKey); else state.expanded.add(expandKey);
+      const willOpen = !state.expanded.has(expandKey);
+      if(willOpen) state.expanded.add(expandKey); else state.expanded.delete(expandKey);
       renderFaturaKontrolTable(state.report, false);
+      if(willOpen) scrollAcilanKartaGetir(`#faturaKontrolTbody [data-musteri="${cssEscapeYerel(musteri)}"]`);
     });
   });
 
@@ -7283,8 +7392,10 @@ function renderBayiHakedisTable(resetSayfa=true){
       if(e.target.closest('.cust-expanded')) return;
       const kod = card.getAttribute('data-kod');
       const expandKey = 'bh_'+kod;
-      if(state.expanded.has(expandKey)) state.expanded.delete(expandKey); else state.expanded.add(expandKey);
+      const willOpen = !state.expanded.has(expandKey);
+      if(willOpen) state.expanded.add(expandKey); else state.expanded.delete(expandKey);
       renderBayiHakedisTable(false);
+      if(willOpen) scrollAcilanKartaGetir(`#bayiHakedisTbody [data-kod="${cssEscapeYerel(kod)}"]`);
     });
   });
 
@@ -8378,6 +8489,9 @@ async function renderTemsilciKarnesiView(report, zorla){
       const chevronEl = card.querySelector('.karne-expand-toggle .cust-chevron');
       if(expandedEl) expandedEl.classList.toggle('open', willOpen);
       if(chevronEl) chevronEl.textContent = willOpen ? '⌄' : '›';
+      if(willOpen){
+        scrollAcilanKartaGetir(card);
+      }
     });
   });
   document.querySelectorAll('.karne-riskli-sort-select').forEach(sel=>{
@@ -9263,9 +9377,12 @@ async function renderSellOutView(){
     card.addEventListener('click', (e)=>{
       if(e.target.closest('.hedef-edit-row')) return;
       if(e.target.closest('.karne-expanded')) return;
-      const key = 'sellout_'+card.getAttribute('data-temsilci-key');
-      if(state.expanded.has(key)) state.expanded.delete(key); else state.expanded.add(key);
+      const temsilciKey = card.getAttribute('data-temsilci-key');
+      const key = 'sellout_'+temsilciKey;
+      const willOpen = !state.expanded.has(key);
+      if(willOpen) state.expanded.add(key); else state.expanded.delete(key);
       renderSellOutView();
+      if(willOpen) scrollAcilanKartaGetir(`#sellOutKarneGrid [data-temsilci-key="${cssEscapeYerel(temsilciKey)}"]`);
     });
   });
   document.querySelectorAll('.karne-nokta-sort-select').forEach(sel=>{
