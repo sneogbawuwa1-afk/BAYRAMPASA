@@ -1368,7 +1368,7 @@
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button type="button" class="btn small" id="faturaKontrolArsivYenileBtn" title="Buluttaki arşivi yeniden çeker">🔄 Yenile</button>
-              <button type="button" class="btn small" id="faturaKontrolArsivSikistirBtn" title="Aynı takvim gününe ait daha eski/yinelenen yükleme kayıtlarını (gölge kayıtları) arşivden kalıcı olarak siler; bakiye geçmişine (Trend Analizi) dokunmaz">🧹 Gölge Kayıtları Temizle</button>
+              <button type="button" class="btn small" id="faturaKontrolArsivSikistirBtn" title="Tahsilat/Fatura için aynı takvim gününe ait daha eski/yinelenen yükleme kayıtlarını (gölge kayıtları) siler. Sipariş için ise Satış Belge No bazlı temizliği (Red/İptal/Teslim Edilemedi olan siparişlerin TÜM kayıtlarını ve aynı gün mükerrer kayıtlarını) arşivin tamamı üzerinde yeniden çalıştırır. Bakiye geçmişine (Trend Analizi) dokunmaz.">🧹 Arşivi Temizle</button>
               <button type="button" class="btn small" id="faturaKontrolArsivTemizleBtn" title="Fatura Kontrol için biriktirilen tüm günlerin arşivini siler (şifre gerektirir)">🔒 Arşivi Temizle</button>
             </div>
           </div>
@@ -1955,6 +1955,7 @@ const state = {
   musteriMasterDurum: new Map(), // musteri kodu -> 'Aktif' | ham durum metni (Sell Out Raporu FKNS hesaplaması için)
   sellOutHedef: {}, // { [temsilciAdi]: {acik:Number, kapali:Number} } — buluta kayıtlı, şifreyle değiştirilebilir
   sellOutNoktaSort: new Map(), // temsilciKey -> {key:'adi'|'kod', dir:1|-1} — Fatura Kesilmeyen Aktif Noktalar listesi sıralaması
+  karneRiskliSort: new Map(), // temsilciAdi -> {key:'adi'|'kod'|'ortVade', dir:1|-1} — Temsilci Karnesi kartındaki Riskli Müşteriler listesi sıralaması
   sellOutReport: null,
   bayiHakedisReport: null,
   bayiHakedisHata: null,
@@ -2193,20 +2194,132 @@ async function faturaArsivYenile(zorla){
   return state.faturaArsivCache;
 }
 
+// Tahsilat dosyası iki formatta gelebilir: Format A ("Ön Kayıt" — geçici/erken döküm) ve Format B
+// (nihai/kesin rapor). Format A zaten geçici bir veri olduğu için olduğu gibi arşivlenmeye devam
+// eder. Format B yüklendiğinde ARTIK TÜM Format A kayıtları koşulsuz silinmiyor — sadece bu Format B
+// yüklemesindeki satırların Belge Tarihi günlerine denk gelen günlerdeki Format A kayıtları silinir
+// (o günler için Format B artık nihai/geçerli veridir); Format B'de hiç verisi olmayan günlerdeki
+// Format A kayıtlarına dokunulmaz.
+//
+// Bu fonksiyon, bir yüklemenin (Format A veya Format B) arşive uygulanması SONUCUNDA tahsilat
+// günlerinin nasıl görüneceğini hesaplar (henüz kaydetmeden/senkronize etmeden). Hem gerçek kayıt
+// (faturaKontrolArsivineKaydetVeSenkronizeEt) hem de Genel Rapor/Sevk Raporu'ndaki "hangi günü
+// göstereyim" hesaplaması (bkz. buildReport) AYNI bu fonksiyonu kullanır; böylece ekranda gösterilen
+// gün ile arşive gerçekten yazılacak gün birbirinden asla sapmaz.
+//
+// mevcutArsivGunler: {gunKey: {tahsilatArsiv:[...], ...}} — arşivin (bu yüklemeden ÖNCEKİ) hali.
+// yeniTahsilatSatirlari: bu yüklemenin ürettiği tahsilat satırları ({musteri,belgeTarihi,tutar,formatKaynagi,gecerli}).
+// tahsilatFormatB: bu yüklemedeki tahsilat dosyası Format B mi.
+// bugunKey: bugünün gün anahtarı (Format A satırları her zaman SADECE bugünün altına yazılır).
+// Dönen: Map<gunKey, tahsilatArsiv satırları[]> — sadece tahsilat verisi olan günleri içerir.
+function tahsilatEfektifGunMapHesapla(mevcutArsivGunler, yeniTahsilatSatirlari, tahsilatFormatB, bugunKey){
+  const sonuc = new Map();
+  Object.keys(mevcutArsivGunler||{}).forEach(gunKey=>{
+    const satirlar = (mevcutArsivGunler[gunKey]||{}).tahsilatArsiv || [];
+    if(satirlar.length) sonuc.set(gunKey, satirlar.slice());
+  });
+
+  if(!tahsilatFormatB){
+    // Format A: eskiden olduğu gibi SADECE bugünün altına, bugünün ÖNCEKİ tahsilat içeriğinin
+    // tamamen yerine geçecek şekilde yazılır (bkz. faturaKontrolArsivineKaydetVeSenkronizeEt'teki
+    // bugununKaydiTaban mantığı — burada sadece gösterim hesaplaması için aynısı simüle edilir).
+    sonuc.set(bugunKey, (yeniTahsilatSatirlari||[]).slice());
+    return sonuc;
+  }
+
+  // Format B — Adım 1: KOŞULLU Format A temizliği. Artık TÜM günlerdeki Format A silinmiyor;
+  // sadece bu yüklemedeki satırların Belge Tarihi günlerine denk gelen günlerdeki Format A silinir.
+  const etkilenenGunler = new Set();
+  (yeniTahsilatSatirlari||[]).forEach(r=>{
+    if(!r || !r.belgeTarihi) return;
+    const gk = dateKeyLocal(new Date(r.belgeTarihi));
+    if(gk) etkilenenGunler.add(gk);
+  });
+  etkilenenGunler.forEach(gunKey=>{
+    const mevcut = sonuc.get(gunKey) || [];
+    const temiz = mevcut.filter(r=> r.formatKaynagi !== 'A');
+    if(temiz.length) sonuc.set(gunKey, temiz); else sonuc.delete(gunKey);
+  });
+
+  // Adım 2: Format B satırları kendi Belge Tarihi günlerine dağıtılır; veri gelen günlerin Format B
+  // kısmı TAMAMEN bu yüklemenin satırlarıyla değiştirilir (o günün Format A'sı varsa -yukarıdaki
+  // koşullu temizlikten sağ çıkmışsa- korunur), veri gelmeyen günlere dokunulmaz.
+  const gunBazliYeni = new Map();
+  (yeniTahsilatSatirlari||[]).forEach(r=>{
+    if(!r || !r.belgeTarihi) return;
+    const gk = dateKeyLocal(new Date(r.belgeTarihi));
+    if(!gk) return;
+    if(!gunBazliYeni.has(gk)) gunBazliYeni.set(gk, []);
+    gunBazliYeni.get(gk).push(r);
+  });
+  gunBazliYeni.forEach((satirlar, gunKey)=>{
+    const mevcutGun = sonuc.get(gunKey) || [];
+    const eskiFormatA = mevcutGun.filter(r=> r.formatKaynagi === 'A');
+    sonuc.set(gunKey, eskiFormatA.concat(satirlar));
+  });
+
+  return sonuc;
+}
+
 async function faturaKontrolArsivineKaydetVeSenkronizeEt(report){
   const bugunKey = dateKeyLocal(new Date());
   const musteriSnapshotUzun = buildMusteriSnapshot(report); // hafızada her zaman canonical (uzun) alan adları kullanılır
-  const bugununKaydi = {
-    siparisArsiv: report.siparisArsiv || [],
-    tahsilatArsiv: report.tahsilatArsiv || [],
+
+  // Sipariş: ARTIK yükleme gününün (bugunKey) altına yazılmıyor — her satır KENDİ teslim tarihine
+  // (İstenilen Tsl. Trh.) karşılık gelen arşiv gününe yazılır, sonra Satış Belge No bazlı global
+  // temizlik uygulanır (bkz. siparisArsivGunlereDagitVeTemizle). Bu işlemin doğru çalışabilmesi
+  // için mevcut yerel arşiv önbelleğini tazeliyoruz — tam garanti için (örn. başka bir cihazdan
+  // yapılmış değişiklikleri de yakalamak için) periyodik olarak "🧹 Gölge Kayıtları Temizle"
+  // butonuyla TAM bir arşiv taraması yapılması önerilir.
+  await faturaArsivYenile();
+  const eskiArsivTumu = state.faturaArsivCache || {}; // GERÇEK önceki durum — buluta PATCH farkı bunun üzerinden hesaplanır
+
+  // Bu yüklemede tahsilat dosyası Format B (nihai rapor) ise: önce SADECE bu yüklemedeki satırların
+  // Belge Tarihi günlerine denk gelen günlerdeki Format A kayıtları silinir (artık koşulsuz/TÜM
+  // günler silinmiyor), sonra Format B satırları KENDİ Belge Tarihi günlerine dağıtılır ve o günlerin
+  // Format B kısmı TAMAMEN bu yüklemenin verisiyle değiştirilir (bkz. tahsilatEfektifGunMapHesapla —
+  // Genel Rapor/Sevk Raporu'ndaki gösterim hesaplamasıyla AYNI fonksiyon). Tahsilat dosyası Format A
+  // ise (veya bu yüklemede tahsilat dosyası hiç yoksa), tahsilat eskisi gibi SADECE bugünün
+  // (bugunKey) altına yazılır.
+  let calismaArsivi = eskiArsivTumu;
+  if(report.tahsilatFormatB){
+    const efektifGunMap = tahsilatEfektifGunMapHesapla(calismaArsivi, report.tahsilatArsiv || [], true, bugunKey);
+    const guncellenmisArsiv = Object.assign({}, calismaArsivi);
+    efektifGunMap.forEach((satirlar, gunKey)=>{
+      const mevcutGun = guncellenmisArsiv[gunKey] || {};
+      guncellenmisArsiv[gunKey] = Object.assign({}, mevcutGun, {tahsilatArsiv: satirlar});
+    });
+    // efektifGunMap'te artık yer almayan (Format A temizliğiyle tamamen boşalmış) günlerin
+    // tahsilatArsiv'i de boşaltılır.
+    Object.keys(calismaArsivi).forEach(gunKey=>{
+      const eskiSatirlar = (calismaArsivi[gunKey]||{}).tahsilatArsiv || [];
+      if(eskiSatirlar.length && !efektifGunMap.has(gunKey)){
+        guncellenmisArsiv[gunKey] = Object.assign({}, guncellenmisArsiv[gunKey], {tahsilatArsiv: []});
+      }
+    });
+    calismaArsivi = guncellenmisArsiv;
+  }
+
+  const {arsiv: siparisIslenmisArsiv} = siparisArsivGunlereDagitVeTemizle(calismaArsivi, report.siparisArsiv || []);
+
+  // Tahsilat/Fatura/Bayi Hak Ediş/Müşteri Snapshot: eskisi gibi BUGÜNÜN (yükleme/rapor günü) altına
+  // yazılır — Format B tahsilat için bu artık geçerli DEĞİL (yukarıda kendi günlerine zaten
+  // dağıtıldı/değiştirildi), bu yüzden bugunKey'in tahsilatArsiv alanına Format B'de dokunulmaz.
+  const bugunGunOncesi = siparisIslenmisArsiv[bugunKey] || {};
+  const bugununKaydiTaban = report.tahsilatFormatB
+    ? bugunGunOncesi
+    : Object.assign({}, bugunGunOncesi, {tahsilatArsiv: report.tahsilatArsiv || []});
+  const bugununKaydi = Object.assign({}, bugununKaydiTaban, {
     faturaArsiv: report.faturaArsiv || [],
     bayiHakedisArsiv: report.bayiHakedis || [],
     musteriSnapshot: musteriSnapshotUzun,
     kayitZamani: new Date().toISOString(),
-  };
+  });
+  const yeniArsivTumu = Object.assign({}, siparisIslenmisArsiv, {[bugunKey]: bugununKaydi});
+
   // Yerel önbellek her durumda güncellenir; Trend/Tahsilat Verimliliği gibi ekranlar bugünün
   // verisini hemen görsün.
-  state.faturaArsivCache = Object.assign({}, state.faturaArsivCache, {[bugunKey]: bugununKaydi});
+  state.faturaArsivCache = yeniArsivTumu;
   // Cihaz içi (IndexedDB) önbellek de güncellenir ki bir sonraki sayfa açılışında bugünün verisi
   // için tekrar ağa gidilmesin.
   saveFaturaKontrolArsivToLocal(state.faturaArsivCache).catch(()=>{});
@@ -2215,29 +2328,97 @@ async function faturaKontrolArsivineKaydetVeSenkronizeEt(report){
     return;
   }
   try{
-    // ÖNEMLİ: Artık kaydetmeden önce arşivin TAMAMI buluttan tekrar indirilmiyor ve tekrar tam
-    // olarak buluta yazılmıyor — yalnızca bugünün günü, buluttaki arşiv ağacının SADECE o alt
-    // yoluna (PATCH ile) gönderiliyor. Bunun iki faydası var:
-    //  1) Arşiv yıllar içinde onlarca MB'a çıksa bile her "Raporu Oluştur" tıklamasında sadece
-    //     birkaç yüz KB'lık bugünün verisi taşınır (indirme + yükleme hacmi, dolayısıyla
-    //     Firebase faturalandırması, ciddi oranda düşer).
-    //  2) Aynı anda iki cihazdan/sekmeden "Raporu Oluştur" yapılırsa, artık ikisi de SADECE
-    //     kendi bugün-anahtarına yazar; biri diğerinin farklı bir günde eklediği veriyi
-    //     okuyup-üzerine yazarak SİLME riski ortadan kalkar (eskiden tüm ağaç PUT ediliyordu).
-    // Geçmiş günlere ait "gölge kayıt" (aynı takvim gününün eski/yinelenen satırları) temizliği
-    // artık burada otomatik yapılmıyor; bu, ayrı ve isteğe bağlı "🧹 Gölge Kayıtları Temizle"
-    // butonuyla (tam arşiv okunup tek seferde temizlenerek) yapılıyor.
+    // Sipariş artık teslim tarihine göre BİRDEN FAZLA günü (bugünden farklı günler dahil)
+    // etkileyebildiği için (ve Satış Belge No temizliği bazı günleri tamamen boşaltabildiği için),
+    // artık sadece bugunKey PATCH edilmiyor — eski/yeni arşiv karşılaştırılıp GERÇEKTEN değişen
+    // TÜM günler (silinen günler `null` olarak) tek bir çoklu-konum PATCH isteğiyle buluta yazılır.
+    const fark = faturaKontrolArsivGunFarkiniBul(eskiArsivTumu, yeniArsivTumu);
     // Buluta giden musteriSnapshot, 978 müşterinin HER GÜN tekrar eden alan adlarının (musteri,
     // musteriAdi, temsilci, ...) JSON'da kapladığı yeri azaltmak için kısaltılmış alan adlarıyla
     // gönderilir (k/n/t/b/v/c/r) — okurken hem eski (uzun) hem yeni (kısa) format kabul edilir.
-    const bugununKaydiBulut = Object.assign({}, bugununKaydi, {
-      musteriSnapshot: musteriSnapshotKisalt(musteriSnapshotUzun),
+    Object.keys(fark).forEach(gun=>{
+      const deger = fark[gun];
+      if(deger && deger.musteriSnapshot){
+        fark[gun] = Object.assign({}, deger, {musteriSnapshot: musteriSnapshotKisalt(deger.musteriSnapshot)});
+      }
     });
-    await saveFaturaKontrolArsivGunleriToCloud({[bugunKey]: bugununKaydiBulut});
+    await saveFaturaKontrolArsivGunleriToCloud(fark);
     if(document.getElementById('faturaKontrolArsivBilgi')) await renderFaturaKontrolArsivBilgi();
   }catch(err){
     console.error('Fatura Kontrol arşivi senkronize edilemedi:', err);
   }
+}
+
+// Bir Satış Belge No'ya ait KAYITLARDAN herhangi biri bu durumlardan birindeyse, o Satış Belge
+// No'ya ait arşivdeki TÜM kayıtlar (farklı teslim tarihlerinde "Teslim Edildi" görünenler dahil)
+// kalıcı olarak silinir — çünkü bu durum, önceki teslimatın geçersiz kaldığını/geri alındığını
+// gösterir (ör. önce "Teslim Edildi", sonra "Reddedildi" olmuş bir sipariş → ürün geri alınmıştır).
+const SIPARIS_IPTAL_DURUMLARI = new Set(['Reddedildi', 'İptal Edildi', 'Teslim Edilemedi']);
+
+/* ============================== SİPARİŞ ARŞİVİ: TESLİM TARİHİNE GÖRE DAĞITIM + SATIŞ BELGE NO
+   TEMİZLİĞİ ==============================
+   ESKİ KURAL (artık geçerli değil): sipariş satırları o günkü YÜKLEME gününün altına yazılır,
+   aynı takvim (teslim) gününe ait birden çok yükleme günü olduğunda yalnızca en son yükleyen
+   "kazanır" ve diğerleri arşivde gölge kayıt olarak kalırdı.
+
+   YENİ KURAL: her sipariş satırı, yüklendiği gün ne olursa olsun, KENDİ İstenilen Tsl. Trh.
+   (teslim tarihi) değerine karşılık gelen arşiv gününe yazılır. Yerleştirmeden SONRA şu sıra ile
+   temizlik uygulanır:
+     1) Satış Belge No bazlı GLOBAL tarama: bu numaraya ait (hangi teslim tarihinde/hangi arşiv
+        gününde olursa olsun) herhangi bir kayıtta Teslimat Durumu SIPARIS_IPTAL_DURUMLARI
+        içindeyse, bu Satış Belge No'ya ait TÜM kayıtlar arşivin tamamından silinir.
+     2) Kalan (temiz) kayıtlarda: aynı teslim tarihinde (aynı arşiv günü içinde) aynı Satış Belge
+        No birden fazla kez geçiyorsa yalnızca ilk görülen kayıt tutulur, sonrakiler silinir. Aynı
+        Satış Belge No farklı teslim tarihlerinde ise HER İKİSİ de bulutta saklanmaya devam eder.
+   Satış Belge No veya teslim tarihi olmayan satırlara bu fonksiyon dokunmaz (güvenli tarafta
+   bırakılır). Fonksiyon, yalnızca gerçekten değişen günlerin nesnesini yeni referansla döndürür;
+   değişmeyen günler eski referanslarıyla kalır (bu sayede faturaKontrolArsivGunFarkiniBul çağrısı
+   yalnızca gerçekten değişen günleri buluta PATCH eder). */
+function siparisArsivGunlereDagitVeTemizle(mevcutArsiv, yeniSiparisSatirlari){
+  const yeniArsiv = Object.assign({}, mevcutArsiv);
+
+  // 1) Yeni satırları kendi teslim tarihi gününe dağıt (o günün mevcut siparisArsiv'ine ekle).
+  (yeniSiparisSatirlari||[]).forEach(r=>{
+    if(!r || !r.istenilenTeslimTarihi || !r.satisBelgeNo) return;
+    const gunKey = dateKeyLocal(new Date(r.istenilenTeslimTarihi));
+    if(!gunKey) return;
+    const mevcutGun = yeniArsiv[gunKey] || {};
+    const mevcutSiparisArsiv = mevcutGun.siparisArsiv || [];
+    yeniArsiv[gunKey] = Object.assign({}, mevcutGun, {siparisArsiv: mevcutSiparisArsiv.concat([r])});
+  });
+
+  // 2) Satış Belge No bazlı GLOBAL tarama: iptal/red/teslim-edilemedi izine sahip tüm numaraları topla.
+  const iptalBelgeNolari = new Set();
+  Object.keys(yeniArsiv).forEach(gunKey=>{
+    ((yeniArsiv[gunKey] && yeniArsiv[gunKey].siparisArsiv) || []).forEach(r=>{
+      if(r.satisBelgeNo && SIPARIS_IPTAL_DURUMLARI.has(r.teslimatDurumu)) iptalBelgeNolari.add(r.satisBelgeNo);
+    });
+  });
+
+  let silinenSatir = 0;
+  Object.keys(yeniArsiv).forEach(gunKey=>{
+    const gun = yeniArsiv[gunKey];
+    const orijinal = gun.siparisArsiv || [];
+
+    // İptal belgesi olan tüm kayıtları çıkar.
+    let sonraki = orijinal.filter(r=> !(r.satisBelgeNo && iptalBelgeNolari.has(r.satisBelgeNo)));
+
+    // Aynı gün içinde aynı Satış Belge No'nun mükerrer (2. ve sonrası) kayıtlarını çıkar.
+    const gorulenBelgeNo = new Set();
+    sonraki = sonraki.filter(r=>{
+      if(!r.satisBelgeNo) return true; // belge no'suz satır dokunulmaz
+      if(gorulenBelgeNo.has(r.satisBelgeNo)) return false;
+      gorulenBelgeNo.add(r.satisBelgeNo);
+      return true;
+    });
+
+    silinenSatir += (orijinal.length - sonraki.length);
+    if(sonraki.length !== orijinal.length){
+      yeniArsiv[gunKey] = Object.assign({}, gun, {siparisArsiv: sonraki});
+    }
+  });
+
+  return {arsiv: yeniArsiv, silinenSatir, iptalEdilenBelgeSayisi: iptalBelgeNolari.size};
 }
 
 function faturaKontrolArsivBirlestir(arsiv){
@@ -2285,8 +2466,17 @@ function faturaKontrolArsivBirlestir(arsiv){
     return [...idBazli.values(), ...icerikBazli.values()];
   }
 
+  // Sipariş: ARTIK "kazanan yükleme günü" mantığına tabi DEĞİL. Her arşiv günü zaten kendi teslim
+  // tarihine ait, Satış Belge No temizliği yazma anında (siparisArsivGunlereDagitVeTemizle)
+  // uygulanmış hâlde tutuluyor — burada sadece tüm günlerin siparisArsiv'lerinin birleşimi alınır.
+  function siparisBirlesigi(){
+    const sonuc = [];
+    gunler.forEach(g=>{ ((arsiv[g] && arsiv[g].siparisArsiv) || []).forEach(r=> sonuc.push(r)); });
+    return sonuc;
+  }
+
   return {
-    siparisArsiv: tekillestir('siparisArsiv', 'istenilenTeslimTarihi'),
+    siparisArsiv: siparisBirlesigi(),
     tahsilatArsiv: tekillestir('tahsilatArsiv', 'belgeTarihi'),
     faturaArsiv: tekillestir('faturaArsiv', 'faturaTarihi'),
     bayiHakedisArsiv: tekillestirBayiHakedis(),
@@ -2325,12 +2515,14 @@ function faturaKontrolArsivSikistir(arsiv){
     });
     return sonUploadGunu;
   }
-  const kazananSiparis = kazananHaritasi('siparisArsiv', 'istenilenTeslimTarihi');
+  // NOT: Sipariş artık burada "kazanan yükleme günü" mantığıyla değil, Satış Belge No bazlı global
+  // temizlikle (siparisArsivGunlereDagitVeTemizle) ele alınıyor — bkz. aşağıdaki ayrı geçiş.
+  // Tahsilat/Fatura için eski "kazanan gün" (gölge kayıt) mantığı DEĞİŞMEDİ.
   const kazananTahsilat = kazananHaritasi('tahsilatArsiv', 'belgeTarihi');
   const kazananFatura = kazananHaritasi('faturaArsiv', 'faturaTarihi');
 
   let silinenSatir = 0;
-  const yeniArsiv = {};
+  const yeniArsivTahsilatFatura = {};
   gunler.forEach(uploadGunu=>{
     const g = arsiv[uploadGunu] || {};
     function filtrele(alanAdi, tarihAlani, kazananMap){
@@ -2344,13 +2536,25 @@ function faturaKontrolArsivSikistir(arsiv){
       silinenSatir += (orijinal.length - yeni.length);
       return yeni;
     }
-    yeniArsiv[uploadGunu] = Object.assign({}, g, {
-      siparisArsiv: filtrele('siparisArsiv', 'istenilenTeslimTarihi', kazananSiparis),
+    yeniArsivTahsilatFatura[uploadGunu] = Object.assign({}, g, {
       tahsilatArsiv: filtrele('tahsilatArsiv', 'belgeTarihi', kazananTahsilat),
       faturaArsiv: filtrele('faturaArsiv', 'faturaTarihi', kazananFatura),
     });
   });
-  return {arsiv: yeniArsiv, silinenSatir};
+
+  // Sipariş: Satış Belge No bazlı global temizlik + aynı-gün mükerrer temizliğini TÜM arşiv
+  // üzerinde (yeni satır eklemeden, yalnızca mevcut veriyi tarayarak) yeniden çalıştırır. Bu, bu
+  // kuraldan ÖNCE arşive girmiş eski/tutarsız sipariş kayıtlarını da geriye dönük temizler.
+  const {arsiv: siparisTemizlenmisArsiv, silinenSatir: siparisSilinen} = siparisArsivGunlereDagitVeTemizle(arsiv, []);
+
+  const yeniArsiv = {};
+  gunler.forEach(g=>{
+    yeniArsiv[g] = Object.assign({}, yeniArsivTahsilatFatura[g], {
+      siparisArsiv: (siparisTemizlenmisArsiv[g] && siparisTemizlenmisArsiv[g].siparisArsiv) || [],
+    });
+  });
+
+  return {arsiv: yeniArsiv, silinenSatir: silinenSatir + siparisSilinen};
 }
 
 // --- Web Worker: Fatura Kontrol arşiv birleştirme/tekilleştirme ---
@@ -3050,6 +3254,26 @@ function dateKeyLocal(d){
   return `${y}-${m}-${day}`;
 }
 
+// Verilen gün anahtarları (YYYY-MM-DD) listesinden, hedef güne (yine YYYY-MM-DD) GÜN OLARAK EN
+// YAKIN olanını döndürür (geçmiş veya gelecek fark etmez, en küçük mutlak gün farkı kazanır;
+// eşitlik durumunda geçmişteki gün tercih edilir — veri zaten gerçekleşmiş kabul edilir). Liste
+// boşsa veya hedef günü yoksa null döner.
+function enYakinGunKey(gunListesi, hedefGunKey){
+  if(!gunListesi || !gunListesi.length || !hedefGunKey) return null;
+  const hedefMs = new Date(hedefGunKey+'T00:00:00Z').getTime();
+  if(isNaN(hedefMs)) return null;
+  let enYakinGun = null, enKucukFark = Infinity, enYakinMs = null;
+  gunListesi.forEach(g=>{
+    const ms = new Date(g+'T00:00:00Z').getTime();
+    if(isNaN(ms)) return;
+    const fark = Math.abs(ms - hedefMs);
+    if(fark < enKucukFark || (fark === enKucukFark && (enYakinMs===null || ms < enYakinMs))){
+      enKucukFark = fark; enYakinGun = g; enYakinMs = ms;
+    }
+  });
+  return enYakinGun;
+}
+
 const SIGNATURES = {
   kalemler: [['Kalan Borç','Faturadan Sonr.Gün','Borç/alacak']],
   siparis: [['Sipariş Toplam Tutar','Teslimat Durumu']],
@@ -3436,17 +3660,32 @@ function buildReport(files, musteriMasterMap){
       return true;
     });
 
-    // Sipariş Dökümü toplu (çok günlük) çekilmiş olabilir (örn. 01-05 arası); ama Sevk Raporu/Genel
-    // Rapor ekranındaki "Açık Sipariş"/"Sevki Ertelenen" KPI'ları yalnızca dosyadaki EN GÜNCEL
-    // İstenilen Tsl. Trh. gününü yansıtmalı — yoksa aynı hâlâ açık siparişler birden fazla günün
-    // anlık görüntüsünde tekrar tekrar sayılıp tutarlar şişer. (siparisArsiv bu filtreye TABİ
-    // DEĞİLDİR; Fatura Kontrol'ün geçmişe dönük görünümü için tüm günler orada saklanmaya devam eder.)
-    let enGuncelSiparisGunu = null;
-    siparisSatirlari.forEach(r=>{
-      const t = excelDateToJSArti1Gun(r['İstenilen Tsl. Trh.']);
-      if(t && (!enGuncelSiparisGunu || t.getTime() > enGuncelSiparisGunu.getTime())) enGuncelSiparisGunu = t;
-    });
-    const enGuncelSiparisGunKey = enGuncelSiparisGunu ? dateKeyLocal(enGuncelSiparisGunu) : null;
+    // Sevk Raporu/Genel Rapor ekranındaki "Açık Sipariş"/"Sevki Ertelenen" KPI'ları artık dosyadaki
+    // "en güncel gün" e göre DEĞİL, tarayıcının Türkiye yerel (bugünkü) tarihine GÜN OLARAK EN
+    // YAKIN olan güne göre gösterilir (Tahsilat'taki aynı kuralla birebir aynı mantık — bkz.
+    // enYakinGunKey). Yükleme Raporu yüklenmişse, o dosyadaki tüm Yükleme Tarihi günleri arasından
+    // bugüne en yakın olan seçilir (artık bugünün BİREBİR aynı gün olması ŞART DEĞİL). Yükleme
+    // Raporu hiç yüklenmemişse, dosyadaki İstenilen Tsl. Trh. günleri arasından bugüne en yakın
+    // olan seçilir. Hiçbir tarihli veri yoksa hiçbir sipariş KPI'sı gösterilmez.
+    const bugunGunKey = dateKeyLocal(today);
+    let siparisGosterimGunKey = null;
+    if(files.yukleme){
+      const yuklemeGunleri = new Set();
+      files.yukleme.data.forEach(r=>{
+        const yt = excelDateToJSArti1Gun(r['Yükleme Tarihi']);
+        const gk = yt ? dateKeyLocal(yt) : null;
+        if(gk) yuklemeGunleri.add(gk);
+      });
+      siparisGosterimGunKey = enYakinGunKey(Array.from(yuklemeGunleri), bugunGunKey);
+    }else{
+      const siparisGunleri = new Set();
+      siparisSatirlari.forEach(r=>{
+        const t = excelDateToJSArti1Gun(r['İstenilen Tsl. Trh.']);
+        const gk = t ? dateKeyLocal(t) : null;
+        if(gk) siparisGunleri.add(gk);
+      });
+      siparisGosterimGunKey = enYakinGunKey(Array.from(siparisGunleri), bugunGunKey);
+    }
 
     siparisSatirlari.forEach(r=>{
       const musteri = String(r['Müşteri No']||'').trim();
@@ -3456,23 +3695,28 @@ function buildReport(files, musteriMasterMap){
       const belgeTuru = r['Satış Belge Türü Tnm.'];
       const redStatu = r['Red Statüsü Tnm.'];
       const teslimat = r['Teslimat Durumu'];
+      const satisBelgeNo = String(r['Satış Belge No'] ?? r['Satış Belge No '] ?? '').trim() || null;
       const tutar = Number(r['Sipariş Toplam Tutar'])||0;
       const istenilenTeslimTarihi = excelDateToJSArti1Gun(r['İstenilen Tsl. Trh.']);
 
       const isEmanet = belgeTuru === 'Sevki Ertelenecek Sp' && redStatu === 'Aktif';
       const isNormalAcik = belgeTuru !== 'Sevki Ertelenecek Sp' && redStatu === 'Aktif' && teslimat !== 'Reddedildi';
 
-      if(isEmanet || isNormalAcik){
-        siparisArsiv.push({musteri, musteriAdi, temsilci, tutar, istenilenTeslimTarihi, belgeTuru});
+      // Arşive (siparisArsiv) artık aktiflik durumundan BAĞIMSIZ olarak, teslim tarihi ve Satış
+      // Belge No bilgisi olan HER satır aktarılır — Red/İptal/Teslim Edilemedi durumundaki satırlar
+      // da dahil. Bu satırlar arşiv katmanında (bkz. siparisArsivGunlereDagitVeTemizle) o Satış
+      // Belge No'ya ait TÜM kayıtları arşivden temizlemek için tetikleyici olarak kullanılır.
+      if(istenilenTeslimTarihi && satisBelgeNo){
+        siparisArsiv.push({musteri, musteriAdi, temsilci, tutar, istenilenTeslimTarihi, belgeTuru, teslimatDurumu: teslimat, satisBelgeNo});
       }
 
       if(!siparisMusterileri.has(musteri)) siparisMusterileri.set(musteri, {musteriAdi, temsilci});
       else if(temsilci && !siparisMusterileri.get(musteri).temsilci) siparisMusterileri.get(musteri).temsilci = temsilci;
 
-      // Sevk Raporu KPI'ları (siparisNormalMap/emanetSiparisMap) sadece en güncel günün siparişlerini
-      // toplar; dosyanın eski günlerine ait satırlar bu iki haritaya dahil edilmez.
-      const enGuncelGunMu = !enGuncelSiparisGunKey || dateKeyLocal(istenilenTeslimTarihi) === enGuncelSiparisGunKey;
-      if(!enGuncelGunMu) return;
+      // Sevk Raporu/Genel Rapor KPI'ları (siparisNormalMap/emanetSiparisMap) sadece yukarıda
+      // belirlenen tek "gösterim günü"ne ait siparişleri toplar.
+      const gosterilecekGunMu = siparisGosterimGunKey && dateKeyLocal(istenilenTeslimTarihi) === siparisGosterimGunKey;
+      if(!gosterilecekGunMu) return;
 
       if(isEmanet){
         emanetSiparisMap.set(musteri, (emanetSiparisMap.get(musteri)||0) + tutar);
@@ -3484,48 +3728,56 @@ function buildReport(files, musteriMasterMap){
 
   const tahsilatMap = new Map();
   const tahsilatArsiv = [];
-  let enYeniTahsilatGunu = null;
+  let tahsilatFormatB = false; // bu yüklemenin Format B (nihai rapor) olup olmadığı — Format A arşiv temizliği tetikleyicisi
   if(files.tahsilat){
     const tHeaders = new Set(files.tahsilat.headers);
     const formatA = tHeaders.has('Tutar') && tHeaders.has('Tahsilat Alan');
+    tahsilatFormatB = !formatA;
     // Format A (Ön Kayıt dökümü) belge tarihini "Tarih" kolonunda taşır; Format B (nihai rapor) ise "Belge Tarihi" kolonunu kullanır.
     const tarihKolonu = formatA ? 'Tarih' : 'Belge Tarihi';
-
-    files.tahsilat.data.forEach(r=>{
-      const gun = dateKeyLocal(excelDateToJSArti1Gun(r[tarihKolonu]));
-      if(gun && (!enYeniTahsilatGunu || gun > enYeniTahsilatGunu)) enYeniTahsilatGunu = gun;
-    });
 
     files.tahsilat.data.forEach(r=>{
       const belgeTarihi = excelDateToJSArti1Gun(r[tarihKolonu]);
       const musteriArsiv = String((formatA ? r['Müşteri'] : r['Müşt. Kodu'])||'').trim();
       const tutarArsiv = Math.abs(Number(formatA ? r['Tutar'] : r['Belge Tutarı'])||0);
       if(musteriArsiv){
-        tahsilatArsiv.push({musteri: musteriArsiv, belgeTarihi, tutar: tutarArsiv});
-      }
-
-      if(!belgeTarihi || dateKeyLocal(belgeTarihi) !== enYeniTahsilatGunu) return;
-
-      if(r['Belge Türü'] && r['Belge Türü'] !== 'Müşteri Tahsilat') return;
-
-      const odemeTipi = String(r['Ödeme Tipi']||'').trim().toLocaleLowerCase('tr-TR');
-      if(odemeTipi.includes('çek') || odemeTipi.includes('senet')) return;
-      const cekSenetDurumu = String(r['Çek/Senet Durumu']||'').trim();
-      if(cekSenetDurumu !== '') return;
-
-      if(formatA){
-        if(String(r['Belge Tipi']||'').trim() !== 'Ön Kayıt') return;
-        const musteri = String(r['Müşteri']||'').trim();
-        if(!musteri) return;
-        const tutar = Math.abs(Number(r['Tutar'])||0);
-        tahsilatMap.set(musteri, (tahsilatMap.get(musteri)||0) + tutar);
-      }else{
-        const musteri = String(r['Müşt. Kodu']||'').trim();
-        if(!musteri) return;
-        const tutar = Math.abs(Number(r['Belge Tutarı'])||0);
-        tahsilatMap.set(musteri, (tahsilatMap.get(musteri)||0) + tutar);
+        // "gecerli": bu satırın Genel Rapor/Sevk Raporu KPI'sında sayılıp sayılmayacağını (Belge
+        // Türü/Ödeme Tipi/Çek-Senet Durumu/Belge Tipi filtreleri) önceden hesaplayıp satıra
+        // etiketler; böylece bu gün ileride (başka bir yüklemede, arşivden okunarak) gösterilecek
+        // olsa bile aynı filtre uygulanmış olur. Etiket taşımayan (bu değişiklikten ÖNCE arşive
+        // girmiş) eski kayıtlar gösterimde geriye dönük uyumluluk için geçerli sayılır.
+        let gecerli = true;
+        if(r['Belge Türü'] && r['Belge Türü'] !== 'Müşteri Tahsilat') gecerli = false;
+        const odemeTipi = String(r['Ödeme Tipi']||'').trim().toLocaleLowerCase('tr-TR');
+        if(odemeTipi.includes('çek') || odemeTipi.includes('senet')) gecerli = false;
+        const cekSenetDurumu = String(r['Çek/Senet Durumu']||'').trim();
+        if(cekSenetDurumu !== '') gecerli = false;
+        if(formatA && String(r['Belge Tipi']||'').trim() !== 'Ön Kayıt') gecerli = false;
+        // formatKaynagi: bu kayıt Format A (geçici Ön Kayıt) mı yoksa Format B (nihai) mı ile mi
+        // arşivlendi — Format B yüklendiğinde, kendi Belge Tarihi günlerine denk gelen Format A
+        // kayıtlarının silinebilmesi için gerekli (bkz. tahsilatEfektifGunMapHesapla).
+        tahsilatArsiv.push({musteri: musteriArsiv, belgeTarihi, tutar: tutarArsiv, formatKaynagi: formatA ? 'A' : 'B', gecerli});
       }
     });
+
+    // Genel Rapor/Sevk Raporu'ndaki tahsilat KPI'sı artık ne "dosyadaki en güncel gün"e ne de
+    // sadece "bu dosyadaki günler"e göre değil, bu yüklemenin arşive yansıyacağı haliyle ARŞİVDEKİ
+    // TÜM tahsilat günleri arasından bugüne EN YAKIN olan güne göre gösterilir — Format A/Format B
+    // farkı gözetilmeksizin, hangi formatın kaydı arşivde en güncelse o gösterilir. Bunun için,
+    // arşive gerçekten kaydedilecek durumun AYNISI (bkz. tahsilatEfektifGunMapHesapla) burada da
+    // -henüz kaydetmeden- simüle edilip, dolu (veri içeren) tüm günler arasından bugüne en yakın
+    // olan seçilir.
+    const bugunGunKeyTahsilat = dateKeyLocal(today);
+    const efektifGunMap = tahsilatEfektifGunMapHesapla(state.faturaArsivCache || {}, tahsilatArsiv, tahsilatFormatB, bugunGunKeyTahsilat);
+    const doluGunler = Array.from(efektifGunMap.keys()).filter(gk=> (efektifGunMap.get(gk)||[]).length > 0);
+    const hedefTahsilatGunKey = enYakinGunKey(doluGunler, bugunGunKeyTahsilat);
+
+    if(hedefTahsilatGunKey){
+      (efektifGunMap.get(hedefTahsilatGunKey)||[]).forEach(r=>{
+        if(r.gecerli === false) return;
+        tahsilatMap.set(r.musteri, (tahsilatMap.get(r.musteri)||0) + r.tutar);
+      });
+    }
   }
 
   const cekSenetMap = new Map();
@@ -3692,7 +3944,7 @@ function buildReport(files, musteriMasterMap){
   return {
     asOf: today, musteriler, invoices, bakiyesiz, kpi, ticariStok,
     temsilciler: Array.from(repMap.values()).sort((a,b)=>b.kalanBorc-a.kalanBorc),
-    siparisArsiv, tahsilatArsiv, faturaArsiv, bayiHakedis,
+    siparisArsiv, tahsilatArsiv, faturaArsiv, bayiHakedis, tahsilatFormatB,
   };
 }
 function sum(arr,key){ return arr.reduce((a,b)=>a+(b[key]||0),0); }
@@ -5148,7 +5400,7 @@ document.getElementById('faturaKontrolArsivSikistirBtn').addEventListener('click
     if(!Object.keys(arsiv).length){ await renderFaturaKontrolArsivBilgi(); return; }
     const {arsiv: sikistirilmisArsiv, silinenSatir} = faturaKontrolArsivSikistir(arsiv);
     if(silinenSatir===0){
-      alert('Arşivde temizlenecek gölge kayıt bulunamadı — zaten güncel.');
+      alert('Arşivde temizlenecek kayıt bulunamadı — zaten güncel.');
     }else{
       // Sıkıştırma yalnızca bazı günlerin içeriğini (dizi elemanlarını) küçültür, hiçbir gün
       // anahtarını eklemez/kaldırmaz. Bu yüzden tüm ağacı yeniden PUT etmek yerine, öncekiyle
@@ -5168,13 +5420,13 @@ document.getElementById('faturaKontrolArsivSikistirBtn').addEventListener('click
       }
       state.faturaArsivCache = sikistirilmisArsiv;
       saveFaturaKontrolArsivToLocal(state.faturaArsivCache).catch(()=>{});
-      alert(`${silinenSatir.toLocaleString('tr-TR')} gölge kayıt arşivden kalıcı olarak silindi.`);
+      alert(`${silinenSatir.toLocaleString('tr-TR')} kayıt arşivden kalıcı olarak silindi (gölge tahsilat/fatura kayıtları + iptal/red/teslim edilemedi olan sipariş numaralarının tüm kayıtları + mükerrer sipariş kayıtları).`);
     }
     await renderFaturaKontrolArsivBilgi();
     if(state.report) await renderFaturaKontrolTable(state.report);
   }catch(err){
-    console.error('Gölge kayıtlar temizlenemedi:', err);
-    alert('Gölge kayıtlar temizlenirken bir hata oluştu: ' + err.message);
+    console.error('Arşiv temizlenemedi:', err);
+    alert('Arşiv temizlenirken bir hata oluştu: ' + err.message);
   }finally{
     btn.disabled = false; btn.textContent = orijinalMetin;
   }
@@ -7116,6 +7368,21 @@ function ceiDurumPill(oran){
   return {label:'Zayıf', cls:'danger'};
 }
 
+// ssmKanalRowHtml'in TL (tahsilat/hedef) versiyonu — Temsilci Karnesi kartında, Sell Out kartındaki
+// Açık/Kapalı Kanal satırıyla AYNI görsel hatları (ilerleme çubuğu, kalan bilgisi) kullanır.
+function karneTahsilatRowHtml(label, tahsilat, hedef){
+  const hedefVarMi = hedef>0;
+  const pct = hedefVarMi ? Math.min(100, tahsilat/hedef*100) : 0;
+  const renk = hedefVarMi ? sellOutRenk(pct) : 'var(--ink-faint)';
+  const valTxt = hedefVarMi ? `${TL(tahsilat)} <small>/ ${TL(hedef)} (otomatik)</small>` : `${TL(tahsilat)} <small>· hedef yok</small>`;
+  const kalanTxt = hedefVarMi ? `<div class="ssm-kanal-kalan">Kalan ${TL(Math.max(0, hedef-tahsilat))}</div>` : '';
+  return `<div class="ssm-kanal-row">
+    <div class="ssm-kanal-top"><span class="lbl">${escapeHtml(label)}</span><span class="val">${valTxt}</span></div>
+    <div class="ssm-kanal-track"><div class="ssm-kanal-fill" style="width:${pct.toFixed(1)}%;background:${renk};"></div></div>
+    ${kalanTxt}
+  </div>`;
+}
+
 async function computeTemsilciKarnesi(report, zorla){
   const buAy = dateKeyLocal(new Date()).slice(0,7);
   const tv = await computeTahsilatVerimlilikAy(report, buAy, zorla);
@@ -7130,19 +7397,22 @@ async function computeTemsilciKarnesi(report, zorla){
     const key = m.temsilci || '—';
     if(!musterilerByRep.has(key)) musterilerByRep.set(key, []);
     musterilerByRep.get(key).push(m);
-    if(!agingByRep.has(key)) agingByRep.set(key, {agirlikliVade:0, agirlikBorc:0, riskliSayisi:0});
+    if(!agingByRep.has(key)) agingByRep.set(key, {agirlikliVade:0, agirlikBorc:0, riskliSayisi:0, riskliMusteriListe:[]});
     const r = agingByRep.get(key);
     if((m.kalanBorc||0)!==0){ r.agirlikliVade += m.kalanBorc*(m.avgVadeGun||0); r.agirlikBorc += m.kalanBorc; }
-    if((m.avgVadeGun||0)>90) r.riskliSayisi += 1;
+    if((m.avgVadeGun||0)>90){
+      r.riskliSayisi += 1;
+      r.riskliMusteriListe.push({adi: m.musteriAdi||m.musteri, kod: m.musteri, ortVade: m.avgVadeGun||0, kalanBorc: m.kalanBorc||0});
+    }
   });
 
   const rows = tv.rows.map(r=>{
-    const aging = agingByRep.get(r.temsilci) || {agirlikliVade:0, agirlikBorc:0, riskliSayisi:0};
+    const aging = agingByRep.get(r.temsilci) || {agirlikliVade:0, agirlikBorc:0, riskliSayisi:0, riskliMusteriListe:[]};
     const ortVade = aging.agirlikBorc!==0 ? Math.round(aging.agirlikliVade/aging.agirlikBorc) : null;
     const musterileri = musterilerByRep.get(r.temsilci) || [];
     const hedef = computeOtomatikTemsilciHedefi(musterileri, otomatikKarsilikOranlari, gerceklesmeOrani);
     const gerceklesme = hedef>0 ? (r.toplamTahsilat/hedef*100) : null;
-    return Object.assign({}, r, {ortVade, riskliMusteriSayisi:aging.riskliSayisi, hedef, gerceklesme});
+    return Object.assign({}, r, {ortVade, riskliMusteriSayisi:aging.riskliSayisi, riskliMusteriListe:aging.riskliMusteriListe, hedef, gerceklesme});
   }).sort((a,b)=>(b.gerceklesme||0)-(a.gerceklesme||0));
 
   return {rows, genel:tv.genel, ayKey:buAy, gerceklesmeOrani};
@@ -7186,20 +7456,83 @@ async function renderTemsilciKarnesiView(report, zorla){
 
   document.getElementById('karneGrid').innerHTML = karne.rows.map((r,i)=>{
     const durum = karneDurumPill(r.gerceklesme);
+    const expandKey = 'karne_'+r.temsilci;
+    const expanded = state.expanded.has(expandKey);
+    const riskliSort = state.karneRiskliSort.get(r.temsilci) || {key:'ortVade', dir:-1};
+    const riskliListe = (r.riskliMusteriListe||[]).slice().sort((a,b)=>{
+      if(riskliSort.key==='ortVade' || riskliSort.key==='kalanBorc'){
+        return riskliSort.dir * ((a[riskliSort.key]||0) - (b[riskliSort.key]||0));
+      }
+      const av = String(a[riskliSort.key]||''), bv = String(b[riskliSort.key]||'');
+      return riskliSort.dir * av.localeCompare(bv, 'tr');
+    });
+    const riskliListeHtml = riskliListe.length
+      ? `<div class="sort-bar" style="margin-bottom:10px;">
+          <span class="sort-bar-label">Sırala</span>
+          <select class="filter-select karne-riskli-sort-select" data-temsilci-key="${escapeHtml(r.temsilci)}">
+            <option value="ortVade"${riskliSort.key==='ortVade'?' selected':''}>Ort. Vade</option>
+            <option value="kalanBorc"${riskliSort.key==='kalanBorc'?' selected':''}>Kalan Borç</option>
+            <option value="adi"${riskliSort.key==='adi'?' selected':''}>Müşteri Adı</option>
+            <option value="kod"${riskliSort.key==='kod'?' selected':''}>Müşteri Numarası</option>
+          </select>
+          <button type="button" class="sort-dir-btn karne-riskli-sort-dir-btn" data-temsilci-key="${escapeHtml(r.temsilci)}" title="Sıralama yönünü değiştir">${riskliSort.dir===1?'↓':'↑'}</button>
+        </div>
+        <div class="karne-nokta-list">`+riskliListe.map(n=>`<div class="karne-nokta-item"><div class="adi" title="${escapeHtml(n.adi)}">${escapeHtml(n.adi)}</div><div class="kod">${escapeHtml(n.kod)} · Ort. Vade ${n.ortVade} gün · ${TL(n.kalanBorc)}</div></div>`).join('')+'</div>'
+      : '<div class="fkns-empty">Riskli müşteri yok 🎉</div>';
     return `
-    <div class="karne-card">
-      <div class="karne-top">
-        <div><div class="karne-name">${escapeHtml(r.temsilci)}</div><span class="pill ${durum.cls}">${durum.label}</span></div>
-        <div class="karne-rank">#${i+1}</div>
+    <div class="cust-card karne-card${expanded?' is-open':''}" data-temsilci-key="${escapeHtml(r.temsilci)}">
+      <div class="ssm-karne-top">
+        <div class="cust-avatar">${escapeHtml(avatarBaslangic(r.temsilci))}</div>
+        <div class="cust-info">
+          <div class="ssm-karne-name">${escapeHtml(r.temsilci)} <span class="badge info">#${i+1}</span></div>
+          <span class="pill ${durum.cls}" style="margin-top:5px;display:inline-block;">${durum.label}</span>
+        </div>
+        <div class="ssm-fkns-ring-wrap">
+          ${fknsRingSvg(r.gerceklesme)}
+          <div class="ssm-fkns-ring-label">GERÇ.</div>
+        </div>
       </div>
-      <div class="karne-metrics">
-        <div><div class="karne-lbl">Tahsilat</div><div class="karne-val">${TL(r.toplamTahsilat)}<div style="font-size:10px;color:var(--ink-faint);font-weight:500;">/ ${TL(r.hedef)} (otomatik)</div></div></div>
-        <div><div class="karne-lbl">Gerçekleşme</div><div class="karne-val" style="color:${verimRenk(r.gerceklesme!=null?Math.min(r.gerceklesme,100):null)};">${r.gerceklesme!=null?fmtYuzde(r.gerceklesme):'—'}</div></div>
-        <div><div class="karne-lbl">Ort. Vade</div><div class="karne-val">${r.ortVade!=null?r.ortVade+' gün':'—'}</div></div>
-        <div><div class="karne-lbl">Riskli Müşteri</div><div class="karne-val">${r.riskliMusteriSayisi}</div></div>
+      ${karneTahsilatRowHtml('Tahsilat', r.toplamTahsilat, r.hedef)}
+      <div class="ssm-karne-foot">
+        <span class="g-lbl">Ort. Vade</span>
+        <span class="g-val">${r.ortVade!=null?r.ortVade+' gün':'—'}</span>
       </div>
+      <div class="ssm-karne-foot">
+        <span class="g-lbl">Riskli Müşteri</span>
+        <span class="g-val" style="color:${r.riskliMusteriSayisi>0?'var(--danger)':'inherit'};">${r.riskliMusteriSayisi}</span>
+      </div>
+      <div class="karne-expand-toggle"><span>Riskli müşteriler (${r.riskliMusteriSayisi})</span><span class="cust-chevron" style="margin:0;">${expanded?'⌄':'›'}</span></div>
+      ${expanded ? `<div class="karne-expanded">${riskliListeHtml}</div>` : ''}
     </div>`;
   }).join('');
+
+  document.querySelectorAll('#karneGrid .karne-card').forEach(card=>{
+    card.addEventListener('click', (e)=>{
+      if(e.target.closest('.karne-expanded')) return;
+      const key = 'karne_'+card.getAttribute('data-temsilci-key');
+      if(state.expanded.has(key)) state.expanded.delete(key); else state.expanded.add(key);
+      renderTemsilciKarnesiView(report, false);
+    });
+  });
+  document.querySelectorAll('.karne-riskli-sort-select').forEach(sel=>{
+    sel.addEventListener('click', e=>e.stopPropagation());
+    sel.addEventListener('change', e=>{
+      e.stopPropagation();
+      const key = sel.getAttribute('data-temsilci-key');
+      const mevcut = state.karneRiskliSort.get(key) || {key:'ortVade', dir:-1};
+      state.karneRiskliSort.set(key, {key: sel.value, dir: mevcut.dir});
+      renderTemsilciKarnesiView(report, false);
+    });
+  });
+  document.querySelectorAll('.karne-riskli-sort-dir-btn').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      const key = btn.getAttribute('data-temsilci-key');
+      const mevcut = state.karneRiskliSort.get(key) || {key:'ortVade', dir:-1};
+      state.karneRiskliSort.set(key, {key: mevcut.key, dir: mevcut.dir*-1});
+      renderTemsilciKarnesiView(report, false);
+    });
+  });
 }
 
 // ============================================================================
@@ -7478,7 +7811,11 @@ function buildSellOutReport(rows, musteriMasterMap, musteriMasterDurumMap, muste
     const hacimSeg = String(r['Hacim Segmenti Tnm.']||'').trim() || 'Tanımsız';
     const belgeNo = r['Satış Belgesi'];
     const muhasebeDurum = String(r['Muhasebeleşme Durumu Tanımı']||'').trim();
-    const trendTarihi = excelDateToJS(r['Girilen Faturalama Tarihi']);
+    // Not: excelDateToJSArti1Gun kullanılır (excelDateToJS DEĞİL) — bkz. buildYuklemeRaporu'daki
+    // aynı notla birebir aynı sebep: tarayıcı Türkiye (+3) saat diliminde çalışırken, saf/naif Excel
+    // tarihleri 1 gün geriye kayabiliyor; bu düzeltme olmadan Günlük Trend grafiği bir gün ERKEN
+    // gösteriyordu (ör. dosyada 01-04 Temmuz varken grafik 30 Haziran-03 Temmuz gösteriyordu).
+    const trendTarihi = excelDateToJSArti1Gun(r['Girilen Faturalama Tarihi']);
 
     toplamNet += net; toplamLitre += litre;
     if(kanal==='Açık Kanal') acikNetToplam += net; else kapaliNetToplam += net;
