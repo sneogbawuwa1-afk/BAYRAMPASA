@@ -401,6 +401,7 @@
   /* faturaModalOverlay (Açık Faturalar), Riskli Müşteriler / Fatura Kesilmeyen Noktalar popup'larının
      İÇİNDEN de açılabiliyor (iç içe popup) — bu yüzden üstte görünmesi için daha yüksek z-index gerekir. */
   #faturaModalOverlay{z-index:1010;}
+  #analizModalOverlay{z-index:1020;}
   .modal{
     background:var(--surface);border-radius:14px;box-shadow:0 24px 60px -12px rgba(24,34,51,0.35);
     width:100%;max-width:920px;max-height:86vh;display:flex;flex-direction:column;overflow:hidden;
@@ -440,6 +441,14 @@
   .modal-head-navy-pill{margin-top:10px;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.12);color:#fff;font-size:11px;font-weight:700;padding:4px 11px;border-radius:100px;}
   .modal-head-navy .modal-close{position:absolute;right:14px;top:16px;transform:none;background:rgba(255,255,255,0.14);color:#fff;box-shadow:none;}
   .modal-head-navy .modal-close:hover{background:rgba(255,255,255,0.28);color:#fff;}
+  .modal-head-navy-analiz-btn{
+    border:1px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.1);color:#fff;
+    font-size:11px;font-weight:700;padding:4px 11px;border-radius:100px;cursor:pointer;font-family:inherit;
+    display:inline-flex;align-items:center;gap:5px;transition:background .15s ease;
+  }
+  .modal-head-navy-analiz-btn:hover{background:rgba(255,255,255,0.22);}
+  .fatura-toplam-divider{margin:10px 20px 0;border-top:2px solid var(--line-soft);}
+  .fatura-toplam-strip{display:grid;grid-template-columns:1fr 1fr 1fr;padding:14px 20px;background:var(--bg);}
 
   /* --- Detay popup'larında ortak nokta listesi (avatar + isim + kod satırı) --- */
   .popup-sort-row{padding:12px 20px 4px;display:flex;align-items:center;gap:8px;}
@@ -1146,7 +1155,6 @@
     <div class="tab-dropdown-menu" id="cariDetayDropdownMenu" role="menu" aria-hidden="true" aria-labelledby="tabbtn-cariDetay">
       <button class="tab-btn dropdown-item active" id="tabbtn-genel" data-view="genel" type="button" role="tab" aria-selected="true" aria-controls="genelView">📊 Genel Rapor</button>
       <button class="tab-btn dropdown-item" id="tabbtn-yaslandirma" data-view="yaslandirma" type="button" role="tab" aria-selected="false" aria-controls="yaslandirmaView">⏱️ Yaşlandırma Raporu</button>
-      <button class="tab-btn dropdown-item" id="tabbtn-trend" data-view="trend" type="button" role="tab" aria-selected="false" aria-controls="trendView">📈 Trend Analizi</button>
     </div>
 
     <div class="tab-dropdown-menu" id="dagitimDropdownMenu" role="menu" aria-hidden="true" aria-labelledby="tabbtn-dagitim">
@@ -1577,47 +1585,6 @@
             <div class="musteri-daha-fazla-wrap" id="faturaKontrolDahaFazlaWrap" style="display:none;">
               <button type="button" class="btn" id="faturaKontrolDahaFazlaBtn">Daha fazla göster</button>
               <span class="musteri-daha-fazla-info" id="faturaKontrolDahaFazlaInfo"></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <div id="trendView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-trend">
-
-      <div class="panel" id="trendPanel">
-        <div class="panel-head">
-          <div><h2>Trend Analizi</h2></div>
-          <div class="toolbar">
-            <input type="text" id="trendMusteriInput" list="trendMusteriListOptions" class="filter-input" style="width:300px;" placeholder="Müşteri adı veya kodu ara…" autocomplete="off" />
-            <datalist id="trendMusteriListOptions"></datalist>
-            <button type="button" class="btn small" id="trendYenileBtn" title="Buluttaki arşivi yeniden çeker">🔄 Yenile</button>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div id="trendEmptyState" class="empty-state">Trend görmek için yukarıdan bir müşteri seçin.</div>
-          <div id="trendContent" style="display:none;">
-            <div id="trendMusteriBaslik" style="margin-bottom:14px;"></div>
-
-            <div id="trendHaftalikGrid" style="margin-bottom:20px;"></div>
-
-            <div class="trend-grid">
-              <div class="trend-chart-card">
-                <div class="trend-chart-title">Kalan Borç Trendi</div>
-                <div id="trendChartKalanBorc"></div>
-                <div class="trend-chart-ortalama" id="trendOrtalamaKalanBorc"></div>
-              </div>
-              <div class="trend-chart-card">
-                <div class="trend-chart-title">Ortalama Vade Trendi (gün)</div>
-                <div id="trendChartVade"></div>
-                <div class="trend-chart-ortalama" id="trendOrtalamaVade"></div>
-              </div>
-              <div class="trend-chart-card">
-                <div class="trend-chart-title">Toplam Risk Trendi</div>
-                <div id="trendChartRisk"></div>
-                <div class="trend-chart-ortalama" id="trendOrtalamaRisk"></div>
-              </div>
             </div>
           </div>
         </div>
@@ -2178,6 +2145,24 @@
       </div>
     </div>
 
+    <div class="modal-overlay" id="analizModalOverlay">
+      <div class="modal" id="analizModal" role="dialog" aria-modal="true" aria-labelledby="analizModalTitle" style="max-width:480px;">
+        <div class="panel-head modal-head-navy">
+          <div class="modal-head-navy-top">
+            <div class="modal-head-navy-avatar" id="analizModalAvatar"></div>
+            <div style="min-width:0;">
+              <div class="modal-head-navy-name" id="analizModalTitle"></div>
+              <div class="modal-head-navy-sub">Aylık Trend Analizi</div>
+            </div>
+          </div>
+          <button class="modal-close" id="analizModalClose" type="button" aria-label="Kapat">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="analizModalBody" style="padding:18px 22px 20px;"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-overlay" id="faturaModalOverlay">
       <div class="modal" id="faturaModal" role="dialog" aria-modal="true" aria-labelledby="faturaModalTitle" style="max-width:520px;">
         <div class="panel-head modal-head-navy">
@@ -2188,7 +2173,10 @@
               <div class="modal-head-navy-sub">Açık Faturalar</div>
             </div>
           </div>
-          <div class="modal-head-navy-pill" id="faturaModalSub"></div>
+          <div class="modal-head-navy-pill-row" style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+            <div class="modal-head-navy-pill" id="faturaModalSub" style="margin-top:0;"></div>
+            <button type="button" class="modal-head-navy-analiz-btn" id="faturaModalAnalizBtn">📊 Analiz</button>
+          </div>
           <button class="modal-close" id="faturaModalClose" type="button" aria-label="Kapat">✕</button>
         </div>
         <div class="modal-body">
@@ -2203,7 +2191,8 @@
               <tbody id="faturaModalTbody"></tbody>
             </table>
           </div>
-          <div id="faturaModalToplam" style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:14px 20px 18px;border-top:1px solid var(--line-soft);margin-top:8px;"></div>
+          <div class="fatura-toplam-divider"></div>
+          <div id="faturaModalToplam" class="fatura-toplam-strip"></div>
           <div id="faturaModalHakedisWrap" style="display:none;padding:2px 20px 18px;border-top:1px solid var(--line-soft);">
             <div class="cust-expanded-risk" style="font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.04em;margin-bottom:8px;">BAYİ HAKEDİŞ (<span id="faturaModalHakedisSayi"></span>)</div>
             <div class="table-scroll">
@@ -2932,8 +2921,14 @@ function faturaKontrolArsivBirlestir(arsiv){
       ((arsiv[uploadGunu] && arsiv[uploadGunu][alanAdi]) || []).forEach(r=>{
         const takvimGunu = r[tarihAlani] ? dateKeyLocal(new Date(r[tarihAlani])) : null;
         if(takvimGunu && sonUploadGunu.get(takvimGunu) !== uploadGunu) return;
+        // Gerçek belge numarası (örn. Fatura Numarası) varsa tekilleştirme ARTIK BUNA göre yapılır:
+        // aynı belge no'ya sahip kayıtlar, arşivde hangi güne/yüklemeye (kayıt tarihi kayması vb.
+        // nedenle) düşmüş olursa olsun TEK bir fatura sayılır. Bu, örn. faturaTarihi'nde yükleme
+        // günleri arasında oluşan 1 günlük kaymanın aynı faturayı iki farklı takvim gününde ayrı
+        // ayrı saydırmasını önler. belgeNo taşımayan (eski/geriye dönük) kayıtlarda önceki
+        // müşteri+tarih+tutar bazlı anahtara düşülür.
         const tarihKey = r[tarihAlani] ? new Date(r[tarihAlani]).getTime() : '';
-        const key = [r.musteri, tarihKey, r.tutar].join('|');
+        const key = r.belgeNo ? ('belgeNo|'+r.belgeNo) : [r.musteri, tarihKey, r.tutar].join('|');
         sonuc.set(key, r);
       });
     });
@@ -3128,42 +3123,6 @@ async function faturaKontrolArsivBirlestirCached(arsiv){
     });
   faturaBirlesikCache = { kaynak: arsiv, promise };
   return promise;
-}
-
-function computeMusteriTrend(musteri){
-  const arsiv = state.faturaArsivCache || {};
-  const gunler = Object.keys(arsiv).sort();
-  const seri = [];
-  const KREDI_ETIKETLERI = new Set(['FaturaIade', 'DepozitoTahsilat']);
-  gunler.forEach(gun=>{
-    const g = arsiv[gun];
-    if(!g.musteriSnapshot) return;
-    const m = g.musteriSnapshot.find(x=>x.musteri===musteri);
-    if(!m) return;
-    // O gün bu müşteri için Bozuk İade Faturası / Depozito Tahsilatı kredisi var mıydı? — Kalan
-    // Borç trend grafiğinde ani bir düşüş görüldüğünde, bunun normal bir tahsilattan mı yoksa bu
-    // tür bir mahsup kredisinden mi kaynaklandığını görsel olarak ayırt edebilmek için işaretlenir.
-    const kredilerBugun = (g.tahsilatArsiv||[]).filter(r=> r.musteri===musteri && KREDI_ETIKETLERI.has(r.formatKaynagi));
-    const krediGunuMu = kredilerBugun.length>0;
-    const krediTutari = kredilerBugun.reduce((a,r)=>a+(r.tutar||0),0);
-    seri.push({tarih: gun, kalanBorc: m.kalanBorc||0, avgVadeGun: m.avgVadeGun||0, toplamRisk: m.toplamRisk||0, cekSenet: m.cekSenet||0, krediGunuMu, krediTutari});
-  });
-  return seri;
-}
-
-function tumBilinenMusteriler(report){
-  const map = new Map();
-  (report && report.musteriler || []).forEach(m=> map.set(m.musteri, {musteri:m.musteri, musteriAdi:m.musteriAdi, temsilci:m.temsilci}));
-  // Bugün oluşturulan rapordaki bakiyesiz müşteriler (arşiv henüz senkronize olmamış olsa bile
-  // hemen arama listesinde görünsün diye) doğrudan report'tan eklenir.
-  (report && report.bakiyesiz || []).forEach(b=> { if(!map.has(b.musteri)) map.set(b.musteri, {musteri:b.musteri, musteriAdi:b.musteriAdi, temsilci:b.temsilci}); });
-  const arsiv = state.faturaArsivCache || {};
-  Object.keys(arsiv).sort().forEach(gun=>{
-    (arsiv[gun].musteriSnapshot||[]).forEach(m=>{
-      if(!map.has(m.musteri)) map.set(m.musteri, {musteri:m.musteri, musteriAdi:m.musteriAdi, temsilci:m.temsilci});
-    });
-  });
-  return Array.from(map.values()).sort((a,b)=> String(a.musteriAdi).localeCompare(String(b.musteriAdi),'tr'));
 }
 
 async function clearFaturaKontrolArsiv(){
@@ -4079,7 +4038,6 @@ async function resetAll(){
   document.getElementById('yaslandirmaView').style.display='none';
   document.getElementById('ticariStokView').style.display='none';
   document.getElementById('faturaKontrolView').style.display='none';
-  document.getElementById('trendView').style.display='none';
   document.getElementById('bayiHakedisView').style.display='none';
   document.getElementById('sellOutView').style.display='none';
   document.getElementById('tahsilatVerimlilikView').style.display='none';
@@ -4329,6 +4287,9 @@ function buildReport(files, musteriMasterMap){
       // düzeltmesi; bkz. Sell Out/Yükleme Raporu'ndaki aynı notla birebir aynı sebep.
       const faturaTarihi = excelDateToJSArti1Gun(r['Fatura Tarihi']);
       const faturaTuru = String(r['Fatura Türü Adı']||'').trim();
+      // Gerçek Fatura Numarası — arşiv tekilleştirmesinin artık tarih+tutar tahminine değil, bu
+      // benzersiz belge numarasına dayanabilmesi için taşınır (bkz. tekillestir()).
+      const belgeNo = String(r['Fatura Numarası']||'').trim() || null;
 
       // "Bozuk İade Faturası": Ödenecek Tutar burada NEGATİF gelir (müşterinin borcundan düşülen
       // bir iade/mahsup tutarıdır) — bu yüzden SATIŞ/FATURA tutarı olarak değil, müşteri TAHSİLATI
@@ -4340,7 +4301,7 @@ function buildReport(files, musteriMasterMap){
         bozukIadeTahsilat.push({musteri, musteriAdi, belgeTarihi: faturaTarihi, tutar: Math.abs(tutar), formatKaynagi:'FaturaIade', gecerli:true, faturaNo: r['Fatura Numarası']});
         return;
       }
-      faturaArsiv.push({musteri, musteriAdi, temsilci, tutar, litre, faturaTarihi});
+      faturaArsiv.push({musteri, musteriAdi, temsilci, tutar, litre, faturaTarihi, belgeNo});
     });
   }
 
@@ -4673,7 +4634,7 @@ function renderReport(report){
 }
 
 const FINANSAL_ANALIZ_VIEWS = ['temsilciKarnesi','tahsilatVerimlilik','cei','nakitAkis','supheliAlacak','dsoTrend','yonetimOzeti'];
-const CARI_DETAY_VIEWS = ['genel','yaslandirma','trend'];
+const CARI_DETAY_VIEWS = ['genel','yaslandirma'];
 const DAGITIM_VIEWS = ['sevk','faturaKontrol','yukleme','ticariStok'];
 const TAB_DROPDOWNS = [
   {btn: document.getElementById('tabbtn-cariDetay'), menu: document.getElementById('cariDetayDropdownMenu'), views: CARI_DETAY_VIEWS},
@@ -4734,7 +4695,6 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.getElementById('yaslandirmaView').style.display = view==='yaslandirma' ? 'block' : 'none';
     document.getElementById('ticariStokView').style.display = view==='ticariStok' ? 'block' : 'none';
     document.getElementById('faturaKontrolView').style.display = view==='faturaKontrol' ? 'block' : 'none';
-    document.getElementById('trendView').style.display = view==='trend' ? 'block' : 'none';
     document.getElementById('bayiHakedisView').style.display = view==='bayiHakedis' ? 'block' : 'none';
     document.getElementById('sellOutView').style.display = view==='sellOut' ? 'block' : 'none';
     document.getElementById('tahsilatVerimlilikView').style.display = view==='tahsilatVerimlilik' ? 'block' : 'none';
@@ -4749,7 +4709,6 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     if(view==='yaslandirma' && state.report) renderYaslandirmaView(state.report);
     if(view==='ticariStok' && state.report) renderTicariStokView(state.report);
     if(view==='faturaKontrol' && state.report) renderFaturaKontrolView(state.report);
-    if(view==='trend') renderTrendView(state.report);
     if(view==='bayiHakedis') renderBayiHakedisView();
     if(view==='sellOut') renderSellOutView();
     if(view==='tahsilatVerimlilik' && state.report) renderTahsilatVerimlilikView(state.report);
@@ -5493,6 +5452,7 @@ document.getElementById('dikkatModalClose').addEventListener('click', closeDikka
 
 function faturaModalAc(musteriKod, musteriAdi){
   try{
+    state.faturaModalMevcut = {kod: musteriKod, adi: musteriAdi};
     const report = state.report;
     const kod = String(musteriKod||'').trim();
     const m = (report && report.musteriler ? report.musteriler.find(x=>String(x.musteri||'').trim()===kod) : null)
@@ -5570,6 +5530,82 @@ function faturaModalKapat(){
 document.getElementById('faturaModalClose').addEventListener('click', faturaModalKapat);
 document.getElementById('faturaModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='faturaModalOverlay') faturaModalKapat();
+});
+
+async function analizModalAc(musteriKod, musteriAdi){
+  document.getElementById('analizModalAvatar').textContent = avatarBaslangic(musteriAdi);
+  document.getElementById('analizModalTitle').textContent = musteriAdi;
+  const body = document.getElementById('analizModalBody');
+  body.innerHTML = `<div class="empty-state">Yükleniyor…</div>`;
+  document.getElementById('analizModalOverlay').classList.add('open');
+  let ozet = null;
+  try{
+    ozet = await computeMusteriAylikOzet(String(musteriKod||'').trim());
+  }catch(err){
+    console.error('Analiz hesaplanırken hata:', err);
+  }
+  if(!ozet){
+    body.innerHTML = `<div class="empty-state">Bu müşteri için fatura/tahsilat arşiv verisi bulunamadı.</div>`;
+    return;
+  }
+  const toplamTahsilatPay = ozet.aylikTahsilat>0 ? ozet.aylikTahsilat : 1;
+  const normalPay = Math.max(0, ozet.aylikNormalTahsilat + ozet.aylikHakedisTahsilat);
+  const krediPay = Math.max(0, ozet.aylikKrediTahsilat);
+  const normalYuzde = (normalPay/toplamTahsilatPay*100);
+  const geriDonusRenk = ozet.geriDonusGun==null ? {renk:'var(--ink-faint)', soft:'var(--line-soft)'} : donusRenk(ozet.geriDonusGun);
+  body.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:10.5px;font-weight:700;letter-spacing:.05em;color:var(--ink-soft);">FATURA · AYLIK ORTALAMA</div>
+        <div style="font-family:'Space Grotesk';font-size:28px;font-weight:700;color:var(--ink);margin-top:4px;">${TL(ozet.aylikFatura)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:10.5px;font-weight:700;letter-spacing:.05em;color:var(--ink-soft);">LİTRE</div>
+        <div style="font-family:'Space Grotesk';font-size:19px;font-weight:700;color:var(--ink-soft);margin-top:4px;">${ozet.aylikLitre!=null?Math.round(ozet.aylikLitre).toLocaleString('tr-TR')+' Lt':'—'}</div>
+      </div>
+    </div>
+
+    <div style="height:1px;background:var(--line-soft);margin:16px 0;"></div>
+
+    <div style="font-size:10.5px;font-weight:700;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:9px;">TAHSİLAT · AYLIK ORTALAMA</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between;">
+      <div style="font-family:'Space Grotesk';font-size:22px;font-weight:700;color:var(--ink);">${TL(ozet.aylikTahsilat)}</div>
+      ${ozet.aylikTahsilat>0 ? `<div style="font-size:11px;color:var(--ink-soft);">%${normalYuzde.toFixed(1).replace('.',',')} normal</div>` : ''}
+    </div>
+    ${ozet.aylikTahsilat>0 ? `
+    <div style="height:8px;border-radius:5px;background:var(--line-soft);margin-top:8px;overflow:hidden;display:flex;">
+      <div style="width:${normalYuzde.toFixed(2)}%;background:var(--accent);"></div>
+      <div style="width:${(100-normalYuzde).toFixed(2)}%;background:var(--danger);"></div>
+    </div>
+    <div style="display:flex;gap:14px;margin-top:7px;font-size:10.5px;color:var(--ink-soft);flex-wrap:wrap;">
+      <span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--accent);margin-right:4px;"></span>Normal ${TL(normalPay)}</span>
+      ${krediPay>0 ? `<span><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:var(--danger);margin-right:4px;"></span>İade/Depozito ${TL(krediPay)}</span>` : ''}
+    </div>` : ''}
+
+    <div style="height:1px;background:var(--line-soft);margin:16px 0;"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:14px;">⚡</span>
+        <span style="font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--accent);">VERİMLİLİK</span>
+      </div>
+      ${ozet.geriDonusGun!=null ? `<span class="htk-badge-pill" style="background:${geriDonusRenk.soft};color:${geriDonusRenk.renk};">
+        <span class="htk-badge-circle" style="background:${geriDonusRenk.renk};">${Math.round(ozet.geriDonusGun)}</span>DÖNÜŞ
+      </span>` : `<span style="font-size:12px;color:var(--ink-faint);">—</span>`}
+    </div>
+  `;
+}
+function analizModalKapat(){
+  document.getElementById('analizModalOverlay').classList.remove('open');
+}
+document.getElementById('analizModalClose').addEventListener('click', analizModalKapat);
+document.getElementById('analizModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='analizModalOverlay') analizModalKapat();
+});
+document.getElementById('faturaModalAnalizBtn').addEventListener('click', ()=>{
+  const mevcut = state.faturaModalMevcut;
+  if(!mevcut) return;
+  analizModalAc(mevcut.kod, mevcut.adi);
 });
 document.getElementById('dikkatModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'dikkatModalOverlay') closeDikkatModal();
@@ -5652,6 +5688,17 @@ function ortVadeRenk(gun){
   if(g<=7) return {renk:'var(--success)', soft:'var(--success-soft)'};
   if(g<=20) return {renk:'var(--warn)', soft:'var(--warn-soft)'};
   if(g<=25) return {renk:'#C2571B', soft:'#F5DDD0'};
+  return {renk:'var(--danger)', soft:'var(--danger-soft)'};
+}
+
+// "Dönüş" rozeti (Analiz popup'ı — fatura tutarının geri dönüş süresi) — 5 kademeli renk skalası,
+// ORT VADE'den farklı olarak en hızlı (0-3 gün) mavi ile başlar.
+function donusRenk(gun){
+  const g = Math.round(Number(gun)||0);
+  if(g<=3) return {renk:'#185FA5', soft:'#E6F1FB'};
+  if(g<=7) return {renk:'var(--success)', soft:'var(--success-soft)'};
+  if(g<=14) return {renk:'var(--warn)', soft:'var(--warn-soft)'};
+  if(g<=21) return {renk:'#C2571B', soft:'#F5DDD0'};
   return {renk:'var(--danger)', soft:'var(--danger-soft)'};
 }
 
@@ -6481,36 +6528,7 @@ document.getElementById('faturaKontrolDahaFazlaBtn').addEventListener('click', (
   renderFaturaKontrolTable(state.report, false);
 });
 
-function populateTrendMusteriListesi(report){
-  const musteriler = tumBilinenMusteriler(report);
-  const dl = document.getElementById('trendMusteriListOptions');
-  dl.innerHTML = musteriler.map(m=>`<option value="${escapeHtml(m.musteriAdi)} (${escapeHtml(m.musteri)})"></option>`).join('');
-  state.trendMusteriMap = new Map(musteriler.map(m=>[`${m.musteriAdi} (${m.musteri})`, m]));
-}
-
-async function renderTrendView(report, zorla){
-  document.getElementById('trendEmptyState').textContent = 'Buluttan yükleniyor…';
-  document.getElementById('trendEmptyState').style.display = 'block';
-  document.getElementById('trendContent').style.display = 'none';
-  await faturaArsivYenile(zorla);
-  document.getElementById('trendEmptyState').textContent = 'Trend görmek için yukarıdan bir müşteri seçin.';
-  populateTrendMusteriListesi(report);
-  const val = document.getElementById('trendMusteriInput').value.trim();
-  const secili = state.trendMusteriMap && state.trendMusteriMap.get(val);
-  if(secili) await renderTrendForMusteri(secili); else renderTrendEmpty();
-}
-
-function renderTrendEmpty(){
-  document.getElementById('trendEmptyState').style.display = 'block';
-  document.getElementById('trendContent').style.display = 'none';
-}
-
-function ortalamaAl(seri, key){
-  if(!seri.length) return null;
-  return seri.reduce((a,b)=>a+(b[key]||0),0) / seri.length;
-}
-
-async function computeMusteriHaftalikOzet(musteri){
+async function computeMusteriAylikOzet(musteri){
   const birlesik = await faturaKontrolArsivBirlestirCached(state.faturaArsivCache || {});
   const faturalar = birlesik.faturaArsiv.filter(r=>r.musteri===musteri && r.faturaTarihi);
   const tahsilatlarArsiv = birlesik.tahsilatArsiv.filter(r=>r.musteri===musteri && r.belgeTarihi);
@@ -6528,69 +6546,26 @@ async function computeMusteriHaftalikOzet(musteri){
   const enEski = Math.min(...tumZamanlar);
   const enYeni = Math.max(...tumZamanlar);
   const gunSayisi = Math.max(1, Math.round((enYeni - enEski) / 86400000) + 1);
-  const haftaSayisi = Math.max(1, gunSayisi/7);
+  const aySayisi = Math.max(1, gunSayisi/30);
 
   const toplamFatura = faturalar.reduce((a,b)=>a+(b.tutar||0),0);
   const toplamLitre = faturalar.reduce((a,b)=>a+(b.litre||0),0);
   const toplamTahsilat = tahsilatlar.reduce((a,b)=>a+(b.tutar||0),0);
   // Tahsilat toplamının kaynak dökümü: normal (nakit) tahsilat mı, Bayi Hak Ediş mi, Bozuk İade
-  // Faturası / Depozito Tahsilatı mı — Haftalık Ortalama Tahsilat KPI'sının altında renkli
+  // Faturası / Depozito Tahsilatı mı — Aylık Ortalama Tahsilat KPI'sının altında renkli
   // kutucuklarla (chip) şeffaf şekilde gösterilir.
   const KREDI_ETIKETLERI = new Set(['FaturaIade', 'DepozitoTahsilat']);
   const toplamKrediTahsilat = tahsilatlar.reduce((a,b)=> a + (KREDI_ETIKETLERI.has(b.formatKaynagi) ? (b.tutar||0) : 0), 0);
   const toplamNormalTahsilat = toplamTahsilat - toplamKrediTahsilat - toplamHakedisTahsilat;
-  const haftalikFatura = toplamFatura / haftaSayisi;
-  const haftalikLitre = toplamLitre / haftaSayisi;
-  const haftalikTahsilat = toplamTahsilat / haftaSayisi;
-  const haftalikNormalTahsilat = toplamNormalTahsilat / haftaSayisi;
-  const haftalikKrediTahsilat = toplamKrediTahsilat / haftaSayisi;
-  const haftalikHakedisTahsilat = toplamHakedisTahsilat / haftaSayisi;
-  const geriDonusGun = haftalikTahsilat > 0 ? (haftalikFatura / haftalikTahsilat) * 7 : null;
-  return { gunSayisi, haftaSayisi, toplamFatura, toplamLitre, toplamTahsilat, toplamNormalTahsilat, toplamKrediTahsilat,
-    haftalikFatura, haftalikLitre, haftalikTahsilat, haftalikNormalTahsilat, haftalikKrediTahsilat, haftalikHakedisTahsilat, geriDonusGun, toplamHakedisTahsilat };
-}
-
-function renderTrendHaftalikGrid(ozet){
-  const el = document.getElementById('trendHaftalikGrid');
-  if(!ozet){ el.innerHTML = ''; return; }
-  const tahsilatChips = [];
-  if(ozet.haftalikNormalTahsilat>0) tahsilatChips.push({label:'Normal Tahsilat', tutar:ozet.haftalikNormalTahsilat, bg:'var(--accent-soft)', renk:'var(--accent-deep)'});
-  if(ozet.haftalikHakedisTahsilat>0) tahsilatChips.push({label:'Bayi Hak Ediş', tutar:ozet.haftalikHakedisTahsilat, bg:'var(--navy-soft)', renk:'var(--navy)'});
-  if(ozet.haftalikKrediTahsilat>0) tahsilatChips.push({label:'Bozuk İade / Depozito', tutar:ozet.haftalikKrediTahsilat, bg:'#F4DED9', renk:'var(--danger)'});
-  const items = [
-    {label:'Haftalık Ortalama Fatura Tutarı', icon:'🧾', value:ozet.haftalikFatura},
-    {label:'Haftalık Ortalama Tahsilat', icon:'✅', value:ozet.haftalikTahsilat, chips: tahsilatChips.length>1 ? tahsilatChips : null},
-    {label:'Haftalık Ortalama Fatura Litresi', icon:'💧', value:null, display: ozet.haftalikLitre!=null ? Math.round(ozet.haftalikLitre).toLocaleString('tr-TR')+' Lt' : '—', sub:'Fatura Dökümündeki Toplam Litre Kolonuna Göre'},
-    {label:'Fatura Tutarının Ort. Geri Dönüş Süresi', icon:'⏱️', value:null, display: ozet.geriDonusGun!=null ? Math.round(ozet.geriDonusGun).toLocaleString('tr-TR')+' gün' : '—', sub:'Haftalık Tahsilat Hızına Göre'},
-  ];
-  renderKpiHeroRow(items, 'trendHaftalikGrid');
-}
-
-async function renderTrendForMusteri(musteriInfo){
-  document.getElementById('trendEmptyState').style.display = 'none';
-  document.getElementById('trendContent').style.display = 'block';
-
-  const seri = computeMusteriTrend(musteriInfo.musteri);
-  const son = seri.length ? seri[seri.length-1] : null;
-  const krediGunVarMi = seri.some(s=>s.krediGunuMu);
-  document.getElementById('trendMusteriBaslik').innerHTML = `
-    <div class="musteri-name" style="font-size:15px;">${escapeHtml(musteriInfo.musteriAdi)}</div>
-    <div class="musteri-code" style="margin-bottom:6px;">${escapeHtml(musteriInfo.musteri)} · ${escapeHtml(musteriInfo.temsilci||'—')}</div>
-    <div style="font-size:12px;color:var(--ink-soft);">${seri.length ? ('Güncel: Kalan Borç '+TL(son.kalanBorc)+' · Ortalama Vade '+son.avgVadeGun+' gün · Toplam Risk '+TL(son.toplamRisk)) : 'Bu müşteri için henüz arşivlenmiş trend verisi yok.'}</div>
-    ${krediGunVarMi ? '<div style="font-size:11px;color:var(--ink-faint);margin-top:4px;">⊚ kesikli halka işaretli noktalar: o gün Bozuk İade / Depozito Tahsilatı var</div>' : ''}`;
-
-  renderTrendHaftalikGrid(await computeMusteriHaftalikOzet(musteriInfo.musteri));
-
-  renderTrendChart('trendChartKalanBorc', seri, 'kalanBorc', 'var(--navy)', 'tl');
-  renderTrendChart('trendChartVade', seri, 'avgVadeGun', 'var(--accent)', 'gun');
-  renderTrendChart('trendChartRisk', seri, 'toplamRisk', '#5C6BC0', 'tl');
-
-  const ortKalanBorc = ortalamaAl(seri, 'kalanBorc');
-  const ortVade = ortalamaAl(seri, 'avgVadeGun');
-  const ortRisk = ortalamaAl(seri, 'toplamRisk');
-  document.getElementById('trendOrtalamaKalanBorc').textContent = ortKalanBorc!=null ? 'Dönem Ortalaması: '+TL(ortKalanBorc) : '';
-  document.getElementById('trendOrtalamaVade').textContent = ortVade!=null ? 'Dönem Ortalaması: '+Math.round(ortVade).toLocaleString('tr-TR')+' gün' : '';
-  document.getElementById('trendOrtalamaRisk').textContent = ortRisk!=null ? 'Dönem Ortalaması: '+TL(ortRisk) : '';
+  const aylikFatura = toplamFatura / aySayisi;
+  const aylikLitre = toplamLitre / aySayisi;
+  const aylikTahsilat = toplamTahsilat / aySayisi;
+  const aylikNormalTahsilat = toplamNormalTahsilat / aySayisi;
+  const aylikKrediTahsilat = toplamKrediTahsilat / aySayisi;
+  const aylikHakedisTahsilat = toplamHakedisTahsilat / aySayisi;
+  const geriDonusGun = aylikTahsilat > 0 ? (aylikFatura / aylikTahsilat) * 30 : null;
+  return { gunSayisi, aySayisi, toplamFatura, toplamLitre, toplamTahsilat, toplamNormalTahsilat, toplamKrediTahsilat,
+    aylikFatura, aylikLitre, aylikTahsilat, aylikNormalTahsilat, aylikKrediTahsilat, aylikHakedisTahsilat, geriDonusGun, toplamHakedisTahsilat };
 }
 
 function fmtTrendDeger(v, birim){
@@ -6637,7 +6612,7 @@ function renderTrendChart(containerId, seri, key, renk, birim){
 
   const circles = points.map((p,i)=>{
     const s = seri[i];
-    // Bu gün bir Bozuk İade Faturası / Depozito Tahsilatı kredisi varsa (bkz. computeMusteriTrend),
+    // Bu gün bir Bozuk İade Faturası / Depozito Tahsilatı kredisi varsa (seri verisinde krediGunuMu/krediTutari alanları doluysa),
     // noktayı farklı bir görselle (içi boş, kesikli halka) işaretle — kullanıcı "bu gün neden
     // sıçradı/düştü" sorusunu grafiğe bakarak anlayabilsin.
     const tooltipEk = s.krediGunuMu ? (' — bu gün ' + TL(s.krediTutari) + ' Bozuk İade / Depozito Tahsilatı var') : '';
@@ -6667,15 +6642,6 @@ function renderTrendChart(containerId, seri, key, renk, birim){
     ${xLabels}
   </svg>`;
 }
-
-document.getElementById('trendMusteriInput').addEventListener('input', ()=>{
-  const val = document.getElementById('trendMusteriInput').value.trim();
-  const secili = state.trendMusteriMap && state.trendMusteriMap.get(val);
-  if(secili) renderTrendForMusteri(secili); else renderTrendEmpty();
-});
-document.getElementById('trendYenileBtn').addEventListener('click', async ()=>{
-  await renderTrendView(state.report || {musteriler:[]}, true);
-});
 
 function updateSearchClearBtn(){ searchClearBtnGuncelle('searchInput', 'searchClearBtn'); }
 const debouncedRenderMusteriTable = debounce(()=>renderMusteriTable(state.report));
