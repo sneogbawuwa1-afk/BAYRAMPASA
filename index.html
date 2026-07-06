@@ -126,6 +126,12 @@
     .sidebar{display:none;}
     .app-main{margin-left:0;padding:0;}
   }
+  /* Masaüstü sidebar'da "Sell Out Raporu" linki gizlendi — DOM'dan kaldırılmadı (id/JS
+     referansları ve dropdown senkronizasyonu bozulmasın diye), sadece görünürlüğü kapatıldı.
+     Mobil tabbar'daki eşdeğeri (tabbtn-sellOut) bu kuraldan etkilenmez, aynen görünür kalır. */
+  @media(min-width:981px){
+    #sbbtn-sellOut{display:none;}
+  }
 
   .topbar{
     display:flex;align-items:center;justify-content:space-between;
@@ -1143,7 +1149,7 @@
 
   /* ===================== GENEL BAKIŞ (DASHBOARD) ===================== */
   .app-header{
-    display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:16px;
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;
     position:sticky;top:0;z-index:35;background:var(--bg);
     padding:16px 0 16px;margin-bottom:20px;border-bottom:1px solid var(--line-soft);
   }
@@ -1160,16 +1166,6 @@
   .app-header-title-sep{color:var(--line);font-weight:400;margin:0 10px;}
   .app-header-title-light{font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;color:var(--accent-deep);letter-spacing:.01em;}
   .app-header-breadcrumb{display:flex;align-items:center;gap:10px;margin-top:4px;font-size:12.5px;font-weight:700;color:var(--ink-faint);letter-spacing:.04em;text-transform:uppercase;}
-  .app-header-user{display:flex;align-items:center;gap:14px;min-width:0;padding:0 4px;margin-left:auto;}
-  .app-header-user-avatar{
-    width:52px;height:52px;border-radius:13px;flex-shrink:0;
-    background:var(--navy);border:1px solid var(--accent);color:#D9B25C;
-    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;font-family:'Space Grotesk',system-ui,sans-serif;
-  }
-  .app-header-user-info{min-width:0;}
-  .app-header-user-name{font-family:'Space Grotesk',system-ui,sans-serif;font-weight:800;font-size:clamp(17px,1.6vw,21px);color:var(--navy);letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15;}
-  .app-header-user-role{font-family:'Space Grotesk',system-ui,sans-serif;font-weight:700;font-size:12.5px;color:var(--accent-deep);letter-spacing:.04em;text-transform:uppercase;margin-top:4px;}
-  @media(max-width:1150px){.app-header-user{display:none;}}
   .app-topbar-actions{
     display:flex;align-items:center;gap:8px;justify-content:flex-end;flex-wrap:wrap;
   }
@@ -1234,6 +1230,7 @@
 
   .gb-section-head{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:6px 0 14px;}
   .gb-section-head h3{font-family:'Space Grotesk',system-ui,sans-serif;font-size:15px;margin:0;color:var(--navy);font-weight:700;flex-shrink:0;}
+  .gb-section-head h3 .count{font-family:'Inter',system-ui,sans-serif;font-size:12px;color:var(--accent-deep);font-weight:600;margin-left:8px;}
   .gb-risk-chip-filters{display:flex;gap:6px;flex-wrap:wrap;}
   .gb-chip{
     border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);
@@ -1253,33 +1250,59 @@
   @media(min-width:700px){.gb-musteri-grid{grid-template-columns:repeat(2,1fr);}}
   @media(min-width:1400px){.gb-musteri-grid{grid-template-columns:repeat(4,1fr);}}
 
-  .gb-quick-actions{display:flex;flex-direction:column;gap:8px;}
-  .gb-quick-btn{
-    display:flex;align-items:center;gap:11px;width:100%;text-align:left;
-    border:1px solid var(--line-soft);background:var(--surface);border-radius:11px;
-    padding:11px 12px;cursor:pointer;transition:border-color .15s ease,background .15s ease;font-family:inherit;
+  .gb-durum-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .gb-durum-panel-head h2{position:relative;padding-left:14px;}
+  .gb-durum-panel-head h2::before{content:'';position:absolute;left:0;top:1px;bottom:1px;width:3px;border-radius:3px;background:var(--accent);}
+  .gb-durum-sellout-btn{
+    display:flex;align-items:center;gap:7px;flex-shrink:0;
+    border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent-deep);
+    font-family:inherit;font-size:12px;font-weight:700;padding:7px 13px;border-radius:100px;cursor:pointer;
+    transition:background .15s ease,border-color .15s ease;white-space:nowrap;
   }
-  .gb-quick-btn:hover{border-color:var(--accent);background:var(--accent-soft);}
-  .gb-quick-ic{width:34px;height:34px;border-radius:9px;background:var(--navy-soft);color:var(--navy);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
-  .gb-quick-btn > span:last-child{display:flex;flex-direction:column;gap:1px;min-width:0;}
-  .gb-quick-title{font-size:13px;font-weight:700;color:var(--ink);}
-  .gb-quick-sub{font-size:11px;color:var(--ink-faint);}
-
-  .gb-durum-list{display:flex;flex-direction:column;gap:2px;}
-  .gb-durum-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-soft);}
-  .gb-durum-row:last-child{border-bottom:none;}
-  .gb-durum-ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12.5px;flex-shrink:0;}
-  .gb-durum-ic.navy{background:var(--navy-soft);color:var(--navy);}
+  .gb-durum-sellout-btn:hover{background:var(--accent);color:#fff;}
+  .gb-durum-sellout-btn i{font-size:11px;}
+  /* Mobil tarafta değişiklik istenmedi — sidebar zaten bu genişlikte gizlendiğinden (bkz. .sidebar
+     @media max-width:980px), bu kısayol da yalnızca masaüstü görünümünde belirir. */
+  @media(max-width:980px){
+    .gb-durum-sellout-btn{display:none;}
+  }
+  .gb-durum-list{display:flex;flex-direction:column;gap:10px;}
+  .gb-durum-row{
+    display:flex;align-items:center;gap:13px;padding:12px 14px;min-width:0;
+    border:1px solid var(--line-soft);border-left:3px solid var(--line);border-radius:12px;
+  }
+  .gb-durum-row.navy{border-left-color:#1B5FAE;}
+  .gb-durum-row.warn{border-left-color:var(--warn);}
+  .gb-durum-row.success{border-left-color:var(--success);}
+  .gb-durum-row.danger{border-left-color:var(--danger);}
+  .gb-durum-ic{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+  .gb-durum-ic.navy{background:#E6F1FB;color:#1B5FAE;}
   .gb-durum-ic.danger{background:var(--danger-soft);color:var(--danger);}
   .gb-durum-ic.warn{background:var(--warn-soft);color:var(--warn);}
   .gb-durum-ic.success{background:var(--success-soft);color:var(--success);}
-  .gb-durum-text{min-width:0;flex:1;}
-  .gb-durum-label{font-size:11.5px;color:var(--ink-faint);}
-  .gb-durum-val{font-family:var(--font-figures);font-size:14.5px;font-weight:700;color:var(--ink);margin-top:1px;}
-  .gb-durum-delta{font-size:10.5px;font-weight:700;display:inline-flex;align-items:center;gap:2px;flex-shrink:0;}
-  .gb-durum-delta.up{color:var(--success);}
-  .gb-durum-delta.down{color:var(--danger);}
-  .gb-mini-chart-wrap{margin-top:10px;padding-top:12px;border-top:1px solid var(--line-soft);}
+  .gb-durum-text{min-width:0;flex:1;overflow:hidden;}
+  .gb-durum-label{font-size:12px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .gb-durum-val{font-family:var(--font-figures);font-size:18px;font-weight:700;color:var(--ink);margin-top:2px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+  .gb-realizasyon-card{
+    margin-top:14px;border-radius:16px;padding:22px 20px;
+    background:var(--navy);border:1px solid var(--accent);
+    display:flex;align-items:center;gap:20px;position:relative;overflow:hidden;
+  }
+  .gb-realizasyon-dots{position:absolute;top:14px;right:16px;width:70px;height:50px;opacity:.5;pointer-events:none;}
+  .gb-realizasyon-ring{position:relative;width:96px;height:96px;flex-shrink:0;}
+  .gb-realizasyon-ring svg{width:100%;height:100%;transform:rotate(-90deg);}
+  .gb-realizasyon-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+  .gb-realizasyon-ring-pct{font-family:var(--font-figures);font-size:19px;font-weight:800;color:#F0DCA6;line-height:1.1;}
+  .gb-realizasyon-ring-lbl{font-size:8.5px;color:rgba(255,255,255,.6);font-weight:700;margin-top:2px;line-height:1.25;text-align:center;}
+  .gb-realizasyon-info{min-width:0;flex:1;}
+  .gb-realizasyon-label{font-size:11.5px;font-weight:700;color:rgba(255,255,255,.65);letter-spacing:.06em;text-transform:uppercase;}
+  .gb-realizasyon-value{font-family:var(--font-figures);font-size:28px;font-weight:800;color:#F0DCA6;margin-top:5px;line-height:1.1;}
+  .gb-realizasyon-bar{height:3px;border-radius:3px;background:rgba(255,255,255,.14);margin-top:14px;overflow:hidden;}
+  .gb-realizasyon-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#8A6D1F,#F0DCA6);}
+  @media(max-width:420px){
+    .gb-realizasyon-card{flex-direction:column;align-items:flex-start;gap:16px;}
+  }
 
   .gb-aktivite-list{display:flex;flex-direction:column;gap:14px;}
   .gb-aktivite-row{display:flex;align-items:flex-start;gap:10px;}
@@ -1475,7 +1498,6 @@
 
         <button class="sb-link sb-parent open" id="sbbtn-cariDetay" type="button" aria-expanded="true" aria-controls="sbSubCariDetay"><i class="fa-solid fa-file-invoice sb-ic" aria-hidden="true"></i> Cari Detay <span class="sb-arrow">▾</span></button>
         <div class="sb-submenu open" id="sbSubCariDetay">
-          <button class="sb-link sb-nav-link" id="sbbtn-genel" data-view="genel" type="button"><i class="fa-solid fa-chart-column sb-ic" aria-hidden="true"></i> Genel Rapor</button>
           <button class="sb-link sb-nav-link" id="sbbtn-yaslandirma" data-view="yaslandirma" type="button"><i class="fa-solid fa-clock sb-ic" aria-hidden="true"></i> Yaşlandırma Raporu</button>
         </div>
 
@@ -1513,13 +1535,6 @@
           <div class="app-header-breadcrumb" id="gbSubeWrap"><span id="gbSubeAdi">Keşan</span><span class="gb-sep">|</span><span>Efes Pilsen Bayi</span></div>
         </div>
       </div>
-      <div class="app-header-user">
-        <div class="app-header-user-avatar" id="sbUserAvatar">AC</div>
-        <div class="app-header-user-info">
-          <div class="app-header-user-name" id="sbUserName">Berat Çağlar CAN</div>
-          <div class="app-header-user-role">Yönetici</div>
-        </div>
-      </div>
       <div class="app-topbar-actions">
         <span class="pill" id="statusPillMain"><i class="fa-solid fa-cloud" aria-hidden="true"></i><span id="statusPillMainMsg">Veri bekleniyor</span></span>
         <button class="icon-btn" id="sbSyncBtn" style="display:none;" title="Diğer Cihazdan Güncelle" aria-label="Diğer Cihazdan Güncelle"><i class="fa-solid fa-arrow-rotate-right" aria-hidden="true"></i></button>
@@ -1543,9 +1558,6 @@
         <div class="gb-main-col">
 
           <div class="panel" id="gbMusteriPanel">
-            <div class="panel-head">
-              <div><h2>Müşteri Bazlı Cari Özet</h2><span class="count" id="gbMusteriCount"></span></div>
-            </div>
             <div class="panel-body">
               <div class="toolbar" style="margin-bottom:16px;">
                 <div class="search-box">
@@ -1578,7 +1590,7 @@
               </div>
 
               <div class="gb-section-head">
-                <h3>En Yüksek Borçlu Müşteriler</h3>
+                <h3>Nokta Detay <span class="count" id="gbMusteriCount"></span></h3>
                 <div class="gb-risk-chip-filters" id="gbRiskChipFilters">
                   <button type="button" class="gb-chip active" data-risk="all">Tümü</button>
                   <button type="button" class="gb-chip" data-risk="yuksek"><i class="fa-solid fa-circle" aria-hidden="true"></i> Yüksek Risk</button>
@@ -1599,19 +1611,14 @@
 
         <div class="gb-side-col">
           <div class="panel gb-side-panel">
-            <div class="panel-head"><h2>Hızlı İşlemler</h2></div>
-            <div class="panel-body gb-quick-actions">
-              <button type="button" class="gb-quick-btn" data-view="sevk"><span class="gb-quick-ic"><i class="fa-solid fa-truck" aria-hidden="true"></i></span><span><span class="gb-quick-title">Sevk Raporu</span><span class="gb-quick-sub">Sevkiyat durumlarını görüntüle</span></span></button>
-              <button type="button" class="gb-quick-btn" data-action="tahsilat-ekle"><span class="gb-quick-ic"><i class="fa-solid fa-circle-plus" aria-hidden="true"></i></span><span><span class="gb-quick-title">Tahsilat Ekle</span><span class="gb-quick-sub">Tahsilat kaydı oluştur</span></span></button>
-              <button type="button" class="gb-quick-btn" data-view="faturaKontrol"><span class="gb-quick-ic"><i class="fa-solid fa-file-circle-check" aria-hidden="true"></i></span><span><span class="gb-quick-title">Fatura Kontrol</span><span class="gb-quick-sub">Faturaları kontrol et</span></span></button>
-              <button type="button" class="gb-quick-btn" data-view="sellOut"><span class="gb-quick-ic"><i class="fa-solid fa-chart-line" aria-hidden="true"></i></span><span><span class="gb-quick-title">Sell Out Raporu</span><span class="gb-quick-sub">Satış raporlarını incele</span></span></button>
+            <div class="panel-head gb-durum-panel-head">
+              <h2>Güncel Durum</h2>
+              <button type="button" class="gb-durum-sellout-btn" id="gbDurumSellOutBtn"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> SellOut</button>
             </div>
-          </div>
-
-          <div class="panel gb-side-panel">
-            <div class="panel-head"><h2>Güncel Durum</h2></div>
-            <div class="panel-body gb-durum-list" id="gbDurumList"></div>
-            <div class="gb-mini-chart-wrap"><div id="gbMiniTahsilatChart"></div></div>
+            <div class="panel-body">
+              <div class="gb-durum-list" id="gbDurumList"></div>
+              <div class="gb-realizasyon-card" id="gbRealizasyonCard"></div>
+            </div>
           </div>
 
           <div class="panel gb-side-panel">
@@ -1639,7 +1646,6 @@
     </div>
 
     <div class="tab-dropdown-menu" id="cariDetayDropdownMenu" role="menu" aria-hidden="true" aria-labelledby="tabbtn-cariDetay">
-      <button class="tab-btn dropdown-item active" id="tabbtn-genel" data-view="genel" type="button" role="tab" aria-selected="true" aria-controls="genelView"><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Genel Rapor</button>
       <button class="tab-btn dropdown-item" id="tabbtn-yaslandirma" data-view="yaslandirma" type="button" role="tab" aria-selected="false" aria-controls="yaslandirmaView"><i class="fa-solid fa-clock" aria-hidden="true"></i> Yaşlandırma Raporu</button>
     </div>
 
@@ -1711,7 +1717,7 @@
       </div>
     </div>
 
-    <div id="genelView" style="display:none;" role="tabpanel" aria-labelledby="tabbtn-genel">
+    <div id="genelView" style="display:none;" role="tabpanel">
 
     <div id="kpiGrid"></div>
 
@@ -2898,7 +2904,7 @@ const state = {
   yaslandirmaGosterilen: 30,
   hukukiGosterilen: 25,
   ticariStokGosterilen: 20,
-  gbGosterilen: 8,
+  gbGosterilen: 16,
   gbRiskFiltre: 'all',
 };
 
@@ -4646,11 +4652,11 @@ async function resetAll(){
   document.getElementById('sevkVadeMinInput').value = '';
   document.getElementById('sevkVadeMaxInput').value = '';
   document.querySelectorAll('.tab-btn').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
-  const genelTab = document.querySelector('.tab-btn[data-view="genel"]');
-  if(genelTab){ genelTab.classList.add('active'); genelTab.setAttribute('aria-selected','true'); }
-  const cariDetayTab = document.getElementById('tabbtn-cariDetay');
-  if(cariDetayTab) cariDetayTab.classList.add('active');
-  document.getElementById('genelView').style.display='block';
+  document.querySelectorAll('.sb-nav-link').forEach(b=> b.classList.remove('active'));
+  const genelBakisTab = document.getElementById('sbbtn-genelBakis');
+  if(genelBakisTab) genelBakisTab.classList.add('active');
+  document.getElementById('genelBakisView').style.display='block';
+  document.getElementById('genelView').style.display='none';
   document.getElementById('sevkView').style.display='none';
   document.getElementById('yuklemeView').style.display='none';
   document.getElementById('yaslandirmaView').style.display='none';
@@ -5351,10 +5357,7 @@ function renderGenelBakisView(report){
     banner.style.display = 'flex';
     document.getElementById('gbDikkatBannerCount').textContent = riskliSayisi.toLocaleString('tr-TR') + ' ';
     document.getElementById('gbDikkatEsikBanner').textContent = VADE_RISK_ESIGI;
-    banner.onclick = ()=>{
-      setActiveView('genel');
-      document.getElementById('dikkatBanner')?.click();
-    };
+    banner.onclick = openDikkatModal;
   } else {
     banner.style.display = 'none';
   }
@@ -5455,7 +5458,7 @@ function renderGbMusteriGrid(report){
 
   document.getElementById('gbMusteriCount').textContent = rows.length.toLocaleString('tr-TR') + ' müşteri';
 
-  const gosterilecekSayi = Math.min(state.gbGosterilen || 8, rows.length);
+  const gosterilecekSayi = Math.min(state.gbGosterilen || 16, rows.length);
   const gosterilecekRows = rows.slice(0, gosterilecekSayi);
   const grid = document.getElementById('gbMusteriGrid');
 
@@ -5467,6 +5470,7 @@ function renderGbMusteriGrid(report){
 
   const hakedisKodlari = bayiHakedisliMusteriKodlari();
   grid.innerHTML = gosterilecekRows.map(m=>{
+    state.faturaModalYedekMap.set(m.musteri, m);
     const risk = hukukiRiskSeviyesi(m.avgVadeGun);
     const vadeRenk = ortVadeRenk(m.avgVadeGun);
     return `<div class="htk-card" data-musteri="${escapeHtml(m.musteri)}" style="--htk-risk:${risk.renk};--htk-risk-bg:${risk.bg};">
@@ -5493,7 +5497,7 @@ function renderGbMusteriGrid(report){
       <div class="htk-alt">
         <span class="htk-ceksenet">Çek/Senet: ${TL(m.cekSenet||0)}</span>
         <div class="htk-alt-actions">
-          <button type="button" class="btn small gb-senet-btn" data-musteri="${escapeHtml(m.musteri)}"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Senet</button>
+          <button type="button" class="btn small gb-senet-btn" data-musteri="${escapeHtml(m.musteri)}" data-musteri-adi="${escapeHtml(m.musteriAdi)}" data-tutar="${m.siparisTutari||0}" data-emanet="${m.emanetSiparis||0}" data-kalan-borc="${m.kalanBorc||0}"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Senet</button>
           <button type="button" class="nokta-detay-btn primary gb-detay-btn" data-musteri="${escapeHtml(m.musteri)}" data-musteri-adi="${escapeHtml(m.musteriAdi)}">Detay ↗</button>
         </div>
       </div>
@@ -5510,26 +5514,24 @@ function renderGbMusteriGrid(report){
     btn.addEventListener('click', ()=>{
       const musteriKod = btn.getAttribute('data-musteri');
       const musteriAdi = btn.getAttribute('data-musteri-adi');
-      setActiveView('genel');
-      document.getElementById('searchInput').value = musteriAdi;
-      updateSearchClearBtn();
-      renderMusteriTable(state.report);
-      const detayBtn = document.querySelector(`.fatura-detay-btn[data-musteri-kod="${cssEscapeYerel(musteriKod)}"]`);
-      if(detayBtn) detayBtn.click();
+      faturaModalAc(musteriKod, musteriAdi);
     });
   });
   grid.querySelectorAll('.gb-senet-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const musteriKod = btn.getAttribute('data-musteri');
-      const senetBtn = document.querySelector(`.senet-yazdir-btn[data-musteri="${cssEscapeYerel(musteriKod)}"]`);
-      if(senetBtn){ setActiveView('genel'); senetBtn.click(); }
+      const musteriAdi = btn.getAttribute('data-musteri-adi');
+      const tutar = Number(btn.getAttribute('data-tutar'))||0;
+      const emanet = Number(btn.getAttribute('data-emanet'))||0;
+      const kalanBorc = Number(btn.getAttribute('data-kalan-borc'))||0;
+      senetModalAc(musteriKod, musteriAdi, tutar, emanet, kalanBorc);
     });
   });
 }
 
 document.getElementById('gbSearchInput')?.addEventListener('input', debounce(()=>{
   updateGbSearchClearBtn();
-  state.gbGosterilen = 8;
+  state.gbGosterilen = 16;
   if(state.report) renderGbMusteriGrid(state.report);
 }, 180));
 function updateGbSearchClearBtn(){
@@ -5541,49 +5543,82 @@ document.getElementById('gbSearchClearBtn')?.addEventListener('click', ()=>{
   updateGbSearchClearBtn();
   if(state.report) renderGbMusteriGrid(state.report);
 });
-document.getElementById('gbTemsilciFilter')?.addEventListener('change', ()=>{ state.gbGosterilen=8; if(state.report) renderGbMusteriGrid(state.report); });
-document.getElementById('gbSortSelect')?.addEventListener('change', ()=>{ state.gbGosterilen=8; if(state.report) renderGbMusteriGrid(state.report); });
+document.getElementById('gbTemsilciFilter')?.addEventListener('change', ()=>{ state.gbGosterilen=16; if(state.report) renderGbMusteriGrid(state.report); });
+document.getElementById('gbSortSelect')?.addEventListener('change', ()=>{ state.gbGosterilen=16; if(state.report) renderGbMusteriGrid(state.report); });
 document.getElementById('gbDahaFazlaBtn')?.addEventListener('click', ()=>{
-  state.gbGosterilen = (state.gbGosterilen||8) + 12;
+  state.gbGosterilen = (state.gbGosterilen||16) + 16;
   if(state.report) renderGbMusteriGrid(state.report);
 });
-document.getElementById('gbTumunuGorBtn')?.addEventListener('click', ()=> setActiveView('genel'));
+document.getElementById('gbTumunuGorBtn')?.addEventListener('click', ()=>{
+  state.gbGosterilen = 100000;
+  if(state.report) renderGbMusteriGrid(state.report);
+  document.getElementById('gbMusteriPanel')?.scrollIntoView({behavior:'smooth', block:'start'});
+});
+document.getElementById('gbDurumSellOutBtn')?.addEventListener('click', ()=> setActiveView('sellOut'));
 document.querySelectorAll('#gbRiskChipFilters .gb-chip').forEach(chip=>{
   chip.addEventListener('click', ()=>{
     document.querySelectorAll('#gbRiskChipFilters .gb-chip').forEach(c=>c.classList.remove('active'));
     chip.classList.add('active');
     state.gbRiskFiltre = chip.getAttribute('data-risk');
-    state.gbGosterilen = 8;
+    state.gbGosterilen = 16;
     if(state.report) renderGbMusteriGrid(state.report);
   });
 });
-document.querySelectorAll('.gb-quick-btn[data-view]').forEach(btn=>{
-  btn.addEventListener('click', ()=> setActiveView(btn.getAttribute('data-view')));
-});
-document.querySelector('.gb-quick-btn[data-action="tahsilat-ekle"]')?.addEventListener('click', ()=>{
-  setActiveView('yukleme');
-});
+
+// İnce, yuvarlak uçlu tek-renk "gerçekleşme" halkası (görseldeki Toplam Litre kartındaki gibi).
+function gbRealizasyonRingSvg(oran){
+  const size = 96, stroke = 9;
+  const r = (size - stroke) / 2;
+  const c = size/2;
+  const circ = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(1, (oran||0)/100));
+  const len = pct * circ;
+  return `<svg viewBox="0 0 ${size} ${size}">
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="${stroke}"/>
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#F0DCA6" stroke-width="${stroke}"
+      stroke-dasharray="${len.toFixed(2)} ${(circ-len).toFixed(2)}" stroke-linecap="round"/>
+  </svg>`;
+}
 
 // ---- Sağ panel: Güncel Durum + Son Aktiviteler (gerçek veriden özet) ----
 function renderGbSidePanels(report){
-  const musteriler = gbTumMusteriler(report);
-  const aktifMusteri = musteriler.filter(m=>(m.kalanBorc||0)>0 || (m.siparisTutari||0)>0).length;
-  const riskliSayisi = report.musteriler.filter(isRiskliMusteri).length;
-  const bekleyenTahsilat = musteriler.filter(m=>(m.siparisTutari||0)>0 && (m.alinanTahsilat||0)===0).length;
+  // Açık/Kapalı Kanal litre verileri Sell Out Raporu'ndan gelir — Sell Out Raporu'nun kendi üst
+  // KPI şeridiyle AYNI ortak fonksiyon (sellOutKanalOzeti) kullanılır, ayrı bir hesap yapılmaz.
+  const sellOutRaw = state.sellOutReport;
+  const sellOutProcessed = sellOutRaw ? applySellOutHedef(sellOutRaw, state.sellOutHedef) : null;
+  const {toplamAcikLitre, toplamKapaliLitre, acikKalan, kapaliKalan, gerceklesmeOrani, toplamLitre} = sellOutKanalOzeti(sellOutProcessed);
+  const gerceklesmeOraniGosterim = gerceklesmeOrani!=null ? gerceklesmeOrani : 0;
 
   const durumRows = [
-    {ic:'fa-users', cls:'navy', label:'Aktif Müşteri', val: aktifMusteri.toLocaleString('tr-TR')},
-    {ic:'fa-triangle-exclamation', cls:'danger', label:'Vadesi Geçmiş', val: riskliSayisi.toLocaleString('tr-TR')},
-    {ic:'fa-clock', cls:'warn', label:'Bekleyen Tahsilat', val: bekleyenTahsilat.toLocaleString('tr-TR')},
+    {ic:'fa-box', cls:'navy', label:'Toplam Açık Kanal LT', val: LT(toplamAcikLitre)},
+    {ic:'fa-box', cls:'warn', label:'Toplam Kapalı Kanal LT', val: LT(toplamKapaliLitre)},
+    {ic:'fa-store', cls:'success', label:'Açık Kanal Kalan Litre', val: LT(acikKalan)},
+    {ic:'fa-users', cls:'danger', label:'Kapalı Kanal Kalan Litre', val: LT(kapaliKalan)},
   ];
   document.getElementById('gbDurumList').innerHTML = durumRows.map(r=>`
-    <div class="gb-durum-row">
+    <div class="gb-durum-row ${r.cls}">
       <div class="gb-durum-ic ${r.cls}"><i class="fa-solid ${r.ic}" aria-hidden="true"></i></div>
       <div class="gb-durum-text"><div class="gb-durum-label">${r.label}</div><div class="gb-durum-val">${r.val}</div></div>
     </div>`).join('');
 
-  document.getElementById('gbMiniTahsilatChart').innerHTML = gbSparkline('tahsilat-mini-'+aktifMusteri, 'var(--navy)').replace('width="64" height="22"','width="100%" height="46" preserveAspectRatio="none"');
+  document.getElementById('gbRealizasyonCard').innerHTML = `
+    <svg class="gb-realizasyon-dots" viewBox="0 0 70 50" aria-hidden="true">
+      ${Array.from({length:24}).map((_,i)=>`<circle cx="${(i%8)*9+3}" cy="${Math.floor(i/8)*16+5}" r="1.4" fill="#F0DCA6" opacity="${0.15+((i%3)*0.12)}"/>`).join('')}
+    </svg>
+    <div class="gb-realizasyon-ring">
+      ${gbRealizasyonRingSvg(gerceklesmeOraniGosterim)}
+      <div class="gb-realizasyon-ring-center">
+        <div class="gb-realizasyon-ring-pct">${gerceklesmeOraniGosterim.toFixed(0)}%</div>
+        <div class="gb-realizasyon-ring-lbl">Gerçekleşme<br>Oranı</div>
+      </div>
+    </div>
+    <div class="gb-realizasyon-info">
+      <div class="gb-realizasyon-label">Toplam Litre</div>
+      <div class="gb-realizasyon-value">${Math.round(toplamLitre).toLocaleString('tr-TR')} L</div>
+      <div class="gb-realizasyon-bar"><div class="gb-realizasyon-bar-fill" style="width:${Math.max(gerceklesmeOraniGosterim,3).toFixed(1)}%;"></div></div>
+    </div>`;
 
+  const riskliSayisi = report.musteriler.filter(isRiskliMusteri).length;
   document.getElementById('gbAktiviteList').innerHTML = `
     <div class="gb-aktivite-row">
       <div class="gb-aktivite-ic navy"><i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i></div>
@@ -10602,6 +10637,27 @@ function renderSellOutTrendCharts(gunlukTrendTam){
     </div>`;
 }
 
+// Açık/Kapalı Kanal LT özeti — hem Sell Out Raporu'nun kendi üst KPI şeridi hem Genel Bakış'ın
+// "Güncel Durum" kartı bu TEK fonksiyonu çağırır; böylece iki yerde ayrı hesap yapılıp
+// aralarında tutarsızlık (farklı formül/eksik hedef verisi vb.) oluşma riski kalmaz.
+// NOT: `report` zaten applySellOutHedef uygulanmış (acikHedef/kapaliHedef dolu) olmalı —
+// bu fonksiyon sadece o veriden özet çıkarır, hedef eşlemesini kendisi yapmaz (arşiv
+// görüntülemede hedefler arşivleme anındaki değerle donmuş kalmalı, güncel hedefle ezilmemeli).
+function sellOutKanalOzeti(report){
+  if(!report || !Array.isArray(report.temsilciler)){
+    return {toplamAcikLitre:0, toplamKapaliLitre:0, acikKalan:0, kapaliKalan:0, gerceklesmeOrani:null, toplamLitre:0};
+  }
+  const toplamAcikLitre = report.temsilciler.reduce((a,t)=>a+t.acikLitre,0);
+  const toplamKapaliLitre = report.temsilciler.reduce((a,t)=>a+t.kapaliLitre,0);
+  const toplamAcikHedef = report.temsilciler.reduce((a,t)=>a+t.acikHedef,0);
+  const toplamKapaliHedef = report.temsilciler.reduce((a,t)=>a+t.kapaliHedef,0);
+  const acikKalan = Math.max(0, toplamAcikHedef - toplamAcikLitre);
+  const kapaliKalan = Math.max(0, toplamKapaliHedef - toplamKapaliLitre);
+  const toplamHedef = toplamAcikHedef + toplamKapaliHedef;
+  const gerceklesmeOrani = toplamHedef>0 ? ((toplamAcikLitre+toplamKapaliLitre)/toplamHedef*100) : null;
+  return {toplamAcikLitre, toplamKapaliLitre, acikKalan, kapaliKalan, gerceklesmeOrani, toplamLitre: report.toplamLitre||0};
+}
+
 async function renderSellOutView(){
   const bosPanel = document.getElementById('sellOutBosPanel');
   const icerik = document.getElementById('sellOutIcerik');
@@ -10650,14 +10706,8 @@ async function renderSellOutView(){
     alertEl.innerHTML = '';
   }
 
-  const toplamAcikLitreGenel = report.temsilciler.reduce((a,t)=>a+t.acikLitre,0);
-  const toplamKapaliLitreGenel = report.temsilciler.reduce((a,t)=>a+t.kapaliLitre,0);
-  const toplamAcikHedefGenel = report.temsilciler.reduce((a,t)=>a+t.acikHedef,0);
-  const toplamKapaliHedefGenel = report.temsilciler.reduce((a,t)=>a+t.kapaliHedef,0);
-  const acikKalanGenel = Math.max(0, toplamAcikHedefGenel - toplamAcikLitreGenel);
-  const kapaliKalanGenel = Math.max(0, toplamKapaliHedefGenel - toplamKapaliLitreGenel);
-  const toplamHedefGenelHero = toplamAcikHedefGenel + toplamKapaliHedefGenel;
-  const genelGerceklesmeOraniHero = toplamHedefGenelHero>0 ? ((toplamAcikLitreGenel+toplamKapaliLitreGenel)/toplamHedefGenelHero*100) : null;
+  const kanalOzeti = sellOutKanalOzeti(report);
+  const {toplamAcikLitre: toplamAcikLitreGenel, toplamKapaliLitre: toplamKapaliLitreGenel, acikKalan: acikKalanGenel, kapaliKalan: kapaliKalanGenel, gerceklesmeOrani: genelGerceklesmeOraniHero} = kanalOzeti;
 
   const items = [
     {label:'Gerçekleşme Oranı', icon:'<i class="fa-solid fa-bullseye" aria-hidden="true"></i>', value:null, display: genelGerceklesmeOraniHero!=null?fmtYuzde(genelGerceklesmeOraniHero):'—', sub: `<span style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;"><span style="font-size:9.5px;font-weight:700;letter-spacing:.04em;opacity:.8;">Toplam Litre</span><span style="font-family:var(--font-figures);font-size:19px;font-weight:800;line-height:1.15;">${Math.round(report.toplamLitre).toLocaleString('tr-TR')} L</span></span>`},
