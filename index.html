@@ -404,6 +404,7 @@
   #cekSenetModalOverlay{z-index:1020;}
   #hakedisModalOverlay{z-index:1020;}
   #analizModalOverlay{z-index:1020;}
+  #tahsilatTahminiModalOverlay{z-index:1020;}
   .modal{
     background:var(--surface);border-radius:14px;box-shadow:0 24px 60px -12px rgba(24,34,51,0.35);
     width:100%;max-width:920px;max-height:86vh;display:flex;flex-direction:column;overflow:hidden;
@@ -2178,6 +2179,7 @@
           <div class="modal-head-navy-pill-row" style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <div class="modal-head-navy-pill" id="faturaModalSub" style="margin-top:0;"></div>
             <button type="button" class="modal-head-navy-analiz-btn" id="faturaModalAnalizBtn">📊 Analiz</button>
+            <button type="button" class="modal-head-navy-analiz-btn" id="faturaModalTahsilatTahminiBtn">📈 Tahsilat Tahmini</button>
             <button type="button" class="modal-head-navy-analiz-btn" id="faturaModalCekSenetBtn" style="display:none;">📄 Çek/Senet</button>
             <button type="button" class="modal-head-navy-analiz-btn" id="faturaModalHakedisBtn" style="display:none;">🏷️ Hakediş</button>
           </div>
@@ -2227,6 +2229,24 @@
               <tbody id="cekSenetModalTbody"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="tahsilatTahminiModalOverlay">
+      <div class="modal" id="tahsilatTahminiModal" role="dialog" aria-modal="true" aria-labelledby="tahsilatTahminiModalTitle" style="max-width:420px;">
+        <div class="panel-head modal-head-navy">
+          <div class="modal-head-navy-top">
+            <div class="modal-head-navy-avatar" id="tahsilatTahminiModalAvatar"></div>
+            <div style="min-width:0;">
+              <div class="modal-head-navy-name" id="tahsilatTahminiModalTitle"></div>
+              <div class="modal-head-navy-sub">Tahsilat Tahmini</div>
+            </div>
+          </div>
+          <button class="modal-close" id="tahsilatTahminiModalClose" type="button" aria-label="Kapat">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="tahsilatTahminiModalBody" style="padding:18px 20px 20px;"></div>
         </div>
       </div>
     </div>
@@ -5588,6 +5608,110 @@ function cekSenetModalKapat(){
 document.getElementById('cekSenetModalClose').addEventListener('click', cekSenetModalKapat);
 document.getElementById('cekSenetModalOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='cekSenetModalOverlay') cekSenetModalKapat();
+});
+
+async function tahsilatTahminiModalAc(musteriKod, musteriAdi){
+  document.getElementById('tahsilatTahminiModalAvatar').textContent = avatarBaslangic(musteriAdi);
+  document.getElementById('tahsilatTahminiModalTitle').textContent = musteriAdi||'';
+  const body = document.getElementById('tahsilatTahminiModalBody');
+  body.innerHTML = `<div class="empty-state">Yükleniyor…</div>`;
+  document.getElementById('tahsilatTahminiModalOverlay').classList.add('open');
+
+  const kod = String(musteriKod||'').trim();
+  const report = state.report;
+  const m = (report && report.musteriler ? report.musteriler.find(x=>String(x.musteri||'').trim()===kod) : null)
+    || state.faturaModalYedekMap.get(kod) || null;
+  const kalanBorc = (m && m.kalanBorc) || 0;
+  // DÜZELTME (2. tur): Bu popup üç farklı görünümden açılabiliyor — Fatura Kontrol (tarihe özgü
+  // "seciliSiparis" alanı), ve Müşteri Bazlı Cari Özet / Sevk Kontrol (genel açık sipariş tutarı,
+  // "siparisTutari" alanı). state.faturaModalYedekMap, hangi görünüm en son render edildiyse onun
+  // satırını taşıyor. "seciliSiparis" anahtarı GERÇEKTEN varsa (Fatura Kontrol'den geldiyse, değeri
+  // 0 olsa bile) onu kullan; yoksa (Cari Özet/Sevk'ten geldiyse) genel siparisTutari alanına düş.
+  const yedekSatir = state.faturaModalYedekMap.get(kod);
+  const siparisTutari = (yedekSatir && typeof yedekSatir.seciliSiparis === 'number')
+    ? yedekSatir.seciliSiparis
+    : ((m && m.siparisTutari) || (yedekSatir && yedekSatir.siparisTutari) || 0);
+  const toplam = kalanBorc + siparisTutari;
+
+  let ozet = null;
+  try{ ozet = await computeMusteriAylikOzet(kod); }catch(err){ console.error('Tahsilat tahmini hesaplanırken hata:', err); }
+  const gunlukHiz = (ozet && ozet.aylikTahsilat>0) ? (ozet.aylikTahsilat/30) : null;
+
+  // Üstteki Kalan Borç / Sipariş / Toplam özeti + (varsa) tahmini tahsil rozeti + manuel "anlık tahsilat ekle" alanı.
+  // Not: girilen "anlık tahsilat" hiçbir arşive/kayda YAZILMAZ — sadece bu popup açıkken yaşayan,
+  // sunucuya gönderilmeyen geçici bir senaryo hesabıdır. Hesap her zaman BUGÜNDEN itibaren sayılır.
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+      <div><div style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">Kalan borç</div><div style="font-weight:700;font-size:14px;color:var(--ink);">${TL(kalanBorc)}</div></div>
+      <div><div style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">Sipariş</div><div style="font-weight:700;font-size:14px;color:var(--ink);">${TL(siparisTutari)}</div></div>
+      <div><div style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">Toplam</div><div style="font-weight:700;font-size:14px;color:var(--ink);">${TL(toplam)}</div></div>
+    </div>
+    <div style="font-size:11px;color:var(--ink-faint);margin-bottom:16px;">Aylık ortalama tahsilat (arşivden, sabit): ${ozet ? TL(ozet.aylikTahsilat) : '—'}</div>
+    <div style="height:1px;background:var(--line-soft);margin:0 0 16px;"></div>
+    <div id="ttSonucAlani"></div>
+    <div style="height:1px;background:var(--line-soft);margin:18px 0;"></div>
+    <label style="font-size:13px;color:var(--ink-soft);display:block;margin-bottom:8px;">Teslimde alınacak tahsilat</label>
+    <div style="display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">
+      <span style="display:flex;align-items:center;padding:0 4px 0 12px;font-size:13px;color:var(--ink-faint);background:var(--surface);">₺</span>
+      <input id="ttAnlikTahsilat" type="number" placeholder="0" style="width:130px;border:none;box-shadow:none;padding:0 8px;" />
+      <button id="ttEkleBtn" aria-label="Ekle" style="width:38px;border:none;border-left:1px solid var(--line);background:var(--accent-soft);color:var(--accent-deep);display:flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:0;font-size:16px;cursor:pointer;">+</button>
+    </div>
+    <div id="ttNot" style="font-size:11px;color:var(--ink-faint);margin-top:8px;display:none;"></div>
+    <button type="button" id="ttSifirlaBtn" class="btn small" style="margin-top:8px;display:none;">↺ Temel hesaba dön</button>
+  `;
+
+  const sonucAlani = document.getElementById('ttSonucAlani');
+  const notEl = document.getElementById('ttNot');
+  const sifirlaBtn = document.getElementById('ttSifirlaBtn');
+
+  function tahminGoster(kalanTutar){
+    if(gunlukHiz==null){
+      sonucAlani.innerHTML = `<div style="font-size:12px;color:var(--ink-faint);">Bu müşteri için tahsilat geçmişi bulunamadığından tahmin hesaplanamıyor.</div>`;
+      return;
+    }
+    const gun = Math.max(0, Math.round(kalanTutar / gunlukHiz));
+    const tarih = new Date(); tarih.setDate(tarih.getDate() + gun);
+    // Gün rozeti, "ORT VADE"/"DÖNÜŞ" rozetleriyle AYNI dil ve renk skalasıyla (donusRenk) gösterilir:
+    // kısa süre mavi/yeşil, uzun süre turuncu/kırmızı.
+    const renk = donusRenk(gun);
+    sonucAlani.innerHTML = `
+      <div style="font-size:10.5px;font-weight:700;letter-spacing:.03em;color:var(--ink-soft);margin-bottom:7px;">TAHMİNİ TAHSİL TARİHİ</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <span style="font-size:17px;font-weight:700;color:var(--ink);">${fmtDate(tarih)}</span>
+        <span class="htk-badge-pill" style="background:${renk.soft};color:${renk.renk};">
+          <span class="htk-badge-circle" style="background:${renk.renk};">${gun.toLocaleString('tr-TR')}</span>GÜN SONRA
+        </span>
+      </div>`;
+  }
+  tahminGoster(toplam);
+
+  document.getElementById('ttEkleBtn').addEventListener('click', ()=>{
+    const eklenen = parseFloat(document.getElementById('ttAnlikTahsilat').value) || 0;
+    if(eklenen<=0) return;
+    const kalan = Math.max(0, toplam - eklenen);
+    tahminGoster(kalan);
+    notEl.style.display = 'block';
+    notEl.textContent = `${TL(eklenen)} tahsilat eklendi — bu değer kaydedilmez, sadece bu senaryo için geçerlidir.`;
+    sifirlaBtn.style.display = 'inline-flex';
+  });
+  sifirlaBtn.addEventListener('click', ()=>{
+    document.getElementById('ttAnlikTahsilat').value = '';
+    tahminGoster(toplam);
+    notEl.style.display = 'none';
+    sifirlaBtn.style.display = 'none';
+  });
+}
+function tahsilatTahminiModalKapat(){
+  document.getElementById('tahsilatTahminiModalOverlay').classList.remove('open');
+}
+document.getElementById('tahsilatTahminiModalClose').addEventListener('click', tahsilatTahminiModalKapat);
+document.getElementById('tahsilatTahminiModalOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='tahsilatTahminiModalOverlay') tahsilatTahminiModalKapat();
+});
+document.getElementById('faturaModalTahsilatTahminiBtn').addEventListener('click', ()=>{
+  const mevcut = state.faturaModalMevcut;
+  if(!mevcut) return;
+  tahsilatTahminiModalAc(mevcut.kod, mevcut.adi);
 });
 
 async function analizModalAc(musteriKod, musteriAdi){
