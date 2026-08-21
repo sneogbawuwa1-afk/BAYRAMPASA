@@ -1,1757 +1,1440 @@
-/* ============================== GENEL BAKIŞ (DASHBOARD) ============================== */
+'use strict';
 
-// Genel Bakış'taki risk sınıflandırması: ortalama vadeye göre 3 kademe (düşük/orta/yüksek).
-// Hukuki Takip'teki (90/180 gün) eşiklerden farklı — burada amaç günlük operasyonel bir özet.
-function gbRiskSeviyesi(m){
-  const g = Number(m.avgVadeGun)||0;
-  if(m.cekSenet>0 && g>30) return 'yuksek';
-  if(g>=45) return 'yuksek';
-  if(g>=15) return 'orta';
-  return 'dusuk';
-}
-const GB_RISK_META = {
-  yuksek: {label:'Yüksek Risk', renk:'var(--danger)'},
-  orta:   {label:'Orta Risk',   renk:'var(--warn)'},
-  dusuk:  {label:'Düşük Risk',  renk:'var(--success)'},
-};
+let aktifGrup = 'tumu';
+let aktifDurum = 'tumu';
+let aktifKaynak = 'tumu';
+let aramaMetni = '';
+let siralamaAlani = 'faturaTarihi';
+let siralamaYonu = 'desc';
+const SAYFA_ADIMI = 30;
+let gosterilenSatirSayisi = SAYFA_ADIMI;
+let aramaDebounceTimer = null; // ÖNERİ 7: arama kutusu debounce zamanlayıcısı
 
-function gbTumMusteriler(report){
-  // Toplam Risk'e sipariş tutarı DAHİL EDİLMEZ (kullanıcı isteği) — yalnızca çek/senet riski yazılır.
-  const bakiyesizSatirlari = (report.bakiyesiz||[]).map(b=>({
-    musteri: b.musteri, musteriAdi: b.musteriAdi, temsilci: b.temsilci,
-    kalanBorc: 0, avgVadeGun: null, siparisTutari: b.siparisTutari||0, emanetSiparis: b.emanetSiparis||0,
-    cekSenet: b.cekSenet||0, alinanTahsilat: 0, toplamRisk: (b.cekSenet||0),
-    invoices: [], __bakiyesiz: true,
-  }));
-  return report.musteriler.concat(bakiyesizSatirlari);
+function sayfayiSifirla(){
+  gosterilenSatirSayisi = SAYFA_ADIMI;
 }
 
-function gbDonutSvg(segments, sizePx){
-  // segments: [{value, color}] — basit stroke-dasharray tabanlı donut, ekstra kütüphane gerektirmez.
-  const size = sizePx || 104;
-  const stroke = 13;
-  const r = (size - stroke) / 2;
-  const c = size/2;
-  const circ = 2 * Math.PI * r;
-  const toplam = segments.reduce((s,x)=>s+(x.value||0), 0);
-  let offset = 0;
-  let arcs = '';
-  if(toplam <= 0){
-    arcs = `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="var(--line-soft)" stroke-width="${stroke}"/>`;
-  } else {
-    segments.forEach(seg=>{
-      const frac = (seg.value||0) / toplam;
-      if(frac<=0) return;
-      const len = frac * circ;
-      const gap = circ - len;
-      arcs += `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${seg.color}" stroke-width="${stroke}"
-        stroke-dasharray="${len.toFixed(2)} ${gap.toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}" stroke-linecap="butt"/>`;
-      offset += len;
-    });
-  }
-  return `<svg viewBox="0 0 ${size} ${size}" style="transform:rotate(-90deg);">${arcs}</svg>`;
-}
-
-function gbSparkline(seed, color){
-  // Gerçek geçmiş zaman serisi verisi tutulmadığından, KPI kartlarındaki mini-grafik yalnızca
-  // görsel bir trend ipucu olarak, KPI değerinden türetilmiş sabit (deterministik) bir dalga ile çizilir.
-  const w=64,h=22, pts=8;
-  let seedNum = 0;
-  String(seed).split('').forEach(ch=> seedNum += ch.charCodeAt(0));
-  const vals = [];
-  for(let i=0;i<pts;i++){
-    const n = Math.sin(seedNum*0.7 + i*1.3) * 0.5 + Math.sin(seedNum*0.31 + i*2.1)*0.5;
-    vals.push(0.5 + n*0.4);
-  }
-  const stepX = w/(pts-1);
-  const d = vals.map((v,i)=> `${i===0?'M':'L'}${(i*stepX).toFixed(1)},${(h-v*h).toFixed(1)}`).join(' ');
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-
-function renderGenelBakisView(report){
-  const view = document.getElementById('genelBakisView');
-  if(!view) return;
-  const bosPanel = document.getElementById('genelBakisBosPanel');
-  const icerik = document.getElementById('genelBakisIcerik');
-  if(!report){
-    // DÜZELTME: Fatura Kontrol bugüne ait kayıtları bulut arşivinden bağımsız gösterebildiği
-    // için, kullanıcı "veri var ama Genel Bakış boş" diye bir tutarsızlıkla karşılaşıyordu.
-    // Genel Bakış (Sevk gibi) yalnızca state.report'a (işlenmiş Kalemler'e) dayanabilir —
-    // artık sessizce boş kalmak yerine sebebi ve tek adımlı çözümü söylüyor.
-    if(bosPanel) bosPanel.style.display = 'block';
-    if(icerik) icerik.style.display = 'none';
-    return;
-  }
-  if(bosPanel) bosPanel.style.display = 'none';
-  if(icerik) icerik.style.display = 'block';
-
-  const musteriler = gbTumMusteriler(report);
-  const kpi = report.kpi || computeGenelKPI(report, '');
-
-  const toplamKalanBorc = sum(musteriler,'kalanBorc');
-  const toplamCekSenet = sum(musteriler,'cekSenet');
-  const toplamRisk = sum(musteriler,'toplamRisk');
-  const toplamTahsilat = kpi.toplamTahsilat || 0;
-  const vAgirlikli = sum(report.musteriler,'vadeAgirlikliToplam');
-  const vBorc = sum(report.musteriler,'agirlikBorc');
-  const ortalamaVade = vBorc!==0 ? Math.round(vAgirlikli/vBorc) : null;
-  const tahsilatOraniPayda = toplamTahsilat + toplamKalanBorc;
-  const tahsilatOrani = tahsilatOraniPayda>0 ? (toplamTahsilat/tahsilatOraniPayda*100) : null;
-
-  // ---- KPI kartları ----
-  const kpiDefs = [
-    {icon:'fa-coins', label:'Toplam Kalan Borç', value:TL(toplamKalanBorc), color:'var(--navy)'},
-    {icon:'fa-circle-half-stroke', label:'Ortalama Vade', value: ortalamaVade!=null ? ortalamaVade+' gün' : '—', color:'var(--accent)'},
-    {icon:'fa-triangle-exclamation', label:'Toplam Risk', value:TL(toplamRisk), color:'var(--danger)'},
-    {icon:'fa-file-signature', label:'Çek / Senet Riski', value:TL(toplamCekSenet), color:'var(--danger)'},
-    {icon:'fa-sack-dollar', label:'Alınan Tahsilat', value:TL(toplamTahsilat), color:'var(--success)'},
-    {icon:'fa-percent', label:'Tahsilat Oranı', value: tahsilatOrani!=null ? tahsilatOrani.toFixed(1).replace('.',',')+'%' : '—', color:'var(--accent)'},
-  ];
-  document.getElementById('gbKpiGrid').innerHTML = kpiDefs.map(k=>`
-    <div class="gb-kpi-card">
-      <div class="gb-kpi-top"><i class="fa-solid ${k.icon}" aria-hidden="true"></i> ${k.label}</div>
-      <div class="gb-kpi-value">${k.value}</div>
-      <div class="gb-kpi-foot">
-        <span class="gb-kpi-sub">güncel veriye göre</span>
-        <span class="gb-kpi-spark">${gbSparkline(k.label+toplamKalanBorc, k.color)}</span>
-      </div>
-    </div>`).join('');
-
-  // ---- Dikkat banner ----
-  const riskliSayisi = report.musteriler.filter(isRiskliMusteri).length;
-  const banner = document.getElementById('gbDikkatBanner');
-  if(riskliSayisi>0){
-    banner.style.display = 'flex';
-    document.getElementById('gbDikkatBannerCount').textContent = riskliSayisi.toLocaleString('tr-TR') + ' ';
-    document.getElementById('gbDikkatEsikBanner').textContent = VADE_RISK_ESIGI;
-    banner.onclick = openDikkatModal;
-    // ERİŞİLEBİLİRLİK DÜZELTMESİ: banner HTML'de role="button" + tabindex="0" taşıyor ama
-    // yalnızca click dinleniyordu — klavyeyle odaklanıp Enter/Space basan kullanıcı için modal
-    // açılmıyordu (aynı davranış Yaşlandırma'daki #dikkatBanner'da zaten mevcut, tutarlılık sağlandı).
-    banner.onkeydown = (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openDikkatModal(); } };
-  } else {
-    banner.style.display = 'none';
-  }
-
-  // ---- Vade Dağılımı donut ----
-  // Kova sınırları ve renkleri ortak AGING_BUCKETS'tan gelir (Yaşlandırma sayfasıyla birebir aynı).
-  // NOT (bilinçli tasarım farkı): Bu donut SADECE kalanBorc>0 (gerçekten açık borçlu) müşterileri
-  // kapsar — negatif bakiyeli (iade/fazla ödeme/alacaklı) müşteriler buraya hiç girmez. "Toplam
-  // Kalan Borç" KPI kartı ise TÜM müşterilerin net bakiyesini (negatifler dahil) toplar. Bu yüzden
-  // donut'un toplamı KPI'daki tutardan FARKLI (genelde daha yüksek) çıkabilir — bu bir hata değil,
-  // aradaki fark tam olarak negatif bakiyeli müşterilerin toplamı kadardır (aşağıda hesaplanıp
-  // kullanıcıya bilgi notu olarak gösterilir).
-  const vadeBuckets = AGING_BUCKETS;
-  const vadeAmounts = vadeBuckets.map(()=>0);
-  let negatifBakiyeToplam = 0;
-  musteriler.forEach(m=>{
-    if(m.kalanBorc<=0){ negatifBakiyeToplam += m.kalanBorc; return; }
-    const g = m.avgVadeGun==null ? 0 : m.avgVadeGun;
-    const idx = vadeBuckets.findIndex(b=>b.test(g));
-    if(idx>=0) vadeAmounts[idx] += m.kalanBorc;
-  });
-  const vadeToplam = vadeAmounts.reduce((a,b)=>a+b,0);
-  document.getElementById('gbVadeDonutBody').innerHTML = `
-    <div class="gb-donut-svg-wrap">
-      ${gbDonutSvg(vadeBuckets.map((b,i)=>({value:vadeAmounts[i], color:b.color})), 104)}
-      <div class="gb-donut-center">
-        <div class="gb-donut-center-lbl">Toplam</div>
-        <div class="gb-donut-center-big">${gbKisaTL(vadeToplam)}</div>
-      </div>
-    </div>
-    <div class="gb-donut-legend">
-      ${vadeBuckets.map((b,i)=>`<div class="gb-donut-legend-row"><span class="dot" style="background:${b.color}"></span>${b.label}<span class="amt">${gbKisaTL(vadeAmounts[i])} (${vadeToplam>0?(vadeAmounts[i]/vadeToplam*100).toFixed(1):'0'}%)</span></div>`).join('')}
-    </div>`;
-  const gbVadeDonutNotEl = document.getElementById('gbVadeDonutNot');
-  if(gbVadeDonutNotEl){
-    gbVadeDonutNotEl.textContent = negatifBakiyeToplam < 0
-      ? `ℹ️ Bu toplam yalnızca açık (pozitif) bakiyeli müşterileri kapsar; ${TL(Math.abs(negatifBakiyeToplam))} tutarındaki negatif bakiyeli (iade/alacaklı) müşteriler "Toplam Kalan Borç" KPI'sında var ama buraya dahil değildir — aradaki fark bundandır.`
-      : '';
-  }
-
-  // ---- Risk Dağılımı donut ----
-  const riskKeys = ['yuksek','orta','dusuk'];
-  const riskAmounts = {yuksek:0, orta:0, dusuk:0};
-  musteriler.forEach(m=>{ riskAmounts[gbRiskSeviyesi(m)] += (m.toplamRisk||0); });
-  const riskToplam = riskKeys.reduce((s,k)=>s+riskAmounts[k],0);
-  const bakinizRiskin = riskKeys.reduce((best,k)=> riskAmounts[k]>riskAmounts[best] ? k : best, 'yuksek');
-  document.getElementById('gbRiskDonutBody').innerHTML = `
-    <div class="gb-donut-svg-wrap">
-      ${gbDonutSvg(riskKeys.map(k=>({value:riskAmounts[k], color:GB_RISK_META[k].renk})), 104)}
-      <div class="gb-donut-center">
-        <div class="gb-donut-center-lbl" style="color:${GB_RISK_META[bakinizRiskin].renk};font-weight:700;">${GB_RISK_META[bakinizRiskin].label}</div>
-        <div class="gb-donut-center-big">${gbKisaTL(riskToplam)}</div>
-      </div>
-    </div>
-    <div class="gb-donut-legend">
-      ${riskKeys.map(k=>`<div class="gb-donut-legend-row"><span class="dot" style="background:${GB_RISK_META[k].renk}"></span>${GB_RISK_META[k].label}<span class="amt">%${riskToplam>0?(riskAmounts[k]/riskToplam*100).toFixed(0):'0'} (${gbKisaTL(riskAmounts[k])})</span></div>`).join('')}
-    </div>`;
-
-  // ---- Tahsilat Performansı donut ----
-  document.getElementById('gbTahsilatDonutBody').innerHTML = `
-    <div class="gb-donut-svg-wrap">
-      ${gbDonutSvg([{value:toplamTahsilat, color:'var(--success)'},{value:toplamKalanBorc, color:'var(--navy-soft)'}], 104)}
-      <div class="gb-donut-center">
-        <div class="gb-donut-center-big">${tahsilatOrani!=null?tahsilatOrani.toFixed(1).replace('.',','):'—'}%</div>
-        <div class="gb-donut-center-lbl">Tahsilat Oranı</div>
-      </div>
-    </div>
-    <div class="gb-donut-legend">
-      <div class="gb-donut-legend-row"><span class="dot" style="background:var(--success)"></span>Alınan Tahsilat<span class="amt">${TL(toplamTahsilat)}</span></div>
-      <div class="gb-donut-legend-row"><span class="dot" style="background:var(--navy-soft)"></span>Kalan Borç<span class="amt">${TL(toplamKalanBorc)}</span></div>
-      <div class="gb-donut-legend-row"><span class="dot" style="background:var(--danger)"></span>Toplam Risk<span class="amt">${TL(toplamRisk)}</span></div>
-    </div>`;
-
-  populateTemsilciFilter(report.musteriler, 'gbTemsilciFilter');
-
-  // ---- Müşteri arama/filtre/sırala + kart grid ----
-  state.gbRiskFiltre = state.gbRiskFiltre || 'all';
-  renderGbMusteriGrid(report);
-  renderGbSidePanels(report);
-}
-
-function gbKisaTL(n){
-  n = Math.round(n||0);
-  if(Math.abs(n) >= 1000000) return (n/1000000).toFixed(1).replace('.',',') + 'M ₺';
-  if(Math.abs(n) >= 1000) return (n/1000).toFixed(0) + 'K ₺';
-  return n.toLocaleString('tr-TR') + ' ₺';
-}
-
-function renderGbMusteriGrid(report){
-  const q = document.getElementById('gbSearchInput').value.trim().toLocaleLowerCase('tr-TR');
-  const temsilci = document.getElementById('gbTemsilciFilter').value;
-  const sortKey = document.getElementById('gbSortSelect').value;
-  // gbRiskFiltre artık risk seviyesi değil, "Nokta Detay" başlığındaki çiplerin seçili
-  // olanı: 'all' (Tümü — sıralama menüsü geçerli), 'ortVade' (Ort Vade büyükten küçüğe),
-  // 'hakedis' (Hakediş kaydı olanlar, A-Z) veya 'emanet' (Ticari Stok/Emanet kaydı
-  // olanlar, A-Z). Çip seçiliyken üstteki sıralama menüsü devre dışı kalır.
-  const chipFiltre = state.gbRiskFiltre || 'all';
-
-  // Hakediş/Emanet çipleri için müşteri kodu → kayıt var mı eşlemesi. Sıralama
-  // menüsündeki eski "hakedisTutar" seçeneği kaldırıldığı için burada yalnızca
-  // çip bazlı hakediş tutarına ihtiyaç var (Hakediş çipinde A-Z sıralanıyor,
-  // tutara göre değil — ama kayıt var/yok kontrolü için map yine gerekli).
-  let hakedisKodMap = null, stokKodSeti = null;
-  if(chipFiltre === 'hakedis'){
-    hakedisKodMap = new Set();
-    const rapor = state.bayiHakedisReport;
-    if(rapor && Array.isArray(rapor.noktalar)){
-      rapor.noktalar.forEach(n=>{ hakedisKodMap.add(n.kod); });
-    }
-  }
-  if(chipFiltre === 'emanet'){
-    stokKodSeti = ticariStokluMusteriKodlari();
-  }
-
-  let rows = gbTumMusteriler(report).filter(m=>{
-    if(q && !musteriAramaEslesiyorMu(q, m.musteriAdi, m.musteri, m.musteriUnvan) && !String(m.temsilci).toLocaleLowerCase('tr-TR').includes(q)) return false;
-    if(temsilci && m.temsilci !== temsilci) return false;
-    // Hakediş/Emanet çipleri seçiliyken, ilgili raporda hiç kaydı olmayan müşteriler
-    // listeden tamamen çıkarılıyor.
-    if(chipFiltre === 'hakedis' && !hakedisKodMap.has(m.musteri)) return false;
-    if(chipFiltre === 'emanet' && !stokKodSeti.has(m.musteri)) return false;
-    return true;
-  });
-
-  rows = rows.slice().sort((a,b)=>{
-    if(chipFiltre === 'ortVade') return (b.avgVadeGun||0) - (a.avgVadeGun||0);
-    if(chipFiltre === 'hakedis' || chipFiltre === 'emanet'){
-      return String(a.musteriAdi).localeCompare(String(b.musteriAdi),'tr');
-    }
-    // Çip 'all' iken üstteki sıralama menüsü (Kalan Borç/Ortalama Vade/Toplam Risk/Ad) geçerli.
-    if(sortKey==='musteriAdi') return String(a.musteriAdi).localeCompare(String(b.musteriAdi),'tr');
-    const av = a[sortKey]||0, bv = b[sortKey]||0;
-    return bv-av;
-  });
-
-  document.getElementById('gbMusteriCount').textContent = rows.length.toLocaleString('tr-TR') + ' müşteri';
-
-  const gosterilecekSayi = Math.min(state.gbGosterilen || 16, rows.length);
-  const gosterilecekRows = rows.slice(0, gosterilecekSayi);
-  const grid = document.getElementById('gbMusteriGrid');
-
-  if(!rows.length){
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Filtreyle eşleşen müşteri bulunamadı.</div>`;
-    document.getElementById('gbDahaFazlaWrap').style.display = 'none';
-    return;
-  }
-
-  const hakedisKodlari = bayiHakedisliMusteriKodlari();
-  const stokKodlari = ticariStokluMusteriKodlari();
-  grid.innerHTML = gosterilecekRows.map(m=>{
-    state.faturaModalYedekMap.set(m.musteri, m);
-    const risk = hukukiRiskSeviyesi(m.avgVadeGun);
-    const vadeRenk = ortVadeRenk(m.avgVadeGun);
-    return `<div class="htk-card" data-musteri="${escapeHtml(m.musteri)}" style="--htk-risk:${risk.renk};--htk-risk-bg:${risk.bg};">
-      <div class="htk-head">
-        <div style="min-width:0;">
-          <div class="htk-musteri-row">
-            <span class="htk-musteri">${escapeHtml(m.musteriAdi)}</span>
-          </div>
-          <div class="htk-temsilci">${HTK_USER_ICON}${escapeHtml(m.temsilci||'—')}</div>
-        </div>
-        <div class="htk-badge-col">
-          <span class="htk-badge-vade" style="border-color:${vadeRenk.renk};"><span class="htk-badge-vade-num" style="color:${vadeRenk.renk};">${Math.round(m.avgVadeGun)||0}</span><span class="htk-badge-vade-lbl" style="color:${vadeRenk.renk};">Ort. Vade</span></span>
-          ${isRiskliMusteri(m)?'<span class="badge dikkat" title="Ortalama vade '+VADE_RISK_ESIGI+' gün ve üzeri"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Dikkat</span>':''}${hakedisRozeti(m.musteri, hakedisKodlari)}${emanetRozeti(m.musteri, stokKodlari)}
-        </div>
-      </div>
-      <div class="htk-borc-satir">
-        <span class="htk-borc">${TL(m.kalanBorc)}</span>
-      </div>
-      <div class="htk-inline-stats">
-        <div class="htk-stat-item"><span class="l">Sipariş</span><span class="v${m.siparisTutari>0?' c-siparis':' zero'}">${m.siparisTutari>0?TL(m.siparisTutari):'—'}</span></div>
-        <div class="htk-stat-item"><span class="l">Sevk Ert.</span><span class="v${m.emanetSiparis>0?' c-sevk':' zero'}">${m.emanetSiparis>0?TL(m.emanetSiparis):'—'}</span></div>
-        <div class="htk-stat-item"><span class="l">Tahsilat</span><span class="v${m.alinanTahsilatKartGosterge>0?' c-tahsilat':' zero'}">${m.alinanTahsilatKartGosterge>0?TL(m.alinanTahsilatKartGosterge):'—'}</span></div>
-      </div>
-      <div class="htk-alt">
-        <span class="htk-ceksenet">Çek/Senet: ${TL(m.cekSenet||0)}</span>
-        <div class="htk-alt-actions">
-          <button type="button" class="btn small gb-senet-btn" data-musteri="${escapeHtml(m.musteri)}" data-musteri-adi="${escapeHtml(m.musteriAdi)}" data-tutar="${m.siparisTutari||0}" data-emanet="${m.emanetSiparis||0}" data-kalan-borc="${m.kalanBorc||0}"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Senet</button>
-          <button type="button" class="nokta-detay-btn primary gb-detay-btn" data-musteri="${escapeHtml(m.musteri)}" data-musteri-adi="${escapeHtml(m.musteriAdi)}">Detay ↗</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  if(rows.length > gosterilecekSayi){
-    document.getElementById('gbDahaFazlaWrap').style.display = 'flex';
-  } else {
-    document.getElementById('gbDahaFazlaWrap').style.display = 'none';
-  }
-
-  grid.querySelectorAll('.gb-detay-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const musteriKod = btn.getAttribute('data-musteri');
-      const musteriAdi = btn.getAttribute('data-musteri-adi');
-      faturaModalAc(musteriKod, musteriAdi);
-    });
-  });
-  grid.querySelectorAll('.gb-senet-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const musteriKod = btn.getAttribute('data-musteri');
-      const musteriAdi = btn.getAttribute('data-musteri-adi');
-      const tutar = Number(btn.getAttribute('data-tutar'))||0;
-      const emanet = Number(btn.getAttribute('data-emanet'))||0;
-      const kalanBorc = Number(btn.getAttribute('data-kalan-borc'))||0;
-      senetModalAc(musteriKod, musteriAdi, tutar, emanet, kalanBorc);
-    });
-  });
-}
-
-document.getElementById('gbSearchInput')?.addEventListener('input', debounce(()=>{
-  updateGbSearchClearBtn();
-  state.gbGosterilen = 16;
-  if(state.report) renderGbMusteriGrid(state.report);
-}, 180));
-function updateGbSearchClearBtn(){
-  const val = document.getElementById('gbSearchInput').value;
-  document.getElementById('gbSearchClearBtn').style.display = val ? 'flex' : 'none';
-}
-document.getElementById('gbSearchClearBtn')?.addEventListener('click', ()=>{
-  document.getElementById('gbSearchInput').value = '';
-  updateGbSearchClearBtn();
-  if(state.report) renderGbMusteriGrid(state.report);
-});
-document.getElementById('gbTemsilciFilter')?.addEventListener('change', ()=>{ state.gbGosterilen=16; if(state.report) renderGbMusteriGrid(state.report); });
-document.getElementById('gbSortSelect')?.addEventListener('change', ()=>{ state.gbGosterilen=16; if(state.report) renderGbMusteriGrid(state.report); });
-document.getElementById('gbDahaFazlaBtn')?.addEventListener('click', ()=>{
-  state.gbGosterilen = (state.gbGosterilen||16) + 16;
-  if(state.report) renderGbMusteriGrid(state.report);
-});
-document.getElementById('gbTumunuGorBtn')?.addEventListener('click', ()=>{
-  state.gbGosterilen = 100000;
-  if(state.report) renderGbMusteriGrid(state.report);
-  document.getElementById('gbMusteriPanel')?.scrollIntoView({behavior:'smooth', block:'start'});
-});
-document.getElementById('gbDurumSellOutBtn')?.addEventListener('click', ()=> setActiveView('sellOut'));
-document.querySelectorAll('#gbRiskChipFilters .gb-chip').forEach(chip=>{
-  chip.addEventListener('click', ()=>{
-    document.querySelectorAll('#gbRiskChipFilters .gb-chip').forEach(c=>c.classList.remove('active'));
-    chip.classList.add('active');
-    state.gbRiskFiltre = chip.getAttribute('data-risk');
-    state.gbGosterilen = 16;
-    if(state.report) renderGbMusteriGrid(state.report);
-  });
-});
-
-// İnce, yuvarlak uçlu tek-renk "gerçekleşme" halkası (görseldeki Toplam Litre kartındaki gibi).
-function gbRealizasyonRingSvg(oran){
-  const size = 96, stroke = 9;
-  const r = (size - stroke) / 2;
-  const c = size/2;
-  const circ = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(1, (oran||0)/100));
-  const len = pct * circ;
-  return `<svg viewBox="0 0 ${size} ${size}">
-    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="rgba(255,255,255,.14)" stroke-width="${stroke}"/>
-    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#F0DCA6" stroke-width="${stroke}"
-      stroke-dasharray="${len.toFixed(2)} ${(circ-len).toFixed(2)}" stroke-linecap="round"/>
-  </svg>`;
-}
-
-// ---- Sağ panel: Güncel Durum + Son Aktiviteler (gerçek veriden özet) ----
-function renderGbSidePanels(report){
-  // Açık/Kapalı Kanal litre verileri Sell Out Raporu'ndan gelir — Sell Out Raporu'nun kendi üst
-  // KPI şeridiyle AYNI ortak fonksiyon (sellOutKanalOzeti) kullanılır, ayrı bir hesap yapılmaz.
-  const sellOutRaw = state.sellOutReport;
-  const sellOutProcessed = sellOutRaw ? applySellOutHedef(sellOutRaw, state.sellOutHedef) : null;
-  const {toplamAcikLitre, toplamKapaliLitre, acikKalan, kapaliKalan, toplamLitre: sellOutToplamLitre} = sellOutKanalOzeti(sellOutProcessed);
-  // Genel "Gerçekleşme Oranı" ve "Toplam Litre" — Geleneksel Kanal (Açık+Kapalı) hedefiyle
-  // Modern Kanal'ın (İbrahim Işık) Key Account Hedefi ve satışı TOPLANARAK hesaplanır; Modern
-  // Kanal kendi ayrı hedef girişine sahip olsa da, genel toplam sayılarda tek bir birleşik
-  // oran/litre olarak yansır (tahsilat/FKNS gibi metriklere ise hiç karışmaz).
-  const modernKanalLitre = state.modernKanalReport ? (state.modernKanalReport.toplamLitre||0) : 0;
-  const modernKanalHedefDeger = state.modernKanalHedef||0;
-  const sellOutHedefToplam = sellOutProcessed && Array.isArray(sellOutProcessed.temsilciler)
-    ? sellOutProcessed.temsilciler.reduce((a,t)=>a+(t.acikHedef||0)+(t.kapaliHedef||0), 0)
-    : 0;
-  const toplamLitre = sellOutToplamLitre + modernKanalLitre;
-  const toplamHedefBirlesik = sellOutHedefToplam + modernKanalHedefDeger;
-  const gerceklesmeOrani = toplamHedefBirlesik>0 ? (toplamLitre/toplamHedefBirlesik*100) : null;
-  const gerceklesmeOraniGosterim = gerceklesmeOrani!=null ? gerceklesmeOrani : 0;
-
-  const durumRows = [
-    {ic:'fa-box', cls:'navy', label:'Toplam Açık Kanal LT', val: LT(toplamAcikLitre)},
-    {ic:'fa-box', cls:'warn', label:'Toplam Kapalı Kanal LT', val: LT(toplamKapaliLitre)},
-    {ic:'fa-store', cls:'success', label:'Açık Kanal Kalan Litre', val: LT(acikKalan)},
-    {ic:'fa-users', cls:'danger', label:'Kapalı Kanal Kalan Litre', val: LT(kapaliKalan)},
-  ];
-  document.getElementById('gbDurumList').innerHTML = durumRows.map(r=>`
-    <div class="gb-durum-row ${r.cls}">
-      <div class="gb-durum-ic ${r.cls}"><i class="fa-solid ${r.ic}" aria-hidden="true"></i></div>
-      <div class="gb-durum-text"><div class="gb-durum-label">${r.label}</div><div class="gb-durum-val">${r.val}</div></div>
-    </div>`).join('');
-
-  document.getElementById('gbRealizasyonCard').innerHTML = `
-    <svg class="gb-realizasyon-dots" viewBox="0 0 70 50" aria-hidden="true">
-      ${Array.from({length:24}).map((_,i)=>`<circle cx="${(i%8)*9+3}" cy="${Math.floor(i/8)*16+5}" r="1.4" fill="#F0DCA6" opacity="${0.15+((i%3)*0.12)}"/>`).join('')}
-    </svg>
-    <div class="gb-realizasyon-ring">
-      ${gbRealizasyonRingSvg(gerceklesmeOraniGosterim)}
-      <div class="gb-realizasyon-ring-center">
-        <div class="gb-realizasyon-ring-pct">${gerceklesmeOraniGosterim.toFixed(0)}%</div>
-        <div class="gb-realizasyon-ring-lbl">Gerçekleşme<br>Oranı</div>
-      </div>
-    </div>
-    <div class="gb-realizasyon-info">
-      <div class="gb-realizasyon-label">Toplam Litre</div>
-      <div class="gb-realizasyon-value">${Math.round(toplamLitre).toLocaleString('tr-TR')} L</div>
-      <div class="gb-realizasyon-bar"><div class="gb-realizasyon-bar-fill" style="width:${Math.max(gerceklesmeOraniGosterim,3).toFixed(1)}%;"></div></div>
-    </div>`;
-
-  const riskliSayisi = report.musteriler.filter(isRiskliMusteri).length;
-  document.getElementById('gbAktiviteList').innerHTML = `
-    <div class="gb-aktivite-row">
-      <div class="gb-aktivite-ic navy"><i class="fa-solid fa-file-invoice-dollar" aria-hidden="true"></i></div>
-      <div class="gb-aktivite-text"><div class="gb-aktivite-title">Rapor güncellendi</div><div class="gb-aktivite-sub">${report.musteriler.length.toLocaleString('tr-TR')} müşteri verisi işlendi</div></div>
-    </div>
-    <div class="gb-aktivite-row">
-      <div class="gb-aktivite-ic success"><i class="fa-solid fa-sack-dollar" aria-hidden="true"></i></div>
-      <div class="gb-aktivite-text"><div class="gb-aktivite-title">Tahsilat özeti hazır</div><div class="gb-aktivite-sub">${TL(report.kpi ? report.kpi.toplamTahsilat : 0)} tahsilat kaydedildi</div></div>
-    </div>
-    <div class="gb-aktivite-row">
-      <div class="gb-aktivite-ic accent"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></div>
-      <div class="gb-aktivite-text"><div class="gb-aktivite-title">Risk taraması tamamlandı</div><div class="gb-aktivite-sub">${riskliSayisi.toLocaleString('tr-TR')} müşteri dikkat listesinde</div></div>
-    </div>`;
-}
-
-// DAYANIKLILIK: Buluttan/cihazdan gelen bir rapor ESKİ bir sürümden kalmış olabilir ve o zamanlar
-// var olmayan alanlar (bakiyesiz, kpi, ticariStok, invoices vb.) içinde bulunmayabilir. Bu durumda
-// computeGenelKPI gibi fonksiyonlar 'undefined.reduce'/'undefined.toplamTahsilat' ile ÇÖKÜYORDU.
-// Aşağıdaki normalize, eksik alanları güvenli varsayılanlarla doldurur — böylece hangi sürümden
-// gelirse gelsin rapor render edilebilir (veri kaybı olmadan; sadece eksik alanlar boş sayılır).
-function raporuNormalizeEt(report){
-  if(!report || typeof report !== 'object') return report;
-  if(!Array.isArray(report.musteriler)) report.musteriler = [];
-  if(!Array.isArray(report.bakiyesiz)) report.bakiyesiz = [];
-  if(!Array.isArray(report.invoices)) report.invoices = [];
-  // ticariStok bir OBJEDİR ({rows:[], ozet:[]}) — dizi değil. Eksik/bozuksa güvenli obje yap.
-  if(!report.ticariStok || typeof report.ticariStok !== 'object' || Array.isArray(report.ticariStok)){
-    report.ticariStok = { rows: [], ozet: [] };
-  }else{
-    if(!Array.isArray(report.ticariStok.rows)) report.ticariStok.rows = [];
-    if(!Array.isArray(report.ticariStok.ozet)) report.ticariStok.ozet = [];
-  }
-  if(!Array.isArray(report.siparisArsiv)) report.siparisArsiv = [];
-  if(!Array.isArray(report.tahsilatArsiv)) report.tahsilatArsiv = [];
-  if(!Array.isArray(report.faturaArsiv)) report.faturaArsiv = [];
-  if(!Array.isArray(report.bayiHakedis)) report.bayiHakedis = [];
-  if(!Array.isArray(report.bozukIadeTahsilat)) report.bozukIadeTahsilat = [];
-  if(!report.kpi || typeof report.kpi !== 'object'){
-    report.kpi = { toplamTahsilat:0, tahsilatEslesmeyenToplam:0 };
-  }else{
-    if(report.kpi.toplamTahsilat == null) report.kpi.toplamTahsilat = 0;
-    if(report.kpi.tahsilatEslesmeyenToplam == null) report.kpi.tahsilatEslesmeyenToplam = 0;
-  }
-  return report;
-}
-
-function renderReport(report){
-  raporuNormalizeEt(report);
-  refreshGenelKPIs(report);
-  populateTemsilciFilter(report.musteriler, 'temsilciFilter');
-  populateTemsilciFilter(report.musteriler, 'sevkTemsilciFilter');
-  populateTemsilciFilter(report.musteriler, 'dikkatTemsilciFilter');
-  populateTemsilciFilter(report.musteriler, 'faturaKontrolTemsilciFilter');
-  renderDikkatPanel(report);
-  renderMusteriTable(report);
-  renderAgingPanel(report);
-  renderSevkView(report);
-  renderRepGrid(report.temsilciler);
-  renderYaslandirmaView(report);
-  renderTicariStokView(report);
-  renderGenelBakisView(report);
-  renderAppHeaderBadges(report);
-}
-
-// Üst header'daki tarih göstergesi — tüm sayfalarda ortak olduğu için her raporda bir kez,
-// Genel Bakış'a özel olmadan güncellenir.
-function renderAppHeaderBadges(report){
-  const dateEl = document.getElementById('appDateChipText');
-  if(dateEl){
-    const asOf = report && report.asOf ? new Date(report.asOf) : turkiyeBugun();
-    dateEl.textContent = asOf.toLocaleDateString('tr-TR');
+function durumBadgeClass(durum){
+  switch(durum){
+    case 'eslesti': return 'badge-success';
+    case 'fark': return 'badge-purple';
+    case 'islenmemis': return 'badge-danger';
+    case 'entegratorde_yok': return 'badge-warn';
+    case 'red': return 'badge-neutral';
+    default: return 'badge-neutral';
   }
 }
 
-const FINANSAL_ANALIZ_VIEWS = ['temsilciKarnesi','tahsilatVerimlilik','cei','nakitAkis','supheliAlacak','dsoTrend','yonetimOzeti'];
-const CARI_DETAY_VIEWS = ['genel','yaslandirma'];
-const DAGITIM_VIEWS = ['sevk','faturaKontrol','yukleme','ticariStok'];
-const BAYI_SATIS_VIEWS = ['sellOut','modernKanal','stokGun'];
-const TAB_DROPDOWNS = [
-  {btn: document.getElementById('tabbtn-cariDetay'), menu: document.getElementById('cariDetayDropdownMenu'), views: CARI_DETAY_VIEWS},
-  {btn: document.getElementById('tabbtn-dagitim'), menu: document.getElementById('dagitimDropdownMenu'), views: DAGITIM_VIEWS},
-  {btn: document.getElementById('tabbtn-bayiSatis'), menu: document.getElementById('bayiSatisDropdownMenu'), views: BAYI_SATIS_VIEWS},
-  {btn: document.getElementById('tabbtn-finansalAnaliz'), menu: document.getElementById('finansalDropdownMenu'), views: FINANSAL_ANALIZ_VIEWS},
+function durumBadgeIcon(durum){
+  switch(durum){
+    case 'eslesti': return 'fa-solid fa-circle-check';
+    case 'fark': return 'fa-solid fa-scale-unbalanced';
+    case 'islenmemis': return 'fa-solid fa-circle-exclamation';
+    case 'entegratorde_yok': return 'fa-solid fa-plug-circle-xmark';
+    case 'red': return 'fa-solid fa-ban';
+    default: return 'fa-solid fa-circle';
+  }
+}
+
+function aktifGrupSatirlariKaynaksiz(){
+  if(!state.rapor) return [];
+  const {faturalar, gruplar} = state.rapor;
+  if(aktifGrup==='kesan') return gruplar.kesan;
+  if(aktifGrup==='bayrampasa') return gruplar.bayrampasa;
+  if(aktifGrup==='kontrol') return gruplar.kontrol;
+  if(aktifGrup==='notlar') return gruplar.notlu;
+  return faturalar;
+}
+
+function aktifGrupSatirlari(){
+  return kaynagaGoreFiltrele(aktifGrupSatirlariKaynaksiz());
+}
+
+function kpiHesapla(satirlar){
+  return {
+    toplam: satirlar.filter(f=>f.yon==='entegrator').length,
+    eslesti: satirlar.filter(f=>f.durum==='eslesti').length,
+    islenmemis: satirlar.filter(f=>f.durum==='islenmemis').length,
+    entegratordeYok: satirlar.filter(f=>f.durum==='entegratorde_yok').length,
+    fark: satirlar.filter(f=>f.durum==='fark').length,
+    red: satirlar.filter(f=>f.durum==='red').length,
+  };
+}
+
+const KPI_TANIM = [
+  {key:'toplam', label:'TOPLAM FATURA', cls:'c-blue', durum:'tumu', icon:'fa-regular fa-file-lines', sub:'Entegratör kayıtları'},
+  {key:'eslesti', label:'EŞLEŞTİ', cls:'c-green', durum:'eslesti', icon:'fa-solid fa-circle-check', sub:'eşleşme oranı'},
+  {key:'islenmemis', label:"NETSİS'TE BULUNAMADI", cls:'c-red', durum:'islenmemis', icon:'fa-solid fa-triangle-exclamation', sub:'işlenmemiş'},
+  {key:'entegratordeYok', label:'ENTEGRATÖRDE BULUNAMADI', cls:'c-orange', durum:'entegratorde_yok', icon:'fa-solid fa-plug-circle-xmark', sub:"Sadece Netsis'te var"},
+  {key:'fark', label:'TUTAR/KDV FARKI', cls:'c-purple', durum:'fark', icon:'fa-solid fa-scale-unbalanced', sub:'farklı kayıt'},
+  {key:'red', label:'REDDEDİLDİ/İPTAL', cls:'c-cyan', durum:'red', icon:'fa-solid fa-ban', sub:'ret / iptal'},
 ];
-function closeDropdown(d){
-  d.menu.classList.remove('open');
-  d.btn.setAttribute('aria-expanded','false');
-  d.menu.setAttribute('aria-hidden','true');
-}
-function closeAllDropdowns(except){
-  TAB_DROPDOWNS.forEach(d=>{ if(d!==except) closeDropdown(d); });
-}
-function openDropdown(d){
-  closeAllDropdowns(d);
-  const r = d.btn.getBoundingClientRect();
-  const menuWidth = d.menu.offsetWidth || 238;
-  let left = r.left;
-  const maxLeft = window.innerWidth - menuWidth - 8;
-  if(left > maxLeft) left = Math.max(8, maxLeft);
-  d.menu.style.top = (r.bottom + 6) + 'px';
-  d.menu.style.left = left + 'px';
-  d.menu.classList.add('open');
-  d.btn.setAttribute('aria-expanded','true');
-  d.menu.setAttribute('aria-hidden','false');
-}
-TAB_DROPDOWNS.forEach(d=>{
-  d.btn.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    if(d.menu.classList.contains('open')) closeDropdown(d); else openDropdown(d);
-  });
-});
-document.addEventListener('click', (e)=>{
-  TAB_DROPDOWNS.forEach(d=>{
-    if(d.menu.classList.contains('open') && !d.menu.contains(e.target) && e.target!==d.btn && !d.btn.contains(e.target)){
-      closeDropdown(d);
-    }
-  });
-});
-window.addEventListener('resize', ()=>{ TAB_DROPDOWNS.forEach(d=>{ if(d.menu.classList.contains('open')) openDropdown(d); }); });
-document.querySelector('.tabbar')?.addEventListener('scroll', ()=>closeAllDropdowns(), {passive:true});
 
-const ALL_VIEW_IDS = ['genelBakis','genel','sevk','yukleme','yaslandirma','ticariStok','faturaKontrol','bayiHakedis','sellOut','modernKanal','stokGun','tahsilatVerimlilik','dsoTrend','nakitAkis','supheliAlacak','temsilciKarnesi','yonetimOzeti','cei'];
+function yuzdeStr(pay, payda){
+  if(!payda) return '';
+  return '%' + (pay*100/payda).toFixed(1).replace('.', ',');
+}
 
-// ---- Sol sidebar: alt menü (Cari Detay / Dağıtım / Finansal Analiz) aç/kapa ----
-const SB_SUBMENUS = [
-  {btn: document.getElementById('sbbtn-cariDetay'), menu: document.getElementById('sbSubCariDetay'), views: CARI_DETAY_VIEWS},
-  {btn: document.getElementById('sbbtn-dagitim'), menu: document.getElementById('sbSubDagitim'), views: DAGITIM_VIEWS},
-  {btn: document.getElementById('sbbtn-bayiSatis'), menu: document.getElementById('sbSubBayiSatis'), views: BAYI_SATIS_VIEWS},
-  {btn: document.getElementById('sbbtn-finansalAnaliz'), menu: document.getElementById('sbSubFinansal'), views: FINANSAL_ANALIZ_VIEWS},
-].filter(x=>x.btn && x.menu);
-SB_SUBMENUS.forEach(s=>{
-  s.btn.addEventListener('click', ()=>{
-    const willOpen = !s.menu.classList.contains('open');
-    const collapsedMode = document.getElementById('appSidebar')?.classList.contains('collapsed');
-    if(collapsedMode && willOpen){
-      // Daraltılmış (icon-rail) modda aynı anda yalnızca bir flyout açık olmalı — açılmadan
-      // önce diğer tüm alt menüleri kapatıyoruz ki üst üste binmesinler.
-      SB_SUBMENUS.forEach(o=>{
-        if(o===s) return;
-        o.menu.classList.remove('open');
-        o.btn.classList.remove('open');
-        o.btn.setAttribute('aria-expanded','false');
-        o.menu.style.top = '';
-      });
-    }
-    s.menu.classList.toggle('open', willOpen);
-    s.btn.classList.toggle('open', willOpen);
-    s.btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-    if(willOpen && !collapsedMode && typeof window.positionSbExpandedFlyout === 'function'){
-      window.positionSbExpandedFlyout(s.btn, s.menu);
-    }
-    if(!willOpen) s.menu.style.top = '';
-    // Flyout (daraltılmış/icon-rail moddaki yüzen alt menü) açıkken arka plan sayfa
-    // kaydırılabiliyordu — bu görsel olarak menünün "yarım kapanmış" gibi durmasına
-    // ve kullanıcının menüyü kaybetmesine neden oluyordu. collapsedMode'da açılan
-    // her flyout için body scroll'unu modal'lardaki gibi kilitliyoruz.
-    if(collapsedMode){
-      document.body.classList.toggle('sb-flyout-open', willOpen);
-    }
-  });
-});
+// Bir satırın "gösterilen" tutarı: netsis kaynaklı satırlarda netsisTutar, aksi halde tutar.
+function satirTutari(f){
+  return f.yon==='netsis' ? (f.netsisTutar||0) : (f.tutar||0);
+}
 
-// ===== RAPOR GEÇİŞ YÜKLEME OVERLAY'İ =====
-// setActiveView() içinde bazı render fonksiyonları async'tir (bazıları buluttan veri çeker —
-// örn. sellOutYenile). Bu çağrılar await edilmeden önce kullanıcı geçtiği view'ı boş/eski
-// haliyle görüyordu, veri "aniden" beliriyordu. Aşağıdaki iki yardımcı, ilgili view'ın kendi
-// kapsayıcısı üzerine (yalnızca o alanı kaplayan, sidebar/başlığı etkilemeyen) markaya uygun
-// bir "Rapor yükleniyor" kartı bindirir/kaldırır.
-function viewYuklemeOverlayGoster(viewId){
-  const el = document.getElementById(viewId+'View');
+// ÖNERİ 3: Tutarsal özet — seçili gruptaki satırlar için problem kategorilerinin TOPLAM
+// TL değerini hesaplar. "fark" kategorisi net kâr/zarar DEĞİL, mutlak sapma toplamıdır
+// (her fark düzeltilmesi gereken bir uyumsuzluktur — kullanıcı onaylı anlayış).
+function tutarOzetiHesapla(satirlar){
+  const eslesenToplam = satirlar.filter(f=>f.durum==='eslesti').reduce((a,f)=> a+satirTutari(f), 0);
+  const netsisteYokToplam = satirlar.filter(f=>f.durum==='islenmemis').reduce((a,f)=> a+satirTutari(f), 0);
+  const entegratordeYokToplam = satirlar.filter(f=>f.durum==='entegratorde_yok').reduce((a,f)=> a+satirTutari(f), 0);
+  const farkSatirlari = satirlar.filter(f=>f.durum==='fark' && f.farkDetay);
+  const toplamSapma = farkSatirlari.reduce((a,f)=> a+Math.abs(f.farkDetay.tutarFarkTutari||0), 0);
+  return {eslesenToplam, netsisteYokToplam, entegratordeYokToplam, toplamSapma, farkAdet: farkSatirlari.length};
+}
+
+// Dekoratif sparkline (sabit şekil) — kart kimliğini zenginleştirmek için; gerçek zaman
+// serisi verisi TAŞIMAZ (geçmiş rapor karşılaştırması henüz yok). Renk karta göre gelir.
+function sparklineHtml(renk, path){
+  return `<svg class="ozet-spark" width="56" height="26" viewBox="0 0 56 26" aria-hidden="true"><path d="${path}" fill="none" stroke="${renk}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function renderTutarOzeti(){
+  const el = document.getElementById('tutarOzetKap');
   if(!el) return;
-  if(getComputedStyle(el).position === 'static') el.style.position = 'relative';
-  let overlay = el.querySelector(':scope > .view-yukleme-overlay');
-  if(!overlay){
-    overlay = document.createElement('div');
-    overlay.className = 'view-yukleme-overlay';
-    overlay.innerHTML = '<div class="view-yukleme-karti"><div class="view-yukleme-spin"></div><span class="view-yukleme-metin">Rapor yükleniyor…</span></div>';
-    el.appendChild(overlay);
-  }
-  overlay.style.display = 'flex';
-}
-function viewYuklemeOverlayGizle(viewId){
-  const el = document.getElementById(viewId+'View');
-  const overlay = el && el.querySelector(':scope > .view-yukleme-overlay');
-  if(overlay) overlay.style.display = 'none';
-}
-// Hangi view'ların render fonksiyonu async'tir (buluttan veri çekebilir/ağır hesaplama
-// yapabilir) — sadece bunlar için geçiş overlay'i gösterilir; senkron olanlarda (genelBakis,
-// sevk, yaslandirma, ticariStok, bayiHakedis, supheliAlacak) zaten anlık render olduğundan
-// overlay'e gerek yoktur.
-const ASYNC_RENDER_VIEWLER = new Set(['yukleme','faturaKontrol','sellOut','modernKanal',
-  'stokGun','tahsilatVerimlilik','dsoTrend','nakitAkis','temsilciKarnesi','yonetimOzeti','cei']);
-
-async function setActiveView(view){
-  // Üst sekme çubuğu (mobil/dar ekran) ve sidebar linklerini birlikte senkronize et.
-  document.querySelectorAll('.tab-btn[data-view]').forEach(b=>{
-    const match = b.getAttribute('data-view')===view;
-    b.classList.toggle('active', match);
-    b.setAttribute('aria-selected', match ? 'true' : 'false');
-  });
-  TAB_DROPDOWNS.forEach(d=> d.btn.classList.toggle('active', d.views.includes(view)));
-
-  document.querySelectorAll('.sb-nav-link[data-view]').forEach(b=>{
-    b.classList.toggle('active', b.getAttribute('data-view')===view);
-  });
-  SB_SUBMENUS.forEach(s=>{
-    const isActiveGroup = s.views.includes(view);
-    s.btn.classList.toggle('active', isActiveGroup);
-    if(isActiveGroup && !s.menu.classList.contains('open')){
-      s.menu.classList.add('open');
-      s.btn.classList.add('open');
-      s.btn.setAttribute('aria-expanded','true');
-      if(typeof window.positionSbExpandedFlyout === 'function') window.positionSbExpandedFlyout(s.btn, s.menu);
-    }
-  });
-
-  ALL_VIEW_IDS.forEach(id=>{
-    const el = document.getElementById(id+'View');
-    if(el) el.style.display = (id===view) ? 'block' : 'none';
-  });
-
-  if(ASYNC_RENDER_VIEWLER.has(view)) viewYuklemeOverlayGoster(view);
-  try{
-    if(view==='genelBakis') renderGenelBakisView(state.report);
-    if(view==='sevk') renderSevkView(state.report);
-    if(view==='yukleme') await renderYuklemeView();
-    if(view==='yaslandirma' && state.report) renderYaslandirmaView(state.report);
-    if(view==='ticariStok' && state.report) renderTicariStokView(state.report);
-    if(view==='faturaKontrol' && state.report) await renderFaturaKontrolView(state.report);
-    if(view==='bayiHakedis') renderBayiHakedisView();
-    if(view==='sellOut') await renderSellOutView();
-    if(view==='modernKanal') await renderModernKanalView();
-    if(view==='stokGun') await renderStokGunView();
-    if(view==='tahsilatVerimlilik' && state.report) await renderTahsilatVerimlilikView(state.report);
-    if(view==='dsoTrend' && state.report) await renderDsoTrendView(state.report);
-    if(view==='nakitAkis' && state.report) await renderNakitAkisView(state.report);
-    if(view==='supheliAlacak' && state.report) renderSupheliAlacakView(state.report);
-    if(view==='temsilciKarnesi' && state.report) await renderTemsilciKarnesiView(state.report);
-    if(view==='yonetimOzeti' && state.report) await renderYonetimOzetiView(state.report);
-    if(view==='cei' && state.report) await renderCeiView(state.report);
-  }finally{
-    if(ASYNC_RENDER_VIEWLER.has(view)) viewYuklemeOverlayGizle(view);
-  }
-  // AÇILIŞ EKRANI KALDIRILDI (kullanıcı kararı): report yokken YUKARIDAKİ "&& state.report" şartı
-  // yüzünden bu render fonksiyonları hiç çağrılmıyor — ama view'ın kendi HTML kapsayıcısı zaten
-  // ALL_VIEW_IDS döngüsünde display:block yapılmış oluyor. Düzeltme öncesi kullanıcı, rapor yokken
-  // bu sekmelere tıklarsa TAMAMEN BOŞ bir sayfa görüyordu (dsoTrend/cei hariç, onların zaten kendi
-  // bosPanel'i vardı). Şimdi, henüz kendi özel boş-durum paneli olmayan sekmeler için TEK NOKTADAN,
-  // güvenli/genel bir "Rapor henüz oluşturulmadı" mesajı gösterilir. ÖNEMLİ (veri güvenliği):
-  // view'ın innerHTML'i DEĞİŞTİRİLMEZ (bu, ileride rapor oluştuğunda render fonksiyonlarının
-  // aradığı elementleri kalıcı olarak silip onları sessizce bozabilirdi) — bunun yerine görünmez/
-  // absolute bir overlay div EKLENIR, orijinal içerik CSS ile (visibility) gizlenir ama DOM'da
-  // olduğu gibi kalır; rapor geldiğinde overlay kaldırılır ve içerik normal şekilde render edilir.
-  const KENDI_BOS_PANELI_OLMAYAN_VIEWLER = new Set(['yaslandirma','ticariStok','faturaKontrol',
-    'tahsilatVerimlilik','nakitAkis','supheliAlacak','temsilciKarnesi','yonetimOzeti']);
-  if(KENDI_BOS_PANELI_OLMAYAN_VIEWLER.has(view)){
-    const el = document.getElementById(view+'View');
-    if(el){
-      let overlay = el.querySelector(':scope > .gvy-genel-bos-durum');
-      if(!state.report){
-        if(!overlay){
-          overlay = document.createElement('div');
-          overlay.className = 'bos-durum gvy-genel-bos-durum';
-          overlay.style.cssText = 'padding:60px 20px;text-align:center;';
-          overlay.innerHTML = `<i class="fa-solid fa-file-circle-question" aria-hidden="true" style="font-size:28px;color:var(--ink-faint);"></i>
-            <div style="font-size:15px;font-weight:600;margin:12px 0 4px;">Bugünün raporu henüz oluşturulmadı</div>
-            <div style="font-size:12.5px;color:var(--ink-soft);">Bu ekran, işlenmiş rapor verisine dayanır. Üst köşedeki <b>Veri Yükle</b> panelinden Kalemler/Müşteri Master/Cari Ekstre yükleyip "Raporu Oluştur"a basın.</div>`;
-          el.insertBefore(overlay, el.firstChild);
-        }
-        Array.from(el.children).forEach(child=>{ if(child!==overlay) child.style.display='none'; });
-        overlay.style.display = 'block';
-      }else if(overlay){
-        overlay.style.display = 'none';
-        Array.from(el.children).forEach(child=>{ if(child!==overlay) child.style.removeProperty('display'); });
-      }
-    }
-  }
-
-  try{ window.scrollTo({top:0, behavior:'instant'}); }catch(e){ window.scrollTo(0,0); }
+  if(!state.rapor){ el.innerHTML = ''; return; }
+  // notlar grubunda tutar özeti anlamlı değil (karışık durumlarda faturalar var) — gizle.
+  if(aktifGrup==='notlar'){ el.innerHTML = ''; return; }
+  const satirlar = aktifGrupSatirlari();
+  const o = tutarOzetiHesapla(satirlar);
+  const kart = (cls, ikon, lbl, tutar, altMetin, sparkRenk, sparkPath)=>`
+    <div class="ozet-card ${cls}">
+      <div class="ozet-sol">
+        <div class="ozet-lbl"><i class="${ikon}" aria-hidden="true"></i> ${lbl}</div>
+        <div class="ozet-tutar">${fmtTL(tutar)}</div>
+        <div class="ozet-adet">${altMetin}</div>
+      </div>
+      ${sparklineHtml(sparkRenk, sparkPath)}
+    </div>
+  `;
+  el.innerHTML = `
+    <div class="tutar-ozet-grid">
+      ${kart('c1','fa-solid fa-triangle-exclamation',"Netsis'te Yok", o.netsisteYokToplam, 'toplam tutar', '#E23E3E', 'M2 8 L12 14 L22 10 L32 18 L42 15 L54 23')}
+      ${kart('c2','fa-solid fa-plug-circle-xmark','Entegratörde Yok', o.entegratordeYokToplam, 'toplam tutar', '#F08A1D', 'M2 14 L12 10 L22 16 L32 12 L42 19 L54 16')}
+      ${kart('c3','fa-solid fa-scale-unbalanced','Tutmayan Tutar', o.toplamSapma, `${fmtInt(o.farkAdet)} faturada uyumsuzluk`, '#7C5CFC', 'M2 13 L11 9 L20 16 L29 11 L38 17 L47 12 L54 14')}
+      ${kart('c4','fa-solid fa-circle-check','Eşleşen Toplam', o.eslesenToplam, 'toplam tutar', '#18A45B', 'M2 21 L14 17 L26 18 L38 10 L48 8 L54 3')}
+    </div>
+  `;
 }
 
-document.querySelectorAll('.sb-nav-link[data-view]').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    setActiveView(btn.getAttribute('data-view'));
-    closeSidebarDrawer();
-    // Not: Yana açılan (flyout) bir alt menünün İÇİNDEKİ bir linke tıklanınca artık
-    // menü kapatılmıyor — kullanıcı üst üste birkaç rapora bakmak isteyebilir. Daraltılmış
-    // (icon-rail) moddaki flyout kapatma davranışı ayrı olarak aşağıda (sb-submenu
-    // .sb-nav-link click) yönetiliyor; sadece ANA (alt menüsü olmayan) bir sidebar linkine
-    // tıklanınca (örn. "Genel Bakış") açık kalan flyout'lar kapatılır.
-    const insideFlyout = btn.closest('.sb-submenu');
-    if(!insideFlyout && typeof window.closeAllFlyouts === 'function') window.closeAllFlyouts();
-  });
-});
-
-// ---- Sol sidebar: daraltma (icon-rail) modu ----
-(function(){
-  const shell = document.querySelector('.app-shell');
-  const sidebar = document.getElementById('appSidebar');
-  const collapseBtn = document.getElementById('sbCollapseBtn');
-  if(!shell || !sidebar || !collapseBtn) return;
-
-  // Tooltip metinleri (data-label) — sb-label span'ının metnini kopyalayarak, daraltılmış
-  // moddaki CSS tooltip'i (attr(data-label)) besler.
-  sidebar.querySelectorAll('.sb-link').forEach(btn=>{
-    const label = btn.querySelector('.sb-label');
-    if(label) btn.setAttribute('data-label', label.textContent.trim());
-  });
-
-  function closeAllFlyouts(){
-    SB_SUBMENUS.forEach(s=>{
-      s.menu.classList.remove('open');
-      s.btn.classList.remove('open');
-      s.btn.setAttribute('aria-expanded','false');
-      s.menu.style.top = '';
+// ÖNERİ 2: Yeni raporda karşılığı bulunamayan manuel işaret/notlar için uyarı şeridi.
+function renderYetimUyari(){
+  const el = document.getElementById('yetimUyariKap');
+  if(!el) return;
+  const yetim = state.rapor && state.rapor.yetimManuel ? state.rapor.yetimManuel : [];
+  if(!yetim.length){ el.innerHTML = ''; return; }
+  const notluAdet = yetim.filter(y=> y.not && y.not.trim()).length;
+  const detaySatirlari = yetim.slice(0, 30).map(y=>{
+    const durumTanim = y.durum ? manuelDurumTanimBul(y.durum) : null;
+    const etiket = durumTanim ? durumTanim.label : (y.not ? 'Not' : '—');
+    return `<div class="yetim-satir"><span class="yetim-etiket">${escapeHtml(etiket)}</span>${y.not ? `<span class="yetim-not">${escapeHtml(y.not)}</span>` : ''}</div>`;
+  }).join('');
+  el.innerHTML = `
+    <div class="yetim-uyari">
+      <div class="yetim-uyari-ust">
+        <div class="yetim-uyari-baslik">
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+          <span><strong>${fmtInt(yetim.length)}</strong> manuel işaret/not bu raporda eşleşmedi${notluAdet? ` (${fmtInt(notluAdet)} tanesinde not var)` : ''}.</span>
+        </div>
+        <button type="button" class="yetim-detay-btn" id="btnYetimDetay">Detayları göster <i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+      </div>
+      <div class="yetim-detay" id="yetimDetay" hidden>
+        <div class="yetim-aciklama">Bu işaretler, daha önce başka bir fatura no/VKN'ye eklenmişti; yeni yüklenen veride o kayıtların karşılığı bulunamadı. Verilerin doğru dönemde olduğundan emin olun — işaretler silinmez, kayıtlar geri gelirse yeniden eşleşir.</div>
+        ${detaySatirlari}
+        ${yetim.length>30? `<div class="yetim-satir" style="color:var(--ink-faint);">…ve ${fmtInt(yetim.length-30)} tane daha</div>` : ''}
+      </div>
+    </div>
+  `;
+  const btn = document.getElementById('btnYetimDetay');
+  const det = document.getElementById('yetimDetay');
+  if(btn && det){
+    btn.addEventListener('click', ()=>{
+      const acik = !det.hidden;
+      det.hidden = acik;
+      btn.innerHTML = acik ? 'Detayları göster <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>' : 'Gizle <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>';
     });
-    document.body.classList.remove('sb-flyout-open');
   }
-  window.closeAllFlyouts = closeAllFlyouts;
+}
 
-  function applyCollapsed(collapsed){
-    // Hover ile geçici olarak genişletilmiş (sb-hover-peek) durumdan gerçek bir
-    // daralt/genişlet işlemine geçerken önce hover state'ini (ve mousemove
-    // izleyicisini) temizliyoruz.
-    if(typeof sbStopHoverWatch === 'function') sbStopHoverWatch();
-    else clearTimeout(hoverLeaveTimer);
-    sidebar.classList.remove('sb-hover-peek');
-    sidebar.classList.toggle('collapsed', collapsed);
-    shell.classList.toggle('sb-collapsed', collapsed);
-    collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    collapseBtn.setAttribute('title', collapsed ? 'Menüyü genişlet' : 'Menüyü daralt');
-    collapseBtn.setAttribute('aria-label', collapsed ? 'Menüyü genişlet' : 'Menüyü daralt');
-    closeAllFlyouts();
-    try{ localStorage.setItem('sbCollapsed', collapsed ? '1' : '0'); }catch(e){}
-  }
+// ===== AY SONU KONTROLÜ 1: Geçmiş/uzak dönem Netsis değişikliği onay modalı =====
+// Aktif çalışılan ay (ve bir sonraki ay) DIŞINDA kalan dönemlere ait Netsis
+// değişiklikleri otomatik arşivlenmez — bu modal kullanıcıya ne değiştiğini gösterir:
+//   - "Yeni/değişen" satırlar: dosyada var, arşivde yok/farklıydı → otomatik eklenecek (bilgi amaçlı)
+//   - "Eksik" satırlar: arşivde var, yeni dosyada yok → kullanıcı "Elle çıkar" ile işaretleyebilir
+// "Tümünü Göz Ardı Et ve Uygula": işaretlenen eksikler arşivden silinir, işaretlenmeyenler
+// (ve tüm yeni/değişen satırlar) arşive yazılır.
+function donemOnayModaliAc(onayBekleyenDonemler){
+  if(!onayBekleyenDonemler || !onayBekleyenDonemler.length) return;
+  if(document.getElementById('donemOnayOverlay')) return; // zaten açık, tekrar açma
 
-  // ---- Fare ile üzerine gelince otomatik genişleme (hover-peek) ----
-  // Yalnızca masaüstünde ve sidebar daraltılmışken devreye girer. Gerçek
-  // "daraltıldı" tercihine (localStorage) dokunmaz; fare ayrılınca eski
-  // (daraltılmış) haline geri döner.
-  // Not: Fare sidebar'ın DOM sınırından (mouseleave) çıktığı an hemen kapatmak yerine,
-  // imlecin x-konumu belirli bir eşiği (sayfanın ortasına doğru anlamlı bir mesafeyi)
-  // geçene kadar açık tutuyoruz. Böylece kenar boşluğuna/scrollbar'a değme gibi ufak
-  // hareketlerde menü istenmeden kapanmıyor; fare gerçekten sayfanın ortasına doğru
-  // ilerlediğinde kapanıyor.
-  let hoverLeaveTimer = null;
-  let sbHoverMoveHandler = null;
+  const donemBlokHtml = (d, dIndex)=>{
+    const yeniSatirlarHtml = d.yeniVeyaDegisenSatirlar.slice(0, 30).map(f=>`
+      <div class="donem-onay-satir">
+        <span class="donem-onay-fno">${escapeHtml(f.faturaNo||'')}</span>
+        <span class="donem-onay-unvan">${escapeHtml(f.gonderenUnvan||'')}</span>
+        <span class="donem-onay-tutar">${fmtTL(f.netsisTutar!=null?f.netsisTutar:f.tutar)}</span>
+      </div>
+    `).join('');
 
-  function sbHoverCloseThresholdX(){
-    const rect = sidebar.getBoundingClientRect();
-    // Sidebar'ın sağ kenarından bir tampon bölge (259px) — kenar boşluğuna/scrollbar'a
-    // değme gibi ufak hareketlerde menü istenmeden kapanmasın diye pay bırakılıyor,
-    // ama sayfanın ortasına kadar açık kalmıyor.
-    return rect.right + 259;
-  }
+    const eksikSatirlarHtml = d.eksikSatirlar.slice(0, 60).map((f, fIndex)=>`
+      <label class="donem-onay-eksik-satir">
+        <input type="checkbox" class="donem-onay-cikar-cb" data-donem-index="${dIndex}" data-fatura-key="${escapeHtml(f.faturaKey)}">
+        <span class="donem-onay-fno">${escapeHtml(f.faturaNo||'')}</span>
+        <span class="donem-onay-unvan">${escapeHtml(f.gonderenUnvan||'')}</span>
+        <span class="donem-onay-tutar">${fmtTL(f.netsisTutar!=null?f.netsisTutar:f.tutar)}</span>
+      </label>
+    `).join('');
 
-  function sbStopHoverWatch(){
-    clearTimeout(hoverLeaveTimer);
-    if(sbHoverMoveHandler){
-      document.removeEventListener('mousemove', sbHoverMoveHandler);
-      sbHoverMoveHandler = null;
-    }
-  }
+    return `
+      <div class="donem-onay-blok">
+        <div class="donem-onay-blok-baslik"><i class="fa-solid fa-calendar-week" aria-hidden="true"></i> ${escapeHtml(d.donemEtiket)}</div>
 
-  function sbStartHoverWatch(){
-    sbStopHoverWatch();
-    sbHoverMoveHandler = (e)=>{
-      const leftViewport = (e.clientY < 0 || e.clientY > window.innerHeight || e.clientX < 0);
-      if(leftViewport || e.clientX > sbHoverCloseThresholdX()){
-        sidebar.classList.remove('sb-hover-peek');
-        sidebar.classList.add('collapsed');
-        // DÜZELTME (kullanıcı isteği): hover-peek eskiden sadece sidebar'ı görsel olarak
-        // genişletip .app-shell'e dokunmuyordu ("içerik yer değiştirmesin, sidebar üzerine
-        // yüzen bir panel gibi genişlesin" tasarımı) — bu da header'ın sidebar'ın ALTINDA/
-        // ARKASINDA kalmış gibi görünmesine (sidebar header'ın üstüne binmesine) yol açıyordu.
-        // Artık fare ayrılınca sidebar tekrar daraldığı gibi .app-shell de tekrar
-        // sb-collapsed'e dönüyor — yani header/içerik de sidebar'la birlikte genişleyip daralıyor.
-        shell.classList.add('sb-collapsed');
-        closeAllFlyouts();
-        sbStopHoverWatch();
-      }
-    };
-    document.addEventListener('mousemove', sbHoverMoveHandler);
-  }
+        ${d.yeniVeyaDegisenSatirlar.length ? `
+          <div class="donem-onay-alt-baslik ok">${fmtInt(d.yeniVeyaDegisenSatirlar.length)} yeni/değişen kayıt — otomatik eklenecek</div>
+          <div class="donem-onay-liste">${yeniSatirlarHtml}</div>
+          ${d.yeniVeyaDegisenSatirlar.length>30? `<div class="donem-onay-fazla">…ve ${fmtInt(d.yeniVeyaDegisenSatirlar.length-30)} tane daha</div>` : ''}
+        ` : ''}
 
-  sidebar.addEventListener('mouseenter', ()=>{
-    if(window.innerWidth <= 980) return;
-    if(!sidebar.classList.contains('collapsed')) return;
-    sbStopHoverWatch();
-    sidebar.classList.add('sb-hover-peek');
-    sidebar.classList.remove('collapsed');
-    // DÜZELTME (kullanıcı isteği): header/içerik artık sidebar ile AYNI ANDA genişliyor —
-    // sidebar sadece görsel olarak büyüyüp header'ın üstüne binmiyor, header da gerçekten
-    // sağa kayıp yer açıyor (tıpkı kalıcı aç/kapa butonundaki davranış gibi).
-    shell.classList.remove('sb-collapsed');
-  });
-  sidebar.addEventListener('mouseleave', ()=>{
-    if(!sidebar.classList.contains('sb-hover-peek')) return;
-    sbStartHoverWatch();
-  });
-
-  // Varsayılan açılış durumu: daraltılmış icon-rail. Kullanıcı daha önce sidebar'ı bilerek
-  // genişletmişse (localStorage'da '0' olarak kaydedilmişse) o tercih hatırlanır; aksi halde
-  // (ilk ziyaret veya '1') daraltılmış halde açılır.
-  let collapsedState = true;
-  try{
-    const saved = localStorage.getItem('sbCollapsed');
-    if(saved === '0') collapsedState = false;
-  }catch(e){}
-  if(window.innerWidth > 980) applyCollapsed(collapsedState);
-
-  collapseBtn.addEventListener('click', ()=>{
-    applyCollapsed(!sidebar.classList.contains('collapsed'));
-  });
-
-  // Daraltılmış modda üst menü butonlarına (Cari Detay/Dağıtım/Finansal Analiz) tıklanınca
-  // açılan alt menü artık satır içi değil, ikonun sağında yüzen (flyout) bir panel — bu yüzden
-  // konumunu (top) butonun sidebar içindeki dikey konumuna göre elle hesaplıyoruz.
-  SB_SUBMENUS.forEach(s=>{
-    s.btn.addEventListener('click', ()=>{
-      if(!sidebar.classList.contains('collapsed')) return;
-      if(s.menu.classList.contains('open')){
-        const r = s.btn.getBoundingClientRect();
-        let top = r.top;
-        const maxTop = window.innerHeight - s.menu.offsetHeight - 10;
-        if(top > maxTop) top = Math.max(10, maxTop);
-        s.menu.style.top = top + 'px';
-      }
-    });
-  });
-
-  // Daraltılmış moddaki flyout içindeki bir rapor linkine tıklanınca (görünüm değiştiği için)
-  // flyout'un kendisi de kapanmalı — aksi halde panel ekranda açık kalmaya devam ediyordu.
-  sidebar.querySelectorAll('.sb-submenu .sb-nav-link').forEach(link=>{
-    link.addEventListener('click', ()=>{
-      if(sidebar.classList.contains('collapsed')) closeAllFlyouts();
-    });
-  });
-
-  document.addEventListener('click', (e)=>{
-    if(sidebar.contains(e.target)) return;
-    // Sidebar dışında herhangi bir yere tıklanınca, farenin o anki konumundan
-    // bağımsız olarak menü hemen kapanır (hover-peek ile geçici açılmış olsa bile).
-    if(sidebar.classList.contains('sb-hover-peek')){
-      if(typeof sbStopHoverWatch === 'function') sbStopHoverWatch();
-      sidebar.classList.remove('sb-hover-peek');
-      sidebar.classList.add('collapsed');
-    }
-    if(sidebar.classList.contains('collapsed')){
-      closeAllFlyouts();
-    } else {
-      SB_SUBMENUS.forEach(s=>{
-        s.menu.classList.remove('open');
-        s.btn.classList.remove('open');
-        s.btn.setAttribute('aria-expanded','false');
-        s.menu.style.top = '';
-      });
-    }
-  });
-
-  window.addEventListener('resize', ()=>{
-    if(window.innerWidth <= 980){
-      // Mobile genişliğe geçildiğinde hover-peek anlamsız hale gelir (mobilde sidebar
-      // zaten kayan bir drawer) — kalıntı durumu temizliyoruz.
-      if(sidebar.classList.contains('sb-hover-peek')){
-        sbStopHoverWatch();
-        sidebar.classList.remove('sb-hover-peek');
-        sidebar.classList.add('collapsed');
-      }
-      if(sidebar.classList.contains('collapsed')){
-        closeAllFlyouts();
-      }
-    }
-  });
-
-  // Sidebar iç kaydırması olursa (dar yükseklikli ekranlarda), açık flyout'un konumu geçersiz
-  // kalmasın diye kapatıyoruz.
-  sidebar.addEventListener('scroll', ()=>{
-    if(sidebar.classList.contains('collapsed')) closeAllFlyouts();
-  }, {passive:true});
-})();
-
-// ---- Sol sidebar (GENİŞ/açık mod): fare üzerine gelince alt menüyü sağa doğru aç (flyout) ----
-// Daraltılmış (icon-rail) moddaki flyout click ile tetikleniyordu; burada aynı görsel
-// flyout paneli, sidebar tam genişlikteyken (accordion yerine) mouse hover ile açılır/kapanır.
-(function(){
-  const sidebar = document.getElementById('appSidebar');
-  if(!sidebar || typeof SB_SUBMENUS === 'undefined' || !SB_SUBMENUS.length) return;
-  let sbExpLeaveTimer = null;
-
-  function isExpandedDesktop(){
-    return window.innerWidth > 980 && !sidebar.classList.contains('collapsed');
-  }
-
-  function positionExpandedFlyout(btn, menu){
-    const r = btn.getBoundingClientRect();
-    let top = r.top;
-    const maxTop = window.innerHeight - menu.offsetHeight - 10;
-    if(top > maxTop) top = Math.max(10, maxTop);
-    menu.style.top = top + 'px';
-  }
-
-  function openExpandedFlyout(target){
-    SB_SUBMENUS.forEach(o=>{
-      if(o===target) return;
-      o.menu.classList.remove('open');
-      o.btn.classList.remove('open');
-      o.btn.setAttribute('aria-expanded','false');
-      o.menu.style.top = '';
-    });
-    target.menu.classList.add('open');
-    target.btn.classList.add('open');
-    target.btn.setAttribute('aria-expanded','true');
-    positionExpandedFlyout(target.btn, target.menu);
-  }
-
-  function closeExpandedFlyout(target){
-    target.menu.classList.remove('open');
-    target.btn.classList.remove('open');
-    target.btn.setAttribute('aria-expanded','false');
-    target.menu.style.top = '';
-  }
-
-  // setActiveView (yukarıda) aktif görünüme ait alt menüyü otomatik açıyor; genişletilmiş
-  // masaüstü modunda bu durumda da flyout'un konumunun (top) doğru hesaplanması gerekir.
-  window.positionSbExpandedFlyout = function(btn, menu){
-    if(isExpandedDesktop()) positionExpandedFlyout(btn, menu);
+        ${d.eksikSatirlar.length ? `
+          <div class="donem-onay-alt-baslik uyari">${fmtInt(d.eksikSatirlar.length)} kayıt arşivde var ama yeni dosyada yok — çıkarılacakları işaretleyin</div>
+          <div class="donem-onay-liste">${eksikSatirlarHtml}</div>
+          ${d.eksikSatirlar.length>60? `<div class="donem-onay-fazla">…ve ${fmtInt(d.eksikSatirlar.length-60)} tane daha (otomatik korunur)</div>` : ''}
+        ` : ''}
+      </div>
+    `;
   };
 
-  SB_SUBMENUS.forEach(s=>{
-    s.btn.addEventListener('mouseenter', ()=>{
-      if(!isExpandedDesktop()) return;
-      clearTimeout(sbExpLeaveTimer);
-      openExpandedFlyout(s);
-    });
-    const scheduleClose = ()=>{
-      if(!isExpandedDesktop()) return;
-      clearTimeout(sbExpLeaveTimer);
-      // Kullanıcının fareyi buton ile flyout paneli arasındaki boşluktan geçirebilmesi
-      // için kısa bir gecikmeyle kapatıyoruz — aksi halde flyout'a ulaşmadan kapanırdı.
-      sbExpLeaveTimer = setTimeout(()=>{ closeExpandedFlyout(s); }, 220);
-    };
-    s.btn.addEventListener('mouseleave', scheduleClose);
-    s.menu.addEventListener('mouseenter', ()=>{
-      if(isExpandedDesktop()) clearTimeout(sbExpLeaveTimer);
-    });
-    s.menu.addEventListener('mouseleave', scheduleClose);
-  });
-
-  // Genişletilmiş moddan mobil/collapsed'a geçildiğinde kalıntı inline top değerini temizle.
-  window.addEventListener('resize', ()=>{
-    if(!isExpandedDesktop()){
-      SB_SUBMENUS.forEach(s=>{ s.menu.style.top = ''; });
-    }
-  });
-})();
-
-// ---- Mobil hamburger menü (sidebar'ı kayan panel/drawer olarak aç-kapat) ----
-function openSidebarDrawer(){
-  document.body.classList.add('sb-drawer-open');
-  document.getElementById('mobileHamburgerBtn')?.setAttribute('aria-expanded','true');
-}
-function closeSidebarDrawer(){
-  document.body.classList.remove('sb-drawer-open');
-  document.getElementById('mobileHamburgerBtn')?.setAttribute('aria-expanded','false');
-}
-document.getElementById('mobileHamburgerBtn')?.addEventListener('click', ()=>{
-  if(document.body.classList.contains('sb-drawer-open')) closeSidebarDrawer(); else openSidebarDrawer();
-});
-document.getElementById('sbDrawerOverlay')?.addEventListener('click', closeSidebarDrawer);
-document.addEventListener('keydown', (e)=>{
-  if(e.key==='Escape') closeSidebarDrawer();
-});
-// Ekran mobil eşiğin (980px) üzerine büyürse (ör. tablet döndürme/pencere genişletme) drawer
-// state'i temizlensin — masaüstü görünümde sidebar zaten her zaman açık/sabit olduğundan.
-window.addEventListener('resize', ()=>{
-  if(window.innerWidth > 980) closeSidebarDrawer();
-});
-
-// ---- Kaydırarak menüyü aç/kapat: SAYFANIN HER YERİNDEN, parmağı canlı takip eden sürükleme ----
-// Önceki sürüm sadece sol kenardaki dar bir bölgeden başlayan dokunuşları kabul ediyordu. Artık
-// jest SAYFANIN HER YERİNDEN başlayabiliyor — TEK istisna, kendi yatay kaydırması olan alanlar
-// (tablolar ve sekme çubuğu, bkz. KAYDIRMALI_ALAN_SECICI): oralarda kullanıcının asıl niyeti
-// tabloyu/sekmeleri yana kaydırmaktır, menü jestiyle çakışmaması için o alanlarda devre dışı
-// bırakılıyor. Menü, parmak hareket ettikçe BİREBİR onu takip ediyor (transition kapalıyken
-// doğrudan px hesaplanıyor); parmak kalktığında ise sürüklenen mesafeye ya da hızlı bir
-// "flick"e göre açık/kapalı konuma YUMUŞAKÇA (CSS transition ile) tamamlanıyor. Hamburger
-// butonu, dışarı tıklama, ESC gibi mevcut açma/kapama yöntemleri aynen çalışmaya devam ediyor.
-(function(){
-  const sidebarEl = document.getElementById('appSidebar');
-  const overlayEl = document.getElementById('sbDrawerOverlay');
-  if(!sidebarEl) return;
-  // Kendi yatay kaydırması olan alanlar — bu seçicilerin İÇİNDE başlayan dokunuşlarda menü
-  // sürükleme jesti hiç devreye girmez (tablo/sekme kendi doğal yatay scroll'unu yapar).
-  const KAYDIRMALI_ALAN_SECICI = '.table-scroll, .aging-table-scroll, .tabbar';
-  const OLU_BOLGE_PX = 8; // bu kadar px hareket edilmeden menü GÖRSEL OLARAK hiç takip etmeye başlamaz — küçük/istemsiz dokunuşları eler (önceden 14px, biraz daha duyarlı olsun diye düşürüldü)
-  const AC_KAPA_ORANI = 0.28; // sürüklenen mesafe, menü genişliğinin bu oranını geçerse bırakınca o konumda kalır (önceden 0.5/yarı genişlik gerekiyordu — mobilde bu kadar uzun kaydırmak zor geliyordu, bu yüzden düşürüldü)
-  const FLICK_SURE_MS = 260; // bu süreden kısa bir dokunuşta... (önceden 200ms, biraz daha rahat bir "hızlı" tanımı için artırıldı)
-  const FLICK_MESAFE_PX = 20; // ...bu kadar (veya fazla) hareket varsa, oran şartı aranmadan hızlı geçiş sayılır (önceden 34px — çok fazla mesafe istiyordu, düşürüldü)
-  const DIKEY_TOLERANS = 60; // bu kadardan fazla dikey kayarsa jest iptal edilir (sayfa scroll'uyla çakışmasın) — hafif çapraz/titrek dokunuşların jesti erken iptal etmesini azaltmak için artırıldı
-
-  let genislik = 0, baslangicX = null, baslangicY = null, baslangicZaman = 0;
-  let sonX = null, surukluyor = false, acilisDurumu = false;
-
-  const sinirla = (v, min, max) => Math.max(min, Math.min(max, v));
-
-  function suruklemeyiUygula(acikPx){
-    // acikPx: 0 (tam kapalı) ... genislik (tam açık) aralığında, menünün o anki konumu
-    const x = -genislik + sinirla(acikPx, 0, genislik);
-    sidebarEl.style.transform = `translateX(${x}px)`;
-    if(overlayEl){
-      overlayEl.style.display = 'block';
-      overlayEl.style.opacity = String(sinirla(acikPx/genislik, 0, 1));
-    }
-  }
-
-  function suruklemeInlineStilleriTemizle(){
-    sidebarEl.style.transition = '';
-    sidebarEl.style.transform = '';
-    if(overlayEl){ overlayEl.style.opacity = ''; overlayEl.style.display = ''; }
-  }
-
-  document.addEventListener('touchstart', (e)=>{
-    if(window.innerWidth > 980) return; // masaüstünde sidebar zaten sabit/açık, jest gereksiz
-    if(e.target.closest && e.target.closest(KAYDIRMALI_ALAN_SECICI)) return; // kaydırmalı tablo/sekme üzerinde jest devre dışı
-    const t = e.touches[0];
-    acilisDurumu = document.body.classList.contains('sb-drawer-open');
-    // Artık kenar sınırı YOK — sayfanın her yerinden başlayan yatay sürükleme menüyü açabilir
-    // (kapalıyken) veya kapatabilir (açıkken), yukarıdaki kaydırmalı alanlar hariç.
-    genislik = sidebarEl.offsetWidth || 252;
-    baslangicX = sonX = t.clientX;
-    baslangicY = t.clientY;
-    baslangicZaman = Date.now();
-    surukluyor = true;
-    sidebarEl.style.transition = 'none'; // sürüklerken animasyon YOK — doğrudan parmağı takip etsin
-  }, {passive:true});
-
-  document.addEventListener('touchmove', (e)=>{
-    if(!surukluyor || baslangicX==null) return;
-    const t = e.touches[0];
-    const dx = t.clientX - baslangicX;
-    const dy = Math.abs(t.clientY - baslangicY);
-    if(dy > DIKEY_TOLERANS){ surukluyor = false; suruklemeInlineStilleriTemizle(); return; }
-    sonX = t.clientX;
-    // ÖLÜ BÖLGE: |dx| OLU_BOLGE_PX'i geçmeden menü hiç kıpırdamaz — bir tıklama/dokunuşun
-    // ufak titremesi ya da yavaş bir dikey kaydırmanın başlangıcı yanlışlıkla menüyü
-    // "aralamış" gibi göstermesin diye. Geçildikten sonra parmağı yine birebir takip eder.
-    if(Math.abs(dx) < OLU_BOLGE_PX) return;
-    const baslangicPx = acilisDurumu ? genislik : 0;
-    suruklemeyiUygula(baslangicPx + dx);
-  }, {passive:true});
-
-  document.addEventListener('touchend', ()=>{
-    if(!surukluyor){ baslangicX = null; return; }
-    surukluyor = false;
-    const dx = (sonX!=null && baslangicX!=null) ? (sonX - baslangicX) : 0;
-    const hizliFlickMi = (Date.now()-baslangicZaman) < FLICK_SURE_MS && Math.abs(dx) > FLICK_MESAFE_PX;
-    const acikKalsin = acilisDurumu
-      ? !(dx < -genislik*AC_KAPA_ORANI || (hizliFlickMi && dx < -FLICK_MESAFE_PX)) // açıktı: yeterince/sertçe sola kaydırıldıysa kapat
-      : (dx > genislik*AC_KAPA_ORANI || (hizliFlickMi && dx > FLICK_MESAFE_PX));   // kapalıydı: yeterince/sertçe sağa kaydırıldıysa aç
-    suruklemeInlineStilleriTemizle(); // inline stiller kalkınca CSS class'ın (.sb-drawer-open) transition'lı hareketi devreye girer
-    if(acikKalsin) openSidebarDrawer(); else closeSidebarDrawer();
-    baslangicX = null; baslangicY = null; sonX = null;
-  }, {passive:true});
-})();
-
-document.querySelectorAll('.tab-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    if(TAB_DROPDOWNS.some(d=>d.btn===btn)) return;
-    const view = btn.getAttribute('data-view');
-    if(btn.classList.contains('dropdown-item')) closeAllDropdowns();
-    setActiveView(view);
-  });
-});
-
-
-const AGING_DAY_BUCKETS = [
-  {key:'g0_6',  label:'0-6 Gün',   test:g=> g>=0  && g<=6},
-  {key:'g7_13', label:'7-13 Gün',  test:g=> g>=7  && g<=13},
-  {key:'g14_20',label:'14-20 Gün', test:g=> g>=14 && g<=20},
-  {key:'g21_27',label:'21-27 Gün', test:g=> g>=21 && g<=27},
-  {key:'g28_34',label:'28-34 Gün', test:g=> g>=28 && g<=34},
-  {key:'g35p',  label:'+35 Gün',   test:g=> g>=35},
-];
-// İlk 5 kolon (0-6...28-34 gün) sistemin gold/amber vurgu rengiyle uyumlu tek bir renk
-// ailesinin açıktan koyuya yoğunluğuyla gösteriliyor; yalnızca en riskli son kolon
-// (+35 gün) hâlâ kırmızı/danger tonunda kalıyor — böylece asıl dikkat edilmesi gereken
-// vadesi en geçmiş bakiyeler, diğer sistem renklerinden kopmadan yine öne çıkıyor.
-const AGING_RENK_HEX = ['#8A6D1F','#8A6D1F','#8A6D1F','#8A6D1F','#8A6D1F','#B23A2C'];
-function yaslandirmaHexToRgb(hex){
-  const h = hex.replace('#','');
-  const n = parseInt(h,16);
-  return [(n>>16)&255, (n>>8)&255, n&255];
-}
-const AGING_RENK_RGB = AGING_RENK_HEX.map(yaslandirmaHexToRgb);
-
-// Bir yaşlandırma hücresinin ısı haritası arka planı: değer, o kolonun (tüm satırlardaki) en
-// büyük değerine oranlandığında ne kadar "sıcak" görüneceğini belirler.
-function yaslandirmaIsiStili(value, maks, bucketIndex){
-  if(!value || !maks) return '';
-  const oran = Math.min(1, value/maks);
-  const alpha = (0.07 + oran*0.5).toFixed(3);
-  const [r,g,b] = AGING_RENK_RGB[bucketIndex];
-  return ` style="background:rgba(${r},${g},${b},${alpha})"`;
-}
-
-function emptyBuckets(){
-  const b = {};
-  AGING_DAY_BUCKETS.forEach(x=> b[x.key]=0);
-  return b;
-}
-
-function computeNoktaYaslandirma(report){
-  return report.musteriler.map(m=>{
-    const buckets = emptyBuckets();
-    (m.invoices||[]).forEach(inv=>{
-      const g = inv.gunFatura;
-      if(g==null || isNaN(g)) return;
-      const b = AGING_DAY_BUCKETS.find(x=>x.test(g));
-      if(b) buckets[b.key] += (inv.kalanBorc||0);
-    });
-
-    const toplam = AGING_DAY_BUCKETS.reduce((s,b)=>s+buckets[b.key],0);
-    return {musteri:m.musteri, musteriAdi:m.musteriAdi, temsilci:m.temsilci||'—', buckets, toplam};
-  // Kullanıcı isteği: Yaşlandırma raporuna (hem temsilci/müdür toplamlarına hem müşteri bazlı
-  // akordiyon listesine) bakiyesi (kalan borcu) olmayan müşteriler dahil edilmesin. "Bakiyesi yok"
-  // burada yaşlandırma kovalarının toplamı (m.kalanBorc değil, invoices'tan hesaplanan toplam) 0'a
-  // eşit demek — mahsup sonrası kuruş artıklarının 0'a sabitlenmesiyle (buildReport'taki düzeltme)
-  // bu artık gerçek anlamda "borcu olmayan" müşterileri de doğru şekilde dışarıda bırakıyor.
-  }).filter(row => Math.abs(row.toplam) >= 1);
-}
-computeNoktaYaslandirma = memoizePure(computeNoktaYaslandirma);
-
-function computeTemsilciYaslandirma(noktaRows){
-  const map = new Map();
-  noktaRows.forEach(r=>{
-    const key = r.temsilci || '—';
-    if(!map.has(key)) map.set(key, {temsilci:key, muduru:getSahaMuduru(key), buckets:emptyBuckets(), toplam:0});
-    const t = map.get(key);
-    AGING_DAY_BUCKETS.forEach(b=> t.buckets[b.key] += r.buckets[b.key]);
-    t.toplam += r.toplam;
-  });
-  return Array.from(map.values()).sort((a,b)=>b.toplam-a.toplam);
-}
-
-function computeMuduruYaslandirma(repRows){
-  const map = new Map();
-  repRows.forEach(r=>{
-    const key = r.muduru || 'Tanımsız';
-    if(!map.has(key)) map.set(key, {muduru:key, buckets:emptyBuckets(), toplam:0});
-    const t = map.get(key);
-    AGING_DAY_BUCKETS.forEach(b=> t.buckets[b.key] += r.buckets[b.key]);
-    t.toplam += r.toplam;
-  });
-  return Array.from(map.values()).sort((a,b)=>b.toplam-a.toplam);
-}
-
-function yaslandirmaBucketMaksList(rows){
-  return AGING_DAY_BUCKETS.map(b => rows.reduce((m,r)=> Math.max(m, r.buckets[b.key]||0), 0));
-}
-
-function renderYaslandirmaOzet(report){
-  const noktaRows = computeNoktaYaslandirma(report);
-  const repRows = computeTemsilciYaslandirma(noktaRows);
-  const muduruRows = computeMuduruYaslandirma(repRows);
-  const tbody = document.getElementById('yaslandirmaOzetTbody');
-  if(!repRows.length){
-    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state">Veri bulunamadı.</div></td></tr>`;
-    document.getElementById('yaslandirmaOzetTfoot').innerHTML = '';
-    document.getElementById('yaslandirmaOzetMuduruTbody').innerHTML = `<tr><td colspan="9"><div class="empty-state">Veri bulunamadı.</div></td></tr>`;
-    document.getElementById('yaslandirmaOzetMuduruTfoot').innerHTML = '';
-    return;
-  }
-  const repMaks = yaslandirmaBucketMaksList(repRows);
-  const repCell = (v,i) => `<td class="num${v>0?'':' zero'}"${yaslandirmaIsiStili(v, repMaks[i], i)}>${v>0?TL(v):'—'}</td>`;
-  // Temsilci satırına tıklanınca, o temsilcinin müşterilerini (aynı 6 gün kolonu +
-  // Yaşlandırma + Toplam formatında) alt satırda gösteren akordiyon — noktaRows zaten
-  // müşteri bazlı yaşlandırma verisini (temsilci alanıyla birlikte) içeriyor, burada
-  // sadece temsilciye göre filtreleyip aynı hücre şablonunu tekrar kullanıyoruz.
-  const musteriMaks = yaslandirmaBucketMaksList(noktaRows);
-  const musteriCell = (v,i) => `<td class="num${v>0?'':' zero'}"${yaslandirmaIsiStili(v, musteriMaks[i], i)}>${v>0?TL(v):'—'}</td>`;
-  function temsilciMusteriSatirHtml(n){
-    const yTop = (n.buckets.g28_34||0) + (n.buckets.g35p||0);
-    return `<tr class="data-row">
-        <td>${escapeHtml(n.musteriAdi)}</td>
-        <td></td>
-        ${musteriCell(n.buckets.g0_6,0)}
-        ${musteriCell(n.buckets.g7_13,1)}
-        ${musteriCell(n.buckets.g14_20,2)}
-        ${musteriCell(n.buckets.g21_27,3)}
-        ${musteriCell(n.buckets.g28_34,4)}
-        ${musteriCell(n.buckets.g35p,5)}
-        <td class="num aging-toplam-col">${yTop>0?TL(yTop):'—'}</td>
-        <td class="num"><span class="num-strong">${TL(n.toplam)}</span></td>
-      </tr>`;
-  }
-  const AGING_MUSTERI_SAYFA_BOYUTU = 10;
-  function temsilciMusterileriHtml(temsilciAdi){
-    // Yaşlandırma (28-34 + 35 gün toplamı) bakiyesi en yüksek müşteri en üstte —
-    // temsilcinin altında açılan bu liste, en riskli/yaşlanmış bakiyeye sahip
-    // müşterileri önce görmek için Toplam yerine bu değere göre sıralanıyor.
-    const musteriler = noktaRows.filter(n=>n.temsilci===temsilciAdi).slice()
-      .sort((a,b)=>((b.buckets.g28_34||0)+(b.buckets.g35p||0)) - ((a.buckets.g28_34||0)+(a.buckets.g35p||0)));
-    if(!musteriler.length) return '<div class="empty-state" style="padding:10px 12px;">Bu temsilciye ait müşteri bulunamadı.</div>';
-    const ilkGrup = musteriler.slice(0, AGING_MUSTERI_SAYFA_BOYUTU);
-    const kalanGrup = musteriler.slice(AGING_MUSTERI_SAYFA_BOYUTU);
-    const ilkGrupHtml = ilkGrup.map(temsilciMusteriSatirHtml).join('');
-    const kalanGrupHtml = kalanGrup.map(temsilciMusteriSatirHtml).join('');
-    const dahaFazlaBtnHtml = kalanGrup.length
-      ? `<tr class="aging-daha-fazla-row"><td colspan="10" style="padding:8px 12px;text-align:center;">
-          <button type="button" class="btn small aging-daha-fazla-btn">Devamını gör (${kalanGrup.length} müşteri daha) ↓</button>
-        </td></tr>`
-      : '';
-    return `<table class="aging-table aging-subtable"><tbody>${ilkGrupHtml}</tbody>`
-      + `<tbody class="aging-kalan-tbody" style="display:none;">${kalanGrupHtml}</tbody>`
-      + `<tbody>${dahaFazlaBtnHtml}</tbody></table>`;
-  }
-  tbody.innerHTML = repRows.map(r=>{
-    const yaslandirmaToplam = (r.buckets.g28_34||0) + (r.buckets.g35p||0);
-    return `<tr class="data-row aging-temsilci-row" data-temsilci="${escapeHtml(r.temsilci)}">
-    <td><span class="aging-expand-ic"><i class="fa-solid fa-caret-right" aria-hidden="true"></i></span><span class="temsilci-tag">${HTK_USER_ICON}${escapeHtml(r.temsilci)}</span></td>
-    <td><span class="temsilci-tag mudur-tag">${HTK_USER_ICON}${escapeHtml(r.muduru)}</span></td>
-    ${repCell(r.buckets.g0_6,0)}
-    ${repCell(r.buckets.g7_13,1)}
-    ${repCell(r.buckets.g14_20,2)}
-    ${repCell(r.buckets.g21_27,3)}
-    ${repCell(r.buckets.g28_34,4)}
-    ${repCell(r.buckets.g35p,5)}
-    <td class="num aging-toplam-col">${yaslandirmaToplam>0?TL(yaslandirmaToplam):'—'}</td>
-    <td class="num"><span class="num-strong">${TL(r.toplam)}</span></td>
-  </tr>
-  <tr class="aging-detay-row" style="display:none;"><td colspan="10" style="padding:0;">${temsilciMusterileriHtml(r.temsilci)}</td></tr>`;
-  }).join('');
-
-  const grand = {buckets:emptyBuckets(), toplam:0};
-  repRows.forEach(r=>{
-    AGING_DAY_BUCKETS.forEach(b=> grand.buckets[b.key]+=r.buckets[b.key]);
-    grand.toplam += r.toplam;
-  });
-  const grandYaslandirma = (grand.buckets.g28_34||0) + (grand.buckets.g35p||0);
-  document.getElementById('yaslandirmaOzetTfoot').innerHTML = `<tr class="totals-row">
-    <td colspan="2">Genel Toplam</td>
-    <td class="num">${TL(grand.buckets.g0_6)}</td>
-    <td class="num">${TL(grand.buckets.g7_13)}</td>
-    <td class="num">${TL(grand.buckets.g14_20)}</td>
-    <td class="num">${TL(grand.buckets.g21_27)}</td>
-    <td class="num">${TL(grand.buckets.g28_34)}</td>
-    <td class="num">${TL(grand.buckets.g35p)}</td>
-    <td class="num aging-toplam-col"><span class="num-strong">${TL(grandYaslandirma)}</span></td>
-    <td class="num"><span class="num-strong">${TL(grand.toplam)}</span></td>
-  </tr>`;
-
-  const muduruMaks = yaslandirmaBucketMaksList(muduruRows);
-  const muduruCell = (v,i) => `<td class="num${v>0?'':' zero'}"${yaslandirmaIsiStili(v, muduruMaks[i], i)}>${v>0?TL(v):'—'}</td>`;
-  const mtbody = document.getElementById('yaslandirmaOzetMuduruTbody');
-  mtbody.innerHTML = muduruRows.map(r=>{
-    const yaslandirmaToplam = (r.buckets.g28_34||0) + (r.buckets.g35p||0);
-    return `<tr class="data-row">
-    <td><span class="temsilci-tag mudur-tag">${HTK_USER_ICON}${escapeHtml(r.muduru)}</span></td>
-    ${muduruCell(r.buckets.g0_6,0)}
-    ${muduruCell(r.buckets.g7_13,1)}
-    ${muduruCell(r.buckets.g14_20,2)}
-    ${muduruCell(r.buckets.g21_27,3)}
-    ${muduruCell(r.buckets.g28_34,4)}
-    ${muduruCell(r.buckets.g35p,5)}
-    <td class="num aging-toplam-col">${yaslandirmaToplam>0?TL(yaslandirmaToplam):'—'}</td>
-    <td class="num"><span class="num-strong">${TL(r.toplam)}</span></td>
-  </tr>`;
-  }).join('');
-  document.getElementById('yaslandirmaOzetMuduruTfoot').innerHTML = `<tr class="totals-row">
-    <td>Genel Toplam</td>
-    <td class="num">${TL(grand.buckets.g0_6)}</td>
-    <td class="num">${TL(grand.buckets.g7_13)}</td>
-    <td class="num">${TL(grand.buckets.g14_20)}</td>
-    <td class="num">${TL(grand.buckets.g21_27)}</td>
-    <td class="num">${TL(grand.buckets.g28_34)}</td>
-    <td class="num">${TL(grand.buckets.g35p)}</td>
-    <td class="num aging-toplam-col"><span class="num-strong">${TL(grandYaslandirma)}</span></td>
-    <td class="num"><span class="num-strong">${TL(grand.toplam)}</span></td>
-  </tr>`;
-}
-
-// Temsilci satırına tıklanınca altındaki müşteri detay satırını aç/kapa — event
-// delegation ile tek seferlik bağlanıyor, tbody her render edildiğinde (filtre/sıralama
-// değiştiğinde) tekrar dinleyici eklemeye gerek kalmıyor. Akordiyon: aynı anda yalnızca
-// bir temsilci açık kalır, yeni birine tıklanınca öncekiler otomatik kapanır.
-document.getElementById('yaslandirmaOzetTbody')?.addEventListener('click', (e)=>{
-  const dahaFazlaBtn = e.target.closest('.aging-daha-fazla-btn');
-  if(dahaFazlaBtn){
-    // Buton, akordiyonun kendi tıklama olayını da tetiklemesin diye önce burada
-    // ele alınıyor — akordiyonu kapatmadan sadece kalan müşterileri gösterip
-    // butonu (artık gereksiz olduğu için) kaldırıyor.
-    const subtable = dahaFazlaBtn.closest('.aging-subtable');
-    const kalanTbody = subtable?.querySelector('.aging-kalan-tbody');
-    if(kalanTbody) kalanTbody.style.display = '';
-    dahaFazlaBtn.closest('tr').remove();
-    return;
-  }
-  const row = e.target.closest('.aging-temsilci-row');
-  if(!row) return;
-  const detayRow = row.nextElementSibling;
-  if(!detayRow || !detayRow.classList.contains('aging-detay-row')) return;
-  const acikMi = row.classList.contains('open');
-  document.querySelectorAll('#yaslandirmaOzetTbody .aging-temsilci-row.open').forEach(r=>{
-    r.classList.remove('open');
-    const d = r.nextElementSibling;
-    if(d && d.classList.contains('aging-detay-row')) d.style.display = 'none';
-  });
-  if(!acikMi){
-    row.classList.add('open');
-    detayRow.style.display = '';
-  }
-});
-
-function renderYaslandirmaView(report){
-  renderYaslandirmaOzet(report);
-}
-
-function getFilteredSortedTicariStok(report){
-  const q = document.getElementById('ticariStokSearchInput').value.trim().toLocaleLowerCase('tr-TR');
-  const temsilci = document.getElementById('ticariStokTemsilciFilter').value;
-  const rows = (report.ticariStok ? report.ticariStok.rows : []);
-  let filtered = rows.filter(r=>{
-    if(q && !(musteriAramaEslesiyorMu(q, r.musteriAdi, r.musteriNo) ||
-      String(r.urunAdi).toLocaleLowerCase('tr-TR').includes(q) || String(r.urunKodu).toLocaleLowerCase('tr-TR').includes(q) ||
-      String(r.temsilci).toLocaleLowerCase('tr-TR').includes(q))) return false;
-    if(temsilci && r.temsilci !== temsilci) return false;
-    return true;
-  });
-  return filtered;
-}
-
-
-function renderTicariStokTable(report, resetSayfa=true){
-  if(resetSayfa) state.ticariStokGosterilen = TICARI_STOK_SAYFA_BOYUTU;
-  const rows = getFilteredSortedTicariStok(report);
-  const kartGrid = document.getElementById('ticariStokMusteriKartlar');
-  const dahaFazlaWrap = document.getElementById('ticariStokDahaFazlaWrap');
-
-  if(!report.ticariStok || !report.ticariStok.rows.length){
-    document.getElementById('ticariStokCount').textContent = '';
-    document.getElementById('ticariStokToplamBanner').innerHTML = '';
-    document.getElementById('ticariStokOzetGrid').innerHTML = '';
-    kartGrid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Ticari Stok dosyası yüklenmedi ya da depoda kalan litre değeri sıfırın üzerinde satır bulunamadı.</div>`;
-    dahaFazlaWrap.style.display = 'none';
-    return;
-  }
-
-  if(!rows.length){
-    document.getElementById('ticariStokCount').textContent = '0 kalem';
-    document.getElementById('ticariStokToplamBanner').innerHTML = '';
-    kartGrid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Filtreyle eşleşen kayıt bulunamadı.</div>`;
-    dahaFazlaWrap.style.display = 'none';
-    return;
-  }
-
-  document.getElementById('ticariStokCount').textContent = rows.length.toLocaleString('tr-TR') + ' kalem';
-
-  // --- Müşteri bazlı gruplama ---
-  const grupMap = new Map();
-  rows.forEach(r=>{
-    const key = r.musteriNo + '|' + r.musteriAdi;
-    if(!grupMap.has(key)) grupMap.set(key, {musteriNo:r.musteriNo, musteriAdi:r.musteriAdi, temsilci:r.temsilci, toplamMk:0, toplamLt:0, items:[]});
-    const g = grupMap.get(key);
-    g.toplamMk += r.depodaKalanMk;
-    g.toplamLt += r.depodaKalanLt;
-    g.items.push(r);
-  });
-  const gruplar = Array.from(grupMap.values()).sort((a,b)=>b.toplamLt-a.toplamLt);
-
-  // --- Toplam Litre banner ---
-  const toplamLt = rows.reduce((a,r)=>a+r.depodaKalanLt,0);
-  document.getElementById('ticariStokToplamBanner').innerHTML = `
-    <div>
-      <div class="stok-toplam-banner-label"><span><i class="fa-solid fa-box" aria-hidden="true"></i></span><span>Toplam Litre</span></div>
-      <div class="stok-toplam-banner-val">${LT(toplamLt)}</div>
+  const overlay = document.createElement('div');
+  overlay.className = 'upload-overlay';
+  overlay.id = 'donemOnayOverlay';
+  overlay.innerHTML = `
+    <div class="upload-modal" style="max-width:560px;">
+      <div class="upload-modal-head">
+        <div class="upload-modal-title">Geçmiş Dönem Değişikliği Onayı</div>
+      </div>
+      <div style="color:rgba(255,255,255,.65); font-size:12.5px; margin-bottom:14px; line-height:1.6;">
+        Yüklediğiniz Netsis dosyasında, aktif çalıştığınız ayın dışında kalan dönemlere ait
+        değişiklikler bulundu. Aşağıdaki dönemleri kontrol edin.
+      </div>
+      <div id="donemOnayGovde">
+        ${onayBekleyenDonemler.map(donemBlokHtml).join('')}
+      </div>
+      <button type="button" class="upload-build-btn" id="btnDonemOnayUygula" style="margin-top:16px;">
+        <i class="fa-solid fa-check" aria-hidden="true"></i> Tümünü Göz Ardı Et ve Uygula
+      </button>
     </div>
-    <span class="stok-toplam-banner-pill">${gruplar.length.toLocaleString('tr-TR')} müşteri</span>`;
-
-  // --- Müşteri kartları (expand-to-row) ---
-  const gosterilecekSayi = Math.min(state.ticariStokGosterilen, gruplar.length);
-  const gosterilecekGruplar = gruplar.slice(0, gosterilecekSayi);
-  state.ticariStokGrupMap = new Map(gruplar.map(g=>['stok_'+g.musteriNo, g]));
-  kartGrid.innerHTML = gosterilecekGruplar.map(g=>{
-    const expandKey = 'stok_'+g.musteriNo;
-    const enCokUrun = g.items.slice().sort((a,b)=>b.depodaKalanLt-a.depodaKalanLt)[0];
-    return `<div class="htk-card" data-stok-musteri="${escapeHtml(expandKey)}">
-      <div class="htk-head">
-        <div style="min-width:0;">
-          <div class="htk-musteri-row"><span class="htk-musteri">${escapeHtml(g.musteriAdi)}</span></div>
-          <div class="htk-temsilci">${HTK_USER_ICON}${escapeHtml(g.temsilci)}</div>
-        </div>
-        <span class="htk-badge-pill" style="background:var(--accent-soft);color:var(--accent-deep);">
-          <span class="htk-badge-circle" style="background:var(--accent-deep);">${g.items.length}</span>KALEM
-        </span>
-      </div>
-      <div class="htk-borc-satir">
-        <span class="htk-borc">${LT(g.toplamLt)}</span>
-        <span class="htk-gecikme" style="color:var(--ink-faint);">${MK(g.toplamMk)}</span>
-      </div>
-      <div class="htk-alt">
-        <span class="htk-ceksenet">${enCokUrun ? 'En çok: <b style="color:var(--ink);">'+escapeHtml(enCokUrun.urunAdi)+'</b>' : ''}</span>
-        <div class="htk-alt-actions">
-          <button type="button" class="nokta-detay-btn primary stok-detay-btn" data-stok-musteri="${escapeHtml(expandKey)}">Detay ↗</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  renderTicariStokDahaFazlaBtn(gosterilecekSayi, gruplar.length);
-}
-
-function stokModalAc(expandKey){
-  const g = state.ticariStokGrupMap && state.ticariStokGrupMap.get(expandKey);
-  if(!g){
-    document.getElementById('stokModalAvatar').textContent = '';
-    document.getElementById('stokModalTitle').textContent = 'Depoda Kalan Ürünler';
-    document.getElementById('stokModalSub').textContent = '';
-    document.getElementById('stokModalItems').innerHTML = `<div class="empty-state">Müşteri bulunamadı — lütfen listeyi yenileyip tekrar deneyin.</div>`;
-    document.getElementById('stokModalToplam').innerHTML = '';
-    document.getElementById('stokModalOverlay').classList.add('open');
-    return;
-  }
-  document.getElementById('stokModalAvatar').textContent = avatarBaslangic(g.musteriAdi);
-  document.getElementById('stokModalTitle').textContent = g.musteriAdi;
-  document.getElementById('stokModalSub').textContent = g.musteriNo + ' · ' + g.items.length + ' kalem';
-  const maksItemLt = Math.max(...g.items.map(it=>it.depodaKalanLt), 1);
-  document.getElementById('stokModalItems').innerHTML = g.items.slice().sort((a,b)=>b.depodaKalanLt-a.depodaKalanLt).map(it=>`
-    <div class="stok-item-row">
-      <span class="stok-item-kod">${escapeHtml(it.urunKodu)}</span>
-      <span>${escapeHtml(it.urunAdi)}</span>
-      <span class="stok-item-mk">${MK(it.depodaKalanMk)}</span>
-      <span class="stok-item-lt">${LT(it.depodaKalanLt)}</span>
-    </div>`).join('');
-  document.getElementById('stokModalToplam').innerHTML = `
-    <div><div class="fatura-toplam-label">Toplam Litre</div><div class="fatura-toplam-value">${LT(g.toplamLt)}</div></div>
-    <div class="fatura-toplam-col"><div class="fatura-toplam-label">Toplam Miktar</div><div class="fatura-toplam-value">${MK(g.toplamMk)}</div></div>
   `;
-  document.getElementById('stokModalOverlay').classList.add('open');
-}
-function stokModalKapat(){
-  document.getElementById('stokModalOverlay').classList.remove('open');
-}
-document.getElementById('stokModalClose').addEventListener('click', stokModalKapat);
-document.getElementById('stokModalOverlay').addEventListener('click', (e)=>{
-  if(e.target.id==='stokModalOverlay') stokModalKapat();
-});
-document.addEventListener('click', (e)=>{
-  const btn = e.target.closest('.stok-detay-btn');
-  if(!btn) return;
-  e.stopPropagation();
-  stokModalAc(btn.getAttribute('data-stok-musteri'));
-});
+  document.body.appendChild(overlay);
 
-function renderTicariStokDahaFazlaBtn(gosterilenSayi, toplamSayi){
-  const wrap = document.getElementById('ticariStokDahaFazlaWrap');
-  const info = document.getElementById('ticariStokDahaFazlaInfo');
-  if(!wrap) return;
-  if(toplamSayi > gosterilenSayi){
-    wrap.style.display = 'flex';
-    info.textContent = `${gosterilenSayi.toLocaleString('tr-TR')} / ${toplamSayi.toLocaleString('tr-TR')} müşteri gösteriliyor`;
-  } else {
-    wrap.style.display = 'none';
-  }
-}
+  document.getElementById('btnDonemOnayUygula').addEventListener('click', async ()=>{
+    const cikarilacakByDonem = new Map(); // donemIndex -> Set(faturaKey)
+    overlay.querySelectorAll('.donem-onay-cikar-cb:checked').forEach(cb=>{
+      const dIndex = cb.dataset.donemIndex;
+      if(!cikarilacakByDonem.has(dIndex)) cikarilacakByDonem.set(dIndex, new Set());
+      cikarilacakByDonem.get(dIndex).add(cb.dataset.faturaKey);
+    });
 
-const STOK_OZET_RENK = [
-  {renk:'var(--danger)', soft:'var(--danger-soft)'},
-  {renk:'var(--warn)', soft:'var(--warn-soft)'},
-  {renk:'var(--accent)', soft:'var(--accent-soft)'},
-  {renk:'var(--success)', soft:'var(--success-soft)'},
-  {renk:'var(--navy)', soft:'var(--navy-soft)'},
-  {renk:'var(--ink-faint)', soft:'var(--line-soft)'},
-];
+    for(let i=0; i<onayBekleyenDonemler.length; i++){
+      const d = onayBekleyenDonemler[i];
+      const cikarilacaklar = cikarilacakByDonem.get(String(i)) || new Set();
+      await donemOnayiUygula(d, cikarilacaklar);
+    }
 
-function renderTicariStokOzet(report){
-  const ozet = report.ticariStok ? report.ticariStok.ozet : [];
-  const grid = document.getElementById('ticariStokOzetGrid');
-  if(!ozet.length){
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Veri bulunamadı.</div>`;
-    return;
-  }
-  const grand = ozet.reduce((a,r)=>({depodaKalanMk:a.depodaKalanMk+r.depodaKalanMk, depodaKalanLt:a.depodaKalanLt+r.depodaKalanLt}), {depodaKalanMk:0,depodaKalanLt:0});
-  const toplamLt = grand.depodaKalanLt || 1;
-
-  const kartlar = ozet.map((r,i)=>{
-    const pay = r.depodaKalanLt/toplamLt*100;
-    const renk = STOK_OZET_RENK[i % STOK_OZET_RENK.length];
-    return `<div class="stok-ozet-card" style="--ozet-renk:${renk.renk};--ozet-renk-soft:${renk.soft};">
-      <div class="stok-ozet-top">
-        <div class="stok-ozet-avatar">${escapeHtml(avatarBaslangic(r.temsilci))}</div>
-        <div class="stok-ozet-info">
-          <div class="stok-ozet-name" title="${escapeHtml(r.temsilci)}">${escapeHtml(r.temsilci)}</div>
-          <div class="stok-ozet-sub">${r.noktaSayisi.toLocaleString('tr-TR')} nokta · ${r.kalemSayisi.toLocaleString('tr-TR')} kalem</div>
-        </div>
-        <span class="stok-ozet-badge">%${pay.toFixed(0)} PAY</span>
-      </div>
-      <div class="stok-ozet-values">
-        <span class="stok-ozet-lt">${LT(r.depodaKalanLt)}</span>
-        <span class="stok-ozet-mk">${MK(r.depodaKalanMk)}</span>
-      </div>
-      <div class="stok-ozet-bar-track"><div class="stok-ozet-bar-fill" style="width:${Math.max(2,pay).toFixed(1)}%;"></div></div>
-    </div>`;
-  }).join('');
-
-  grid.innerHTML = kartlar;
-}
-
-// Saha Satış Müdürü kartları temsilci renk paletinden (kırmızı/altın/mavi/yeşil/lacivert) bilerek
-// farklı, daha soğuk/nötr bir palet kullanır — böylece iki kart grubu görsel olarak birbirinden
-// ayırt edilebilir ama aynı tasarım dilini (renkli sol kenarlık + rozet + bar) paylaşır.
-const STOK_OZET_MUDUR_RENK = [
-  {renk:'#0F7B6C', soft:'rgba(15,123,108,0.12)'},
-  {renk:'#6B4FA0', soft:'rgba(107,79,160,0.12)'},
-  {renk:'#3E5C76', soft:'rgba(62,92,118,0.12)'},
-  {renk:'#9C6B30', soft:'rgba(156,107,48,0.12)'},
-  {renk:'#4A4A68', soft:'rgba(74,74,104,0.12)'},
-];
-
-function renderTicariStokMuduruOzet(report){
-  const ozet = report.ticariStok ? report.ticariStok.ozet : [];
-  const grid = document.getElementById('ticariStokMuduruOzetGrid');
-  if(!grid) return;
-  if(!ozet.length){
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;">Veri bulunamadı.</div>`;
-    return;
-  }
-
-  const muduruMap = new Map();
-  ozet.forEach(r=>{
-    const muduru = getSahaMuduru(r.temsilci);
-    if(!muduruMap.has(muduru)) muduruMap.set(muduru, {muduru, temsilciSayisi:0, noktaSayisi:0, kalemSayisi:0, depodaKalanMk:0, depodaKalanLt:0});
-    const m = muduruMap.get(muduru);
-    m.temsilciSayisi += 1;
-    m.noktaSayisi += r.noktaSayisi;
-    m.kalemSayisi += r.kalemSayisi;
-    m.depodaKalanMk += r.depodaKalanMk;
-    m.depodaKalanLt += r.depodaKalanLt;
+    overlay.remove();
+    renderDonemPaneli();
   });
-  const muduruListe = Array.from(muduruMap.values()).sort((a,b)=>b.depodaKalanLt-a.depodaKalanLt);
-  const toplamLt = muduruListe.reduce((a,r)=>a+r.depodaKalanLt,0) || 1;
+}
 
-  grid.innerHTML = muduruListe.map((r,i)=>{
-    const pay = r.depodaKalanLt/toplamLt*100;
-    const renk = STOK_OZET_MUDUR_RENK[i % STOK_OZET_MUDUR_RENK.length];
-    return `<div class="stok-ozet-card" style="--ozet-renk:${renk.renk};--ozet-renk-soft:${renk.soft};">
-      <div class="stok-ozet-top">
-        <div class="stok-ozet-avatar">${escapeHtml(avatarBaslangic(r.muduru))}</div>
-        <div class="stok-ozet-info">
-          <div class="stok-ozet-name" title="${escapeHtml(r.muduru)}">${escapeHtml(r.muduru)}</div>
-          <div class="stok-ozet-sub">${r.temsilciSayisi.toLocaleString('tr-TR')} temsilci · ${r.kalemSayisi.toLocaleString('tr-TR')} kalem</div>
+// ===== NETSİS HAM VERİ ONAY MODALI =====
+// donemOnayModaliAc'a çok benzer, ama İŞLENMİŞ rapor satırları değil HAM Netsis Excel
+// satırları üzerinde çalışır (bkz. js/10-netsis-birlestir.js) — çünkü bu, dosya
+// yüklenirken (rapor henüz hesaplanmadan) tetiklenir. Onaydan sonra doğrudan
+// state.kaynaklar.netsis.rows güncellenir (arşive değil, canlı kaynağın kendisine).
+function netsisOnayModaliAc(onayBekleyenDonemler){
+  if(!onayBekleyenDonemler || !onayBekleyenDonemler.length) return;
+  if(document.getElementById('netsisOnayOverlay')) return; // zaten açık, tekrar açma
+
+  const donemBlokHtml = (d, dIndex)=>{
+    const yeniSatirlarHtml = d.yeniVeyaDegisenSatirlar.slice(0, 30).map(hamSatir=>`
+      <div class="donem-onay-satir">
+        <span class="donem-onay-fno">${escapeHtml(hamSatir['Belge No']||'')}</span>
+        <span class="donem-onay-unvan">${escapeHtml(hamSatir['Cari İsim']||'')}</span>
+        <span class="donem-onay-tutar">${fmtTL(toNumber(hamSatir['Genel Toplam']))}</span>
+      </div>
+    `).join('');
+
+    const eksikSatirlarHtml = d.eksikSatirlar.slice(0, 60).map((hamSatir)=>`
+      <label class="donem-onay-eksik-satir">
+        <input type="checkbox" class="netsis-onay-cikar-cb" data-donem-index="${dIndex}" data-anahtar="${escapeHtml(netsisHamSatirAnahtarUret(hamSatir))}">
+        <span class="donem-onay-fno">${escapeHtml(hamSatir['Belge No']||'')}</span>
+        <span class="donem-onay-unvan">${escapeHtml(hamSatir['Cari İsim']||'')}</span>
+        <span class="donem-onay-tutar">${fmtTL(toNumber(hamSatir['Genel Toplam']))}</span>
+      </label>
+    `).join('');
+
+    return `
+      <div class="donem-onay-blok">
+        <div class="donem-onay-blok-baslik"><i class="fa-solid fa-calendar-week" aria-hidden="true"></i> ${escapeHtml(d.donemEtiket)}</div>
+
+        ${d.yeniVeyaDegisenSatirlar.length ? `
+          <div class="donem-onay-alt-baslik ok">${fmtInt(d.yeniVeyaDegisenSatirlar.length)} yeni/değişen kayıt — otomatik eklendi</div>
+          <div class="donem-onay-liste">${yeniSatirlarHtml}</div>
+          ${d.yeniVeyaDegisenSatirlar.length>30? `<div class="donem-onay-fazla">…ve ${fmtInt(d.yeniVeyaDegisenSatirlar.length-30)} tane daha</div>` : ''}
+        ` : ''}
+
+        ${d.eksikSatirlar.length ? `
+          <div class="donem-onay-alt-baslik uyari">${fmtInt(d.eksikSatirlar.length)} kayıt eski veride vardı ama yeni dosyada yok — çıkarılacakları işaretleyin (işaretlenmeyenler korunur)</div>
+          <div class="donem-onay-liste">${eksikSatirlarHtml}</div>
+          ${d.eksikSatirlar.length>60? `<div class="donem-onay-fazla">…ve ${fmtInt(d.eksikSatirlar.length-60)} tane daha (otomatik korunur)</div>` : ''}
+        ` : ''}
+      </div>
+    `;
+  };
+
+  const overlay = document.createElement('div');
+  overlay.className = 'upload-overlay';
+  overlay.id = 'netsisOnayOverlay';
+  overlay.innerHTML = `
+    <div class="upload-modal" style="max-width:560px;">
+      <div class="upload-modal-head">
+        <div class="upload-modal-title">Netsis Verisi — Geçmiş Dönem Değişikliği Onayı</div>
+      </div>
+      <div style="color:rgba(255,255,255,.65); font-size:12.5px; margin-bottom:14px; line-height:1.6;">
+        Yüklediğiniz Netsis dosyasında, aktif çalıştığınız ayın dışında kalan dönemlere ait
+        değişiklikler bulundu. Yeni/değişen kayıtlar zaten otomatik eklendi — eksik kayıtlar
+        için aşağıdan karar verin.
+      </div>
+      <div id="netsisOnayGovde">
+        ${onayBekleyenDonemler.map(donemBlokHtml).join('')}
+      </div>
+      <button type="button" class="upload-build-btn" id="btnNetsisOnayUygula" style="margin-top:16px;">
+        <i class="fa-solid fa-check" aria-hidden="true"></i> Tümünü Göz Ardı Et ve Uygula
+      </button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById('btnNetsisOnayUygula').addEventListener('click', async ()=>{
+    const cikarilacakAnahtarlar = new Set();
+    overlay.querySelectorAll('.netsis-onay-cikar-cb:checked').forEach(cb=>{
+      cikarilacakAnahtarlar.add(cb.dataset.anahtar);
+    });
+
+    if(cikarilacakAnahtarlar.size){
+      state.kaynaklar.netsis.rows = netsisOnayiUygula(state.kaynaklar.netsis.rows, cikarilacakAnahtarlar);
+      await saveKaynaklarToStorage();
+      guncelleRaporOlusturButonu();
+      if(typeof toastGoster === 'function') toastGoster(`${cikarilacakAnahtarlar.size} kayıt Netsis verisinden çıkarıldı`, 'basarili');
+    }
+
+    overlay.remove();
+  });
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay){ /* dışarı tıklayınca kapanmasın — kullanıcı bilinçli karar vermeli */ } });
+}
+
+// ===== AY SONU KONTROLÜ 2-3-4: Dönem paneli =====
+// Dönem seçici (arşivdeki aylar) + seçili döneme göre: önceki ayla KPI karşılaştırması,
+// gün bazlı kapsama boşlukları, KDV/tutar dönem toplamı çapraz kontrolü.
+let donemPaneliAcikMi = false;
+
+function aktifGoruntulenenDonemId(){
+  if(state.goruntulenenDonemId) return state.goruntulenenDonemId;
+  return state.rapor ? raporunAitOlduguDonem(state.rapor) : null;
+}
+
+function donemKarsilastirmaSatiriHtml(label, veri, iyiYonAzalis){
+  if(!veri) return '';
+  const fark = veri.fark;
+  const isaretIyiMi = iyiYonAzalis ? fark <= 0 : fark >= 0;
+  const renk = fark===0 ? 'var(--ink-faint)' : (isaretIyiMi ? 'var(--green)' : 'var(--red)');
+  const ok = fark===0 ? '' : (fark>0 ? '<i class="fa-solid fa-arrow-up" aria-hidden="true"></i>' : '<i class="fa-solid fa-arrow-down" aria-hidden="true"></i>');
+  return `
+    <div class="donem-kars-satir">
+      <span class="donem-kars-lbl">${escapeHtml(label)}</span>
+      <span class="donem-kars-eski">${fmtInt(veri.eski)}</span>
+      <i class="fa-solid fa-arrow-right-long donem-kars-ok-ara" aria-hidden="true"></i>
+      <span class="donem-kars-yeni">${fmtInt(veri.yeni)}</span>
+      <span class="donem-kars-fark" style="color:${renk};">${ok} ${fark>0?'+':''}${fmtInt(fark)}</span>
+    </div>
+  `;
+}
+
+function renderDonemPaneli(){
+  const el = document.getElementById('donemPaneliKap');
+  if(!el) return;
+  const donemler = donemListesi();
+  if(!donemler.length){ el.innerHTML = ''; return; }
+
+  const goruntulenenId = aktifGoruntulenenDonemId();
+  const karsilastirma = goruntulenenId ? donemKarsilastirmaHesapla(goruntulenenId) : null;
+  const bosluklar = goruntulenenId ? gunBazliBosluklariHesapla(goruntulenenId) : [];
+  const toplamOzet = goruntulenenId ? donemToplamOzetiHesapla(goruntulenenId) : null;
+
+  const donemSecenekleri = donemler.map(d=>`<option value="${escapeHtml(d.donemId)}" ${d.donemId===goruntulenenId?'selected':''}>${escapeHtml(donemEtiketUret(d.donemId))}${!state.goruntulenenDonemId && d.donemId===goruntulenenId? ' (güncel)':''}</option>`).join('');
+
+  const karsHtml = karsilastirma && karsilastirma.farklar ? `
+    <div class="donem-kars-blok">
+      <div class="donem-kars-baslik">
+        <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i> ${escapeHtml(donemEtiketUret(karsilastirma.oncekiId))} → ${escapeHtml(donemEtiketUret(karsilastirma.donemId))}
+        ${karsilastirma.eslesmeOraniFarki!=null ? `<span class="donem-kars-oran" style="color:${karsilastirma.eslesmeOraniFarki>=0?'var(--green)':'var(--red)'};">eşleşme oranı ${karsilastirma.eslesmeOraniFarki>=0?'+':''}${karsilastirma.eslesmeOraniFarki.toFixed(1).replace('.',',')} puan</span>` : ''}
+      </div>
+      ${donemKarsilastirmaSatiriHtml('Toplam fatura', karsilastirma.farklar.toplam, false)}
+      ${donemKarsilastirmaSatiriHtml('Eşleşti', karsilastirma.farklar.eslesti, false)}
+      ${donemKarsilastirmaSatiriHtml("Netsis'te yok", karsilastirma.farklar.islenmemis, true)}
+      ${donemKarsilastirmaSatiriHtml('Entegratörde yok', karsilastirma.farklar.entegratordeYok, true)}
+      ${donemKarsilastirmaSatiriHtml('Tutar farkı olan', karsilastirma.farklar.fark, true)}
+      ${donemKarsilastirmaSatiriHtml('Kontrol grubu', karsilastirma.farklar.kontrol, true)}
+    </div>
+  ` : (karsilastirma ? `<div class="donem-kars-yok">Bu dönemden önce arşivlenmiş bir dönem yok — karşılaştırma için en az iki dönem arşivlenmiş olmalı.</div>` : '');
+
+  const bosluklarHtml = bosluklar.length ? `
+    <div class="donem-boslukblok">
+      <div class="donem-boslukblok-baslik"><i class="fa-solid fa-calendar-xmark" aria-hidden="true"></i> ${fmtInt(bosluklar.length)} günde kapsama boşluğu bulundu</div>
+      <div class="donem-boslukblok-liste">
+        ${bosluklar.slice(0,15).map(b=>`<div class="donem-bosluk-satir ${b.tur==='netsis_eksik'?'tur-netsis':'tur-entegrator'}"><i class="fa-solid ${b.tur==='netsis_eksik'?'fa-triangle-exclamation':'fa-plug-circle-xmark'}" aria-hidden="true"></i> ${escapeHtml(b.aciklama)}</div>`).join('')}
+        ${bosluklar.length>15? `<div class="donem-bosluk-satir" style="color:var(--ink-faint);">…ve ${fmtInt(bosluklar.length-15)} gün daha</div>` : ''}
+      </div>
+    </div>
+  ` : `<div class="donem-boslukblok-yok"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> Ay içinde gün bazlı kapsama boşluğu bulunamadı.</div>`;
+
+  const kdvHtml = toplamOzet ? `
+    <div class="donem-kdv-grid">
+      <div class="donem-kdv-kart">
+        <div class="donem-kdv-lbl">Entegratör toplam tutar</div>
+        <div class="donem-kdv-deger">${fmtTL(toplamOzet.toplamTutar)}</div>
+      </div>
+      <div class="donem-kdv-kart">
+        <div class="donem-kdv-lbl">Netsis toplam tutar (eşleşen)</div>
+        <div class="donem-kdv-deger">${fmtTL(toplamOzet.toplamTutarNetsis)}</div>
+      </div>
+      <div class="donem-kdv-kart ${Math.abs(toplamOzet.tutarFarki)>1?'fark-var':''}">
+        <div class="donem-kdv-lbl">Tutar farkı</div>
+        <div class="donem-kdv-deger">${fmtTL(toplamOzet.tutarFarki)}</div>
+      </div>
+      <div class="donem-kdv-kart ${Math.abs(toplamOzet.kdvFarki)>1?'fark-var':''}">
+        <div class="donem-kdv-lbl">KDV farkı (entegratör − Netsis)</div>
+        <div class="donem-kdv-deger">${fmtTL(toplamOzet.kdvFarki)}</div>
+      </div>
+    </div>
+  ` : '';
+
+  el.innerHTML = `
+    <div class="donem-paneli ${donemPaneliAcikMi?'acik':''}">
+      <div class="donem-paneli-ust" id="donemPaneliToggle">
+        <div class="donem-paneli-baslik"><i class="fa-solid fa-box-archive" aria-hidden="true"></i> Ay Sonu Kontrol Paneli</div>
+        <div class="donem-secici-wrap">
+          <select id="donemSecici" class="donem-secici" aria-label="Görüntülenecek dönem">${donemSecenekleri}</select>
+          ${state.goruntulenenDonemId ? `<button type="button" class="donem-canliya-don-btn" id="btnDonemCanliyaDon">Canlıya dön <i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>` : ''}
         </div>
-        <span class="stok-ozet-badge">%${pay.toFixed(0)} PAY</span>
+        <i class="fa-solid fa-chevron-down donem-paneli-ok" aria-hidden="true"></i>
       </div>
-      <div class="stok-ozet-values">
-        <span class="stok-ozet-lt">${LT(r.depodaKalanLt)}</span>
-        <span class="stok-ozet-mk">${MK(r.depodaKalanMk)}</span>
+      <div class="donem-paneli-govde" ${donemPaneliAcikMi?'':'hidden'}>
+        ${karsHtml}
+        ${kdvHtml}
+        ${bosluklarHtml}
       </div>
-      <div class="stok-ozet-bar-track"><div class="stok-ozet-bar-fill" style="width:${Math.max(2,pay).toFixed(1)}%;"></div></div>
-    </div>`;
+    </div>
+  `;
+
+  document.getElementById('donemPaneliToggle').addEventListener('click', (e)=>{
+    if(e.target.closest('#donemSecici') || e.target.closest('#btnDonemCanliyaDon')) return;
+    donemPaneliAcikMi = !donemPaneliAcikMi;
+    renderDonemPaneli();
+  });
+  const secici = document.getElementById('donemSecici');
+  if(secici){
+    secici.addEventListener('change', ()=> donemGoruntule(secici.value));
+    secici.addEventListener('click', (e)=> e.stopPropagation());
+  }
+  const canliyaDonBtn = document.getElementById('btnDonemCanliyaDon');
+  if(canliyaDonBtn){
+    canliyaDonBtn.addEventListener('click', (e)=>{ e.stopPropagation(); donemCanliyaDon(); });
+  }
+}
+
+// Arşivlenmiş bir dönemi salt-görüntüleme modunda açar — tablo/KPI'lar o dönemin
+// SNAPSHOT'ını gösterir, "Raporu Oluştur" tıklanmadan mevcut yüklü dosyalar etkilenmez.
+function donemGoruntule(donemId){
+  const donem = state.donemler[donemId];
+  if(!donem) return;
+  state.goruntulenenDonemId = donemId;
+  state.rapor = raporEksikAlanlariTamamla(JSON.parse(JSON.stringify(donem.rapor)));
+  aktifGrup='tumu'; aktifDurum='tumu'; aktifKaynak='tumu'; aramaMetni=''; sayfayiSifirla();
+  const topbarSub = document.getElementById('topbarSub');
+  if(topbarSub) topbarSub.textContent = `📁 Arşiv görünümü: ${donemEtiketUret(donemId)} · ${state.rapor.faturalar.length} kayıt (salt görüntüleme)`;
+  renderKPIs();
+  renderGroupTabs();
+  renderGroupSections();
+  renderDonemPaneli();
+}
+
+// Arşiv görünümünden çıkıp o an IndexedDB'de saklı GÜNCEL rapora geri döner.
+async function donemCanliyaDon(){
+  state.goruntulenenDonemId = null;
+  const kayitliRapor = await loadRaporFromStorage();
+  state.rapor = kayitliRapor && kayitliRapor.rapor ? raporEksikAlanlariTamamla(kayitliRapor.rapor) : null;
+  aktifGrup='tumu'; aktifDurum='tumu'; aktifKaynak='tumu'; aramaMetni=''; sayfayiSifirla();
+  const topbarSub = document.getElementById('topbarSub');
+  if(topbarSub && state.rapor){
+    topbarSub.textContent = `Son güncelleme · ${state.rapor.faturalar.length} kayıt`;
+  }
+  renderKPIs();
+  renderGroupTabs();
+  renderGroupSections();
+  renderDonemPaneli();
+}
+
+// KPI: "Toplam Fatura" mavi birincil kart + 5 beyaz ikonlu durum kartı. Kartlar aynı
+// zamanda durum filtresidir (ayrı bir durum çip satırı yok); aktif olana tekrar tıklamak
+// filtreyi sıfırlar (toggle). Birincil karta tıklamak "Tümü"ye döner.
+function renderKPIs(){
+  renderYetimUyari();
+  renderTutarOzeti();
+  const satirlar = aktifGrupSatirlari();
+  const kpi = state.rapor ? kpiHesapla(satirlar) : {toplam:0,eslesti:0,islenmemis:0,entegratordeYok:0,fark:0,red:0};
+  const el = document.getElementById('kpiRow');
+
+  const toplamTanim = KPI_TANIM.find(t=> t.key==='toplam');
+  const durumTanimlar = KPI_TANIM.filter(t=> t.key!=='toplam');
+  const eslesmeYuzde = yuzdeStr(kpi.eslesti, kpi.toplam);
+
+  const kartHtml = durumTanimlar.map(t=>{
+    const deger = kpi[t.key];
+    const aktif = aktifDurum===t.durum;
+    const yuzde = yuzdeStr(deger, kpi.toplam);
+    return `
+      <button type="button" class="kpi ${t.cls} ${aktif?'kpi-active':''}" data-durum="${t.durum}">
+        <div class="ic"><i class="${t.icon}" aria-hidden="true"></i></div>
+        <div class="l">${t.label}</div>
+        <div class="v">${fmtInt(deger)}</div>
+        <div class="p">${yuzde || '—'}</div>
+        <i class="${t.icon} filigran" aria-hidden="true"></i>
+      </button>
+    `;
   }).join('');
-}
 
-function renderTicariStokView(report){
-  populateTemsilciFilter(report.ticariStok ? report.ticariStok.rows : [], 'ticariStokTemsilciFilter');
-  renderTicariStokTable(report);
-  renderTicariStokOzet(report);
-  renderTicariStokMuduruOzet(report);
-}
+  el.innerHTML = `
+    <button type="button" class="kpi-ana ${aktifDurum==='tumu'?'hero-active':''}" data-durum="tumu">
+      <div class="l">${toplamTanim.label}</div>
+      <div class="v">${fmtInt(kpi.toplam)}</div>
+      <div class="s">Entegratör kayıtları${eslesmeYuzde? ` · ${eslesmeYuzde} eşleşme` : ''}</div>
+      <i class="fa-regular fa-file-lines filigran" aria-hidden="true"></i>
+    </button>
+    ${kartHtml}
+  `;
 
-// Bir tablonun (thead th[data-key]) sütun başlıklarına tıklanınca sıralama uygulayan ortak
-// yardımcı. Aynı "tıkla → yön belirle → ok işaretini güncelle → tabloyu yeniden çiz" deseni
-// önceden 7 farklı tabloda ayrı ayrı (satır satır aynı) tekrarlanıyordu; artık tek bir yerde
-// tanımlanıp her tablo için tek satırla kullanılıyor.
-function wireSortableTable(tableId, sortStateAlan, renderFn){
-  document.querySelectorAll(`#${tableId} thead th[data-key]`).forEach(th=>{
-    th.addEventListener('click', ()=>{
-      const key = th.getAttribute('data-key');
-      const mevcut = state[sortStateAlan];
-      if(mevcut.key===key) mevcut.dir *= -1; else state[sortStateAlan] = {key, dir:-1};
-      document.querySelectorAll(`#${tableId} thead .arrow`).forEach(a=>a.textContent='');
-      th.querySelector('.arrow').textContent = state[sortStateAlan].dir===1 ? '▲' : '▼';
-      renderFn();
+  el.querySelector('.kpi-ana').addEventListener('click', ()=>{
+    aktifDurum = 'tumu'; sayfayiSifirla(); renderKPIs(); renderGroupSections();
+  });
+  el.querySelectorAll('.kpi').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const secilen = btn.dataset.durum;
+      aktifDurum = (aktifDurum===secilen) ? 'tumu' : secilen; // toggle
+      sayfayiSifirla(); renderKPIs(); renderGroupSections();
     });
   });
 }
 
-wireSearchInput('ticariStokSearchInput', 'ticariStokSearchClearBtn', debounce(()=>renderTicariStokTable(state.report)));
-wireSearchClear('ticariStokSearchInput', 'ticariStokSearchClearBtn', ()=>renderTicariStokTable(state.report));
-document.getElementById('ticariStokTemsilciFilter').addEventListener('change', ()=>renderTicariStokTable(state.report));
-document.getElementById('ticariStokDahaFazlaBtn').addEventListener('click', ()=>{
-  state.ticariStokGosterilen += TICARI_STOK_SAYFA_BOYUTU;
-  renderTicariStokTable(state.report, false);
-});
-
-function renderAgingPanel(report){
-  const temsilci = document.getElementById('temsilciFilter').value;
-  const scopeLabel = temsilci ? temsilci : 'Tüm Temsilciler';
-  document.getElementById('agingTitle').textContent = 'Vade Yaşlandırma Analizi — ' + scopeLabel;
-
-  const musterilerForAging = temsilci ? report.musteriler.filter(m=>m.temsilci===temsilci) : report.musteriler;
-  const {agingAmount, agingCount} = computeAging(musterilerForAging);
-  renderAging(agingAmount, agingCount);
+function renderGroupTabs(){
+  const gruplar = state.rapor ? state.rapor.gruplar : {kesan:[],bayrampasa:[],kontrol:[],notlu:[]};
+  const toplam = state.rapor ? state.rapor.faturalar.length : 0;
+  const el = document.getElementById('groupTabs');
+  const tabs = [
+    {key:'tumu', label:'Tümü', cnt: toplam},
+    {key:'kesan', label:'Keşan', cnt: gruplar.kesan.length},
+    {key:'bayrampasa', label:'Bayrampaşa', cnt: gruplar.bayrampasa.length},
+    {key:'kontrol', label:'Kontrol', cnt: gruplar.kontrol.length, warn:true},
+    {key:'notlar', label:'Notlar', cnt: gruplar.notlu.length, note:true},
+  ];
+  el.innerHTML = tabs.map(t=>`
+    <button type="button" class="group-tab ${t.key===aktifGrup?'active':''} ${t.warn?'cls-warn':''} ${t.note?'cls-note':''}" data-grup="${t.key}">
+      ${t.note?'<i class="fa-solid fa-note-sticky" aria-hidden="true"></i> ':''}${t.label} <span class="cnt">${fmtInt(t.cnt)}</span>
+    </button>
+  `).join('');
+  el.querySelectorAll('.group-tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      aktifGrup = btn.dataset.grup;
+      aktifDurum = 'tumu';
+      aktifKaynak = 'tumu';
+      sayfayiSifirla();
+      renderGroupTabs(); renderKPIs(); renderGroupSections();
+    });
+  });
 }
 
-function refreshGenelKPIs(report){
-  const temsilci = document.getElementById('temsilciFilter') ? document.getElementById('temsilciFilter').value : '';
-  const kpiScoped = computeGenelKPI(report, temsilci);
-  renderKPIs(kpiScoped);
+const AY_KISA_TR = ['OCA','ŞUB','MAR','NİS','MAY','HAZ','TEM','AĞU','EYL','EKİ','KAS','ARA'];
+
+function tarihHucreHtml(faturaTarihi){
+  if(!faturaTarihi) return '<span style="color:var(--ink-faint);">—</span>';
+  const t = new Date(faturaTarihi);
+  if(isNaN(t)) return '<span style="color:var(--ink-faint);">—</span>';
+  return `
+    <div class="td-date">
+      <div class="date-tile"><div class="d">${t.getDate()}</div><div class="m">${AY_KISA_TR[t.getMonth()]}</div></div>
+      <span class="date-year">${t.getFullYear()}</span>
+    </div>
+  `;
 }
 
-function renderSevkView(report){
-  const bosPanel = document.getElementById('sevkBosPanel');
-  const icerik = document.getElementById('sevkIcerik');
-  // DÜZELTME: bkz. renderGenelBakisView'daki aynı not — bu fonksiyon eskiden çağrıldığında
-  // report zaten var olmak ZORUNDAYDI (setActiveView'da "&& state.report" şartı sayesinde),
-  // ama rapor yokken sekmeye tıklanınca kullanıcı hiçbir açıklama görmeden boş bir sayfayla
-  // karşılaşıyordu. Artık savunmacı: report yoksa boş durumu gösterip çıkar.
-  if(!report){
-    if(bosPanel) bosPanel.style.display = 'block';
-    if(icerik) icerik.style.display = 'none';
+// Fatura no hücresi: numara + tıklanınca panoya kopyalayan küçük ikon butonu.
+// Buton, satırın kendi tıklama olayına (detay modalını açan) yayılmasın diye
+// event delegation içinde stopPropagation ile durdurulur (bkz. panoyaKopyalaBaglaEventleri).
+function faturaNoHucreHtml(faturaNo){
+  const deger = String(faturaNo==null?'':faturaNo);
+  return `
+    <span class="fno-hucre">
+      <span class="fno">${escapeHtml(deger)}</span>
+      <button type="button" class="fno-kopyala-btn" data-kopyala="${escapeHtml(deger)}" title="Fatura no'yu kopyala" aria-label="Fatura no'yu kopyala">
+        <i class="fa-regular fa-copy" aria-hidden="true"></i>
+      </button>
+    </span>
+  `;
+}
+
+// Cari kodu hücresi: fatura no hücresiyle aynı kopyalama mantığını paylaşır
+// (bkz. panoyaKopyalaBaglaEventleri / fnoKopyalaDelegationBagla, data-kopyala
+// attribute'unu her iki buton tipi için de dinler).
+function cariKoduHucreHtml(cariKodu){
+  const deger = String(cariKodu==null?'':cariKodu).trim();
+  if(!deger){
+    return `<span class="cari-kodu-yok">—</span>`;
+  }
+  return `
+    <span class="fno-hucre">
+      <span class="fno">${escapeHtml(deger)}</span>
+      <button type="button" class="fno-kopyala-btn" data-kopyala="${escapeHtml(deger)}" title="Cari kodu'nu kopyala" aria-label="Cari kodu'nu kopyala">
+        <i class="fa-regular fa-copy" aria-hidden="true"></i>
+      </button>
+    </span>
+  `;
+}
+
+async function faturaNoKopyala(btn){
+  const deger = btn.dataset.kopyala || '';
+  try{
+    await navigator.clipboard.writeText(deger);
+  }catch(e){
+    // Panoya erişim engellenmişse (izin/eski tarayıcı) sessiz bir yedek yöntem kullan.
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = deger;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }catch(e2){ return; }
+  }
+  const icon = btn.querySelector('i');
+  if(!icon) return;
+  const eskiClass = icon.className;
+  btn.classList.add('kopyalandi');
+  icon.className = 'fa-solid fa-check';
+  setTimeout(()=>{
+    icon.className = eskiClass;
+    btn.classList.remove('kopyalandi');
+  }, 1200);
+}
+
+// Tablo gövdesi her renderGroupSections çağrısında yeniden oluşturulduğu için, kopyala
+// butonlarına tek tek dinleyici eklemek yerine sabit bir üst konteynere (document.body)
+// delegation ile TEK SEFER bağlanır — böylece yeniden render sonrası dinleyici kaybolmaz.
+let fnoKopyalaDelegationBagliMi = false;
+function fnoKopyalaDelegationBagla(){
+  if(fnoKopyalaDelegationBagliMi) return;
+  fnoKopyalaDelegationBagliMi = true;
+  document.body.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.fno-kopyala-btn');
+    if(!btn) return;
+    e.stopPropagation(); // satırın kendi tıklama işleyicisini (detay modalı) tetiklemesin
+    e.preventDefault();
+    faturaNoKopyala(btn);
+  }, true); // capture fazı: tr/kart üzerindeki addEventListener'lardan ÖNCE çalışmalı ki stopPropagation onları engellesin
+}
+
+function faturaSatirHtml(f){
+  const tutarGosterilen = f.yon==='netsis' ? f.netsisTutar : f.tutar;
+  const manuelTanim = f.manuelDurum ? manuelDurumTanimBul(f.manuelDurum) : null;
+  const notVarMi = f.not && f.not.trim();
+  return `
+    <tr class="row fatura-row" data-fatura-key="${escapeHtml(f.faturaKey)}" style="cursor:pointer;" tabindex="0" role="button" aria-label="${escapeHtml(f.faturaNo)} detayını aç">
+      <td>${tarihHucreHtml(f.faturaTarihi)}</td>
+      <td>${faturaNoHucreHtml(f.faturaNo)}</td>
+      <td class="desc">${escapeHtml(f.gonderenUnvan)}</td>
+      <td>${cariKoduHucreHtml(f.cariKodu)}</td>
+      <td class="num">${fmtTL(tutarGosterilen)}</td>
+      <td>${escapeHtml(f.sube)}</td>
+      <td>${f.yon==='netsis' ? '<span class="src-badge">Netsis</span>' : '<span class="src-badge">Entegratör</span>'}</td>
+      <td>
+        <div class="durum-cell">
+          <span class="badge ${durumBadgeClass(f.durum)}"><i class="${durumBadgeIcon(f.durum)}" aria-hidden="true"></i> ${escapeHtml(f.durumEtiket)}</span>
+          ${manuelTanim ? `<span class="badge badge-manuel ${manuelTanim.cls}"><i class="${manuelTanim.icon}" aria-hidden="true"></i> ${escapeHtml(manuelTanim.label)}</span>` : ''}
+        </div>
+        ${notVarMi ? `<div class="satir-not-metni" title="${escapeHtml(f.not)}"><i class="fa-solid fa-note-sticky" aria-hidden="true"></i> ${escapeHtml(f.not)}</div>` : ''}
+      </td>
+    </tr>
+  `;
+}
+
+const SIRALANABILIR_KOLONLAR = [
+  {key:'faturaTarihi', label:'Tarih'},
+  {key:'faturaNo', label:'Fatura no'},
+  {key:'gonderenUnvan', label:'Gönderen'},
+  {key:'cariKodu', label:'Cari kodu'},
+  {key:'tutar', label:'Tutar'},
+];
+
+function siraDegerAl(f, alan){
+  if(alan==='tutar') return f.yon==='netsis' ? (f.netsisTutar||0) : (f.tutar||0);
+  if(alan==='faturaTarihi') return f.faturaTarihi ? new Date(f.faturaTarihi).getTime() : 0;
+  if(alan==='faturaNo') return String(f.faturaNo||'');
+  if(alan==='gonderenUnvan') return String(f.gonderenUnvan||'');
+  if(alan==='cariKodu') return String(f.cariKodu||'');
+  return '';
+}
+
+function satirlariSirala(satirlar){
+  const kopya = [...satirlar];
+  kopya.sort((a,b)=>{
+    const va = siraDegerAl(a, siralamaAlani);
+    const vb = siraDegerAl(b, siralamaAlani);
+    let cmp;
+    if(typeof va==='number' && typeof vb==='number') cmp = va - vb;
+    else cmp = String(va).localeCompare(String(vb),'tr');
+    return siralamaYonu==='asc' ? cmp : -cmp;
+  });
+  return kopya;
+}
+
+function devaminiGosterHtml(toplamKayit){
+  if(gosterilenSatirSayisi >= toplamKayit) return '';
+  const kalan = toplamKayit - gosterilenSatirSayisi;
+  const eklenecek = Math.min(SAYFA_ADIMI, kalan);
+  return `
+    <div class="load-more-wrap">
+      <button type="button" class="load-more-btn" id="btnDevaminiGoster">
+        <span>Devamını Göster (${fmtInt(eklenecek)} kayıt daha)</span>
+        <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+      </button>
+    </div>
+  `;
+}
+
+// ÖNERİ 4: Fark (uyumsuzluk) görünümü. Kâr/zarar YOK — her fark, düzeltilmesi gereken bir
+// tutmama. Sapmanın MUTLAK büyüklüğüne göre azalan sıralı (en büyük hata üstte). "Nerede
+// tutmuyor" nötr bir ipucudur: hangi kaydın düzeltileceğini göstermek için.
+function farkSatirHtml(f){
+  const d = f.farkDetay || {};
+  const sapma = Math.abs(d.tutarFarkTutari||0);
+  const netsisDusuk = (d.tutarFarkTutari||0) > 0; // entegratör > netsis => netsis düşük
+  const nerede = (d.tutarFarkTutari||0)===0 ? 'KDV farkı' : (netsisDusuk ? 'Netsis düşük' : 'Netsis yüksek');
+  return `
+    <tr class="row fatura-row" data-fatura-key="${escapeHtml(f.faturaKey)}" style="cursor:pointer;" tabindex="0" role="button" aria-label="${escapeHtml(f.faturaNo)} fark detayını aç">
+      <td>${faturaNoHucreHtml(f.faturaNo)}</td>
+      <td class="desc">${escapeHtml(f.gonderenUnvan)}</td>
+      <td class="num amt-uyumsuz">${fmtTL(d.entegratorTutar)}</td>
+      <td class="num amt-uyumsuz">${fmtTL(d.netsisTutar)}</td>
+      <td><span class="fark-chip">${fmtTL(sapma)}</span></td>
+      <td><span class="nerede">${nerede}</span></td>
+    </tr>
+  `;
+}
+
+function farkTabloHtml(satirlar){
+  // Yalnızca gerçek "fark" durumundaki satırlar (manuel eşleşti işaretlenenler hariç tutulur —
+  // onlar zaten durum='eslesti' olduğundan bu listeye düşmez).
+  const farklar = satirlar.filter(f=> f.durum==='fark' && f.farkDetay);
+  if(!farklar.length){
+    return `<div class="section-card"><div class="section-label">Tutar Farkı</div><div class="empty-state">Bu filtreyle tutar/KDV farkı olan fatura bulunamadı.</div></div>`;
+  }
+  const sirali = [...farklar].sort((a,b)=> Math.abs(b.farkDetay.tutarFarkTutari||0) - Math.abs(a.farkDetay.tutarFarkTutari||0));
+  const toplamSapma = sirali.reduce((a,f)=> a+Math.abs(f.farkDetay.tutarFarkTutari||0), 0);
+  const enBuyuk = Math.abs(sirali[0].farkDetay.tutarFarkTutari||0);
+  const gosterSayisi = Math.min(gosterilenSatirSayisi, sirali.length);
+  const goster = sirali.slice(0, gosterSayisi);
+  return `
+    <div class="section-card">
+      <div class="section-label">Tutar Farkı <span class="section-label-cnt">${fmtInt(sirali.length)} kayıt</span></div>
+      <div class="fark-ozet-bar">
+        <span class="fo-item">Tutmayan fatura: <b>${fmtInt(sirali.length)}</b></span>
+        <span class="fo-item">Toplam sapma (mutlak): <b>${fmtTL(toplamSapma)}</b></span>
+        <span class="fo-item">En büyük tek sapma: <b>${fmtTL(enBuyuk)}</b></span>
+        <span class="fark-sort-hint"><i class="fa-solid fa-arrow-down-wide-short" aria-hidden="true"></i> Sapmaya göre sıralı</span>
+      </div>
+      <div class="twrap">
+        <table class="data-table">
+          <tr><th>Fatura No</th><th>Gönderen</th><th>Entegratör</th><th>Netsis</th><th>Fark (mutlak)</th><th>Nerede tutmuyor</th></tr>
+          ${goster.map(farkSatirHtml).join('')}
+        </table>
+      </div>
+      <div class="table-foot">
+        <div class="tf-info">${fmtInt(1)} – ${fmtInt(gosterSayisi)} / ${fmtInt(sirali.length)} kayıt gösteriliyor</div>
+      </div>
+      ${devaminiGosterHtml(sirali.length)}
+    </div>
+  `;
+}
+
+function tabloHtml(satirlar, baslik){
+  const sirali = satirlariSirala(satirlar);
+  const okIcon = (key)=> siralamaAlani===key ? (siralamaYonu==='asc'?'<i class="fa-solid fa-arrow-up-short-wide" aria-hidden="true"></i>':'<i class="fa-solid fa-arrow-down-wide-short" aria-hidden="true"></i>') : '';
+  const basliklarHtml = SIRALANABILIR_KOLONLAR.map(k=>`
+    <th class="sortable-th ${siralamaAlani===k.key?'sorted':''}" data-sort="${k.key}">${k.label} ${okIcon(k.key)}</th>
+  `).join('') + '<th>Şube</th><th>Kaynak</th><th>Durum</th>';
+
+  if(!sirali.length){
+    return `<div class="section-card"><div class="section-label">${baslik}</div><div class="empty-state">Bu filtreyle eşleşen fatura bulunamadı.</div></div>`;
+  }
+
+  const gosterSayisi = Math.min(gosterilenSatirSayisi, sirali.length);
+  const goster = sirali.slice(0, gosterSayisi);
+
+  return `
+    <div class="section-card">
+      <div class="section-label">${baslik} <span class="section-label-cnt">${fmtInt(sirali.length)} kayıt</span></div>
+      <div class="twrap">
+        <table class="data-table">
+          <tr>${basliklarHtml}</tr>
+          ${goster.map(faturaSatirHtml).join('')}
+        </table>
+      </div>
+      <div class="table-foot">
+        <div class="tf-info">${fmtInt(sirali.length ? 1 : 0)} – ${fmtInt(gosterSayisi)} / ${fmtInt(sirali.length)} kayıt gösteriliyor</div>
+      </div>
+      ${devaminiGosterHtml(sirali.length)}
+    </div>
+  `;
+}
+
+function kaynagaGoreFiltrele(satirlar){
+  if(aktifKaynak==='tumu') return satirlar;
+  if(aktifKaynak==='efatura') return satirlar.filter(f=> f.kaynak==='logo' || f.kaynak==='qnb');
+  if(aktifKaynak==='earsiv') return satirlar.filter(f=> f.kaynak==='earsiv');
+  return satirlar;
+}
+
+function renderKaynakSegment(satirlar){
+  const efaturaCnt = satirlar.filter(f=> f.kaynak==='logo' || f.kaynak==='qnb').length;
+  const earsivCnt = satirlar.filter(f=> f.kaynak==='earsiv').length;
+  const secenekler = [
+    {key:'tumu', label:'Tümü', cnt: satirlar.length},
+    {key:'efatura', label:'E-Fatura', cnt: efaturaCnt},
+    {key:'earsiv', label:'E-Arşiv', cnt: earsivCnt},
+  ];
+  return `
+    <div class="kaynak-segment">
+      ${secenekler.map(s=>`
+        <button type="button" class="kaynak-seg-btn ${s.key===aktifKaynak?'active':''}" data-kaynak="${s.key}">
+          ${s.label} <span class="cnt">${fmtInt(s.cnt)}</span>
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+
+const DURUM_RENK = {
+  eslesti: '#1FA55A',
+  fark: '#7C5CFC',
+  islenmemis: '#E23E3E',
+  entegratorde_yok: '#F08A1D',
+  red: '#8B96AB',
+};
+
+// NOT: Eski ayrı "durum çip satırı" (renderStatusFilter) TASARIM 2 ile kaldırıldı — durum
+// filtresi artık üstteki KPI çipleridir (renderKPIs). DURUM_RENK yukarıda ileride gerekebilir
+// diye korunuyor.
+
+function durumaGoreFiltrele(satirlar){
+  if(aktifDurum==='tumu') return satirlar;
+  return satirlar.filter(f=> f.durum===aktifDurum);
+}
+
+function aramayaGoreFiltrele(satirlar){
+  const q = aramaMetni.trim().toLocaleLowerCase('tr-TR');
+  if(!q) return satirlar;
+  return satirlar.filter(f=>
+    String(f.gonderenUnvan||'').toLocaleLowerCase('tr-TR').includes(q) ||
+    String(f.faturaNo||'').toLocaleLowerCase('tr-TR').includes(q) ||
+    String(f.cariKodu||'').toLocaleLowerCase('tr-TR').includes(q)
+  );
+}
+
+function renderSearchBox(){
+  return `
+    <div class="search-box-wrap">
+      <input type="text" id="aramaKutusu" class="search-box" placeholder="Cari unvan, fatura no veya cari kodu ile ara..." value="${escapeHtml(aramaMetni)}">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+    </div>
+  `;
+}
+
+function notluKartlarHtml(satirlar){
+  if(!satirlar.length){
+    return `<div class="section-card"><div class="empty-state">Henüz not eklenmiş bir fatura yok. Bir faturaya tıklayıp not ekleyebilir veya manuel durum işaretleyebilirsiniz.</div></div>`;
+  }
+  const sirali = [...satirlar].sort((a,b)=>{
+    const ta = a.notGuncellemeZamani ? new Date(a.notGuncellemeZamani).getTime() : 0;
+    const tb = b.notGuncellemeZamani ? new Date(b.notGuncellemeZamani).getTime() : 0;
+    return tb - ta;
+  });
+  return `
+    <div class="section-card">
+      <div class="section-label">Notlar <span class="section-label-cnt">${fmtInt(sirali.length)} fatura</span></div>
+      <div class="not-kart-liste">
+        ${sirali.map(f=>{
+          const notVarMi = f.not && f.not.trim();
+          const manuelTanim = f.manuelDurum ? manuelDurumTanimBul(f.manuelDurum) : null;
+          const gercekDurum = f.manuelDurum ? f.orijinalDurum : f.durum;
+          const gercekDurumEtiket = f.manuelDurum ? f.orijinalDurumEtiket : f.durumEtiket;
+          return `
+          <div class="not-kart" data-fatura-key="${escapeHtml(f.faturaKey)}">
+            <div class="not-kart-ust">
+              <div>
+                ${faturaNoHucreHtml(f.faturaNo)}
+                <span class="not-kart-cari">${escapeHtml(f.gonderenUnvan)}</span>
+              </div>
+              <div class="not-kart-tutar">${fmtTL(f.yon==='netsis' ? f.netsisTutar : f.tutar)}</div>
+            </div>
+            <div class="not-kart-badges">
+              <span class="badge ${durumBadgeClass(gercekDurum)}"><i class="${durumBadgeIcon(gercekDurum)}" aria-hidden="true"></i> ${escapeHtml(gercekDurumEtiket)}</span>
+              ${manuelTanim ? `<span class="badge badge-manuel ${manuelTanim.cls}"><i class="${manuelTanim.icon}" aria-hidden="true"></i> ${escapeHtml(manuelTanim.label)}</span>` : ''}
+            </div>
+            ${notVarMi ? `<div class="not-kart-metin">${escapeHtml(f.not)}</div>` : `<div class="not-kart-metin not-kart-metin-bos">Not eklenmemiş — detayına tıklayıp not ekleyebilirsiniz.</div>`}
+            ${f.notGuncellemeZamani ? `<div class="not-kart-zaman">Son güncelleme: ${new Date(f.notGuncellemeZamani).toLocaleString('tr-TR')}</div>` : ''}
+          </div>
+        `;}).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderGroupSections(){
+  const el = document.getElementById('groupSections');
+  if(!state.rapor){
+    el.innerHTML = `<div class="section-card"><div class="empty-state">Rapor oluşturmak için soldaki panelden dosyaları yükleyip "Raporu Oluştur"a basın.</div></div>`;
     return;
   }
-  if(bosPanel) bosPanel.style.display = 'none';
-  if(icerik) icerik.style.display = 'block';
-  renderSevkMusteriTable(report);
-  renderSevkOzet(report);
+  const grupSatirlariKaynaksiz = aktifGrupSatirlariKaynaksiz();
+  const kaynakFiltreli = aktifGrupSatirlari();
+  const filtreliSatirlar = aramayaGoreFiltrele(durumaGoreFiltrele(kaynakFiltreli));
+  const kaynakSegment = renderKaynakSegment(grupSatirlariKaynaksiz);
+  const arama = renderSearchBox();
+
+  // TASARIM 3: kaynak segmenti + arama TEK birleşik araç çubuğu satırında.
+  // TASARIM 2: ayrı durum çip satırı (renderStatusFilter) artık YOK — durum filtresi
+  // üstteki KPI çipleridir.
+  const ustSatir = `
+    <div class="filtre-bar">
+      ${kaynakSegment}
+      ${arama}
+    </div>
+  `;
+
+  // Durum filtresi "fark" ise özel uyumsuzluk görünümü (sapmaya göre sıralı) kullanılır;
+  // aksi halde normal tablo. Böylece her grupta fark filtresi akıllı görünüme geçer.
+  const icerikTablosu = (satirlar, baslik)=>
+    aktifDurum==='fark' ? farkTabloHtml(satirlar) : tabloHtml(satirlar, baslik);
+
+  if(aktifGrup==='tumu'){
+    el.innerHTML = ustSatir + icerikTablosu(filtreliSatirlar, 'Fatura Listesi');
+  }else if(aktifGrup==='kesan'){
+    el.innerHTML = ustSatir + icerikTablosu(filtreliSatirlar, 'Keşan · Keşan Efes dahil');
+  }else if(aktifGrup==='bayrampasa'){
+    el.innerHTML = ustSatir + icerikTablosu(filtreliSatirlar, 'Bayrampaşa · Bayrampaşa Efes dahil');
+  }else if(aktifGrup==='kontrol'){
+    el.innerHTML = `
+      ${ustSatir}
+      <div class="control-banner">
+        <span class="lbl">Kontrol listesi — VKN hiçbir müşteri master'da bulunamadı</span>
+        <span class="cnt">${fmtInt(kaynakFiltreli.length)} fatura</span>
+      </div>
+      ${icerikTablosu(filtreliSatirlar, 'Kontrol')}
+    `;
+  }else if(aktifGrup==='notlar'){
+    el.innerHTML = `
+      ${arama}
+      ${notluKartlarHtml(aramayaGoreFiltrele(kaynakFiltreli))}
+    `;
+  }
+
+  el.querySelectorAll('.kaynak-seg-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ aktifKaynak = btn.dataset.kaynak; sayfayiSifirla(); renderKPIs(); renderGroupSections(); });
+  });
+  // (Ayrı durum çip satırı kaldırıldı — durum filtresi artık üstteki KPI çiplerinde.)
+  el.querySelectorAll('.status-mini-card--kullanilmiyor').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const secilen = btn.dataset.durum;
+      aktifDurum = (aktifDurum===secilen) ? 'tumu' : secilen;
+      sayfayiSifirla();
+      renderKPIs();
+      renderGroupSections();
+    });
+  });
+  el.querySelectorAll('.sortable-th').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.sort;
+      if(siralamaAlani===key) siralamaYonu = siralamaYonu==='asc' ? 'desc' : 'asc';
+      else { siralamaAlani = key; siralamaYonu = 'desc'; }
+      renderGroupSections();
+    });
+  });
+
+  const btnDevaminiGoster = el.querySelector('#btnDevaminiGoster');
+  if(btnDevaminiGoster){
+    btnDevaminiGoster.addEventListener('click', ()=>{
+      gosterilenSatirSayisi += SAYFA_ADIMI;
+      renderGroupSections();
+    });
+  }
+  el.querySelectorAll('.fatura-row').forEach(tr=>{
+    tr.addEventListener('click', ()=> faturaDetayModalAc(tr.dataset.faturaKey));
+    // ÖNERİ 7: klavye erişimi — Enter veya Space ile satır detayını aç.
+    tr.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); faturaDetayModalAc(tr.dataset.faturaKey); }
+    });
+  });
+  el.querySelectorAll('.not-kart').forEach(kart=>{
+    kart.addEventListener('click', ()=> faturaDetayModalAc(kart.dataset.faturaKey));
+  });
+  const aramaKutusu = el.querySelector('#aramaKutusu');
+  if(aramaKutusu){
+    // ÖNERİ 7: 150ms debounce — her tuş vuruşunda tüm listeyi yeniden çizmek yerine yazma
+    // durunca bir kez çizeriz. Büyük listelerde (800+ satır) yazma akıcılaşır.
+    aramaKutusu.addEventListener('input', (e)=>{
+      aramaMetni = e.target.value;
+      clearTimeout(aramaDebounceTimer);
+      aramaDebounceTimer = setTimeout(()=>{
+        sayfayiSifirla();
+        renderGroupSections();
+        const yeni = document.getElementById('aramaKutusu');
+        if(yeni){ yeni.focus(); yeni.setSelectionRange(yeni.value.length, yeni.value.length); }
+      }, 150);
+    });
+  }
 }
 
-function renderSevkOzet(report){
-  const temsilci = document.getElementById('sevkTemsilciFilter').value;
-  const scopeLabel = temsilci ? temsilci : 'Tüm Temsilciler';
-  document.getElementById('ozetTitle').textContent = 'Sevk Özeti — ' + scopeLabel;
-  const ozet = computeSevkOzet(report, temsilci);
-  renderOzet(ozet);
+function escapeHtml(s){
+  return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-function renderKpiHeroRow(items, elId){
-  const hero = items[0];
-  const rest = items.slice(1);
-  const heroHTML = `
-    <div class="kpi-hero-wrap">
-      <div class="kpi-hero-card">
-        <div class="kpi-hero-top">
-          <span class="kpi-hero-label">${hero.icon||''} ${hero.label}</span>
-          ${hero.sub ? `<span class="kpi-hero-chip">${hero.sub}</span>` : ''}
+function farkDetayHtml(f){
+  const d = f.farkDetay;
+  if(!d) return '';
+  return `
+    <div class="upload-section-label">Tutar ${d.tutarFarkVar?'<span style="color:#FFB65C;">— fark var</span>':'<span style="color:#8FE0AE;">— eşleşiyor</span>'}</div>
+    <div class="upload-row">
+      <div>
+        <div class="upload-row-name">Entegratör</div>
+        <div class="upload-row-status ok" style="color:#fff;font-size:13px;">${fmtTL(d.entegratorTutar)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="upload-row-name">Netsis</div>
+        <div class="upload-row-status ok" style="color:#fff;font-size:13px;">${fmtTL(d.netsisTutar)}</div>
+      </div>
+    </div>
+    <div style="text-align:right; font-size:12px; color:${d.tutarFarkVar?'#FFB65C':'rgba(255,255,255,.45)'}; margin-top:6px;">
+      Fark: ${fmtTL(d.tutarFarkTutari)}
+    </div>
+    ${d.kdvKontrolVarMi ? `
+      <div class="upload-section-label" style="margin-top:14px;">KDV ${d.kdvFarkVar?'<span style="color:#FFB65C;">— fark var</span>':'<span style="color:#8FE0AE;">— eşleşiyor</span>'}</div>
+      <div class="upload-row">
+        <div>
+          <div class="upload-row-name">Entegratör</div>
+          <div class="upload-row-status ok" style="color:#fff;font-size:13px;">${fmtTL(d.entegratorKdv)}</div>
         </div>
-        <div class="kpi-hero-value">${hero.display!==undefined ? hero.display : TL(hero.value)}${hero.trend ? `<span class="trend-arrow" style="color:${hero.trend.color};">${hero.trend.arrow}</span>` : ''}</div>
+        <div style="text-align:right;">
+          <div class="upload-row-name">Netsis</div>
+          <div class="upload-row-status ok" style="color:#fff;font-size:13px;">${fmtTL(d.netsisKdv)}</div>
+        </div>
       </div>
-    </div>`;
-  // "ring:true" verilen kartlarda ikon yerine yüzdesel halka grafiği (fknsRingSvg — Sell Out/Temsilci
-  // Karnesi'nde zaten kullanılan aynı bileşen) gösterilir; oran değeri "oran" alanından okunur.
-  // "chips: [{label, tutar, renk}]" verilen kartlarda, ana rakamın altında küçük renkli bilgi
-  // kutucukları gösterilir (ör. Normal Tahsilat / Bozuk İade-Depozito dökümü) — eskiden bu tür
-  // dökümler ana "sub" metnine gömülüp 10px gri yazı içinde kayboluyordu; artık kendi rengi ve daha
-  // okunaklı boyutuyla ayrı bir satırda öne çıkıyor.
-  const rowHTML = `<div class="kpi-row-grid">` + rest.map(it=>`
-    <div class="kpi-row-card${it.chips?' has-chips':''}${it.cls?` cls-${it.cls}`:''}">
-      <div class="kpi-row-top-line">
-        <span class="kpi-row-icon">${it.icon||''}</span>
-        <span class="kpi-row-lbl">${it.label}</span>
+      <div style="text-align:right; font-size:12px; color:${d.kdvFarkVar?'#FFB65C':'rgba(255,255,255,.45)'}; margin-top:6px;">
+        Fark: ${fmtTL(d.kdvFarkTutari)}
       </div>
-      <div class="kpi-row-text">
-        <div class="kpi-row-val"${it.valueColor?` style="color:${it.valueColor}"`:''}>${it.display!==undefined ? it.display : TL(it.value)}${it.trend ? `<span class="trend-arrow" style="color:${it.trend.color};">${it.trend.arrow}</span>` : ''}</div>
-        ${it.sub ? `<div class="kpi-row-extra">${it.sub}</div>` : ''}
+    ` : `
+      <div class="upload-note" style="margin-top:14px;">Bu kaynakta (QNB) KDV bilgisi yer almadığı için KDV karşılaştırması yapılmıyor — sadece toplam tutar kontrol edilir.</div>
+    `}
+  `;
+}
+
+async function faturaDetayKaydet(faturaKey, overlay, kapat){
+  const seciliDurumBtn = overlay.querySelector('.manuel-durum-btn.active');
+  const durum = seciliDurumBtn ? (seciliDurumBtn.dataset.durum || null) : null;
+  const notMetni = overlay.querySelector('#faturaNotAlani').value;
+
+  // Bellek güncellemesi ANINDA, kalıcı kayıt (manuelKaydiGuncelle: RTDB) arka planda.
+  manuelKaydiGuncelle(faturaKey, {durum, not: notMetni})
+    .catch(e=> console.warn('Manuel kayıt kalıcı kaydedilemedi (bellekte geçerli):', e));
+
+  state.rapor = computeRapor(state.kaynaklar, state.manuel, state.subeAtamalari, state.zincirVknListesi, state.faturaSubeAtamalari);
+
+  // Modal hemen kapansın, ekran hemen güncellensin — yerel rapor önbelleği arka planda yazılır.
+  if(typeof kapat==='function') kapat(); else overlay.remove();
+  renderKPIs();
+  renderGroupTabs();
+  renderGroupSections();
+  saveRaporToStorage().catch(e=> console.warn('Rapor önbelleğe yazılamadı:', e));
+}
+
+function subeAtamaBlokHtml(f){
+  const vknYokMu = !f.vkn; // VKN/TCKN hiç okunamamış (örn. bazı E-Arşiv satırlarında olabilir)
+  const zincirMi = !vknYokMu && vknZincirMi(f.vkn); // Migros gibi: VKN paylaşımlı marka
+  const manuelAtanmisMi = !vknYokMu ? vknSubesiAtanmisMi(f.vkn) : null; // 'kesan' | 'bayrampasa' | null (VKN bazlı, zincir DEĞİLSE geçerli)
+  const faturaAtanmisMi = faturaSubesiAtanmisMi(f.faturaKey); // 'kesan' | 'bayrampasa' | null (fatura bazlı, sadece zincirler için)
+  const suanSubeGrubu = f.subeGrup; // computeRapor'un o an atadığı grup (kontrol/kesan/bayrampasa)
+
+  // VKN/TCKN HİÇ YOK: bu faturada VKN alanı boş (Excel'de eksik/okunamamış olabilir).
+  // VKN-bazlı hiçbir atama (zincir işaretleme, kalıcı VKN ataması) mantıklı olmaz çünkü
+  // atanacak bir VKN yok — bunun yerine SADECE fatura bazlı (faturaKey'e göre) atama
+  // sunuyoruz, kullanıcıyı bilgilendiriyoruz.
+  if(vknYokMu){
+    const durumEtiketi = faturaAtanmisMi
+      ? `<span class="badge badge-manuel ${faturaAtanmisMi==='kesan'?'badge-success':'badge-purple'}"><i class="fa-solid fa-thumbtack" aria-hidden="true"></i> ${faturaAtanmisMi==='kesan'?'Keşan':'Bayrampaşa'} (bu fatura için, elle)</span>`
+      : `<span class="badge badge-warn"><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> VKN/TCKN okunamadı — sadece bu fatura için atama yapılabilir</span>`;
+    return `
+      <div class="sube-atama-blok">
+        <div class="upload-section-label">Şube</div>
+        <div class="sube-durum-etiket">${durumEtiketi}</div>
+        <div class="sube-atama-grid">
+          <button type="button" class="sube-atama-btn fatura-sube-atama-btn ${faturaAtanmisMi==='kesan'?'active':''}" data-sube="kesan">
+            <i class="fa-solid fa-building" aria-hidden="true"></i> Keşan'a ata
+          </button>
+          <button type="button" class="sube-atama-btn fatura-sube-atama-btn ${faturaAtanmisMi==='bayrampasa'?'active':''}" data-sube="bayrampasa">
+            <i class="fa-solid fa-building" aria-hidden="true"></i> Bayrampaşa'ya ata
+          </button>
+        </div>
+        ${faturaAtanmisMi ? `<button type="button" class="manuel-durum-temizle" id="btnFaturaSubeAtamaTemizle"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Bu faturanın atamasını kaldır</button>` : ''}
+        <div class="sube-atama-not">Bu faturada VKN/TCKN bilgisi bulunamadı, bu yüzden VKN'ye bağlı kalıcı bir atama (zincir işaretleme gibi) yapılamıyor — atama sadece bu faturaya özel kalır.</div>
       </div>
-      ${it.chips ? `<div class="kpi-row-chips">` + it.chips.map(c=>`
-        <div class="kpi-row-chip" style="background:${c.bg};color:${c.renk};">
-          <div class="kpi-row-chip-lbl">${c.label}</div>
-          <div class="kpi-row-chip-val">${TL(c.tutar)}</div>
-        </div>`).join('') + `</div>` : ''}
-    </div>`).join('') + `</div>`;
-  document.getElementById(elId).innerHTML = heroHTML + rowHTML;
+    `;
+  }
+
+  // ZİNCİR VKN (örn. Migros): VKN bazlı atama burada GEÇERSİZ — her fatura kendi
+  // başına, faturaKey'e göre atanır. Zincir listesinden çıkarma seçeneği de sunulur.
+  if(zincirMi){
+    const durumEtiketi = faturaAtanmisMi
+      ? `<span class="badge badge-manuel ${faturaAtanmisMi==='kesan'?'badge-success':'badge-purple'}"><i class="fa-solid fa-thumbtack" aria-hidden="true"></i> ${faturaAtanmisMi==='kesan'?'Keşan':'Bayrampaşa'} (bu fatura için, elle)</span>`
+      : `<span class="badge badge-warn"><i class="fa-solid fa-link" aria-hidden="true"></i> Zincir VKN — her fatura kendi başına atanır</span>`;
+
+    return `
+      <div class="sube-atama-blok">
+        <div class="upload-section-label">Şube</div>
+        <div class="sube-durum-etiket">${durumEtiketi}</div>
+        <div class="sube-atama-grid">
+          <button type="button" class="sube-atama-btn fatura-sube-atama-btn ${faturaAtanmisMi==='kesan'?'active':''}" data-sube="kesan">
+            <i class="fa-solid fa-building" aria-hidden="true"></i> Keşan'a ata
+          </button>
+          <button type="button" class="sube-atama-btn fatura-sube-atama-btn ${faturaAtanmisMi==='bayrampasa'?'active':''}" data-sube="bayrampasa">
+            <i class="fa-solid fa-building" aria-hidden="true"></i> Bayrampaşa'ya ata
+          </button>
+        </div>
+        ${faturaAtanmisMi ? `<button type="button" class="manuel-durum-temizle" id="btnFaturaSubeAtamaTemizle"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Bu faturanın atamasını kaldır</button>` : ''}
+        <div class="sube-atama-not">Bu VKN "zincir" olarak işaretli (aynı VKN'yi birden fazla şubede/bölgede kullanan marka) — atama SADECE bu faturaya özeldir, aynı VKN'nin başka faturalarını etkilemez.</div>
+        <button type="button" class="sube-atama-link" id="btnZincirVknCikar"><i class="fa-solid fa-unlink" aria-hidden="true"></i> Bu VKN'yi zincir listesinden çıkar</button>
+      </div>
+    `;
+  }
+
+  // ZİNCİR DEĞİL: normal VKN bazlı akış. "Zincir olarak işaretle" seçeneği HER ZAMAN
+  // gösterilir (VKN otomatik Keşan/Bayrampaşa'ya düşmüş olsa bile) — aksi halde Migros
+  // gibi Müşteri Master'da zaten kayıtlı bir VKN için bu seçenek hiç görünmezdi
+  // (tavuk-yumurta sorunu: zincir işaretlemek için önce Kontrol'e düşmesi gerekmiyor,
+  // tam tersi olmalı — Kontrol'e düşmesi İÇİN zincir işaretlenir).
+  const otomatikAtanmisMi = !manuelAtanmisMi && suanSubeGrubu !== 'kontrol'; // Müşteri Master'dan geldi
+  const durumEtiketi = manuelAtanmisMi
+    ? `<span class="badge badge-manuel ${manuelAtanmisMi==='kesan'?'badge-success':'badge-purple'}"><i class="fa-solid fa-thumbtack" aria-hidden="true"></i> ${manuelAtanmisMi==='kesan'?'Keşan':'Bayrampaşa'} (manuel atandı)</span>`
+    : otomatikAtanmisMi
+      ? `<span class="badge badge-success"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> ${escapeHtml(f.sube)} (Müşteri Master'dan otomatik)</span>`
+      : `<span class="badge badge-warn"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Kontrol — VKN hiçbir müşteri master'da yok</span>`;
+
+  return `
+    <div class="sube-atama-blok">
+      <div class="upload-section-label">Şube</div>
+      <div class="sube-durum-etiket">${durumEtiketi}</div>
+      <div class="sube-atama-grid">
+        <button type="button" class="sube-atama-btn ${manuelAtanmisMi==='kesan'?'active':''}" data-sube="kesan">
+          <i class="fa-solid fa-building" aria-hidden="true"></i> Keşan'a ata
+        </button>
+        <button type="button" class="sube-atama-btn ${manuelAtanmisMi==='bayrampasa'?'active':''}" data-sube="bayrampasa">
+          <i class="fa-solid fa-building" aria-hidden="true"></i> Bayrampaşa'ya ata
+        </button>
+      </div>
+      ${manuelAtanmisMi ? `<button type="button" class="manuel-durum-temizle" id="btnSubeAtamaTemizle"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Şube atamasını kaldır</button>` : ''}
+      <div class="sube-atama-not">Bu VKN'ye ait tüm faturalar (geçmiş ve gelecek dönemler dahil) otomatik olarak seçilen şubeye düşer.</div>
+      <button type="button" class="sube-atama-link" id="btnZincirVknEkle"><i class="fa-solid fa-link" aria-hidden="true"></i> Bu VKN'yi "zincir" olarak işaretle (VKN paylaşımlı marka)</button>
+    </div>
+  `;
 }
 
-function renderOzet(ozet){
-  const items = [
-    {label:'Toplam Kalan Borç', icon:'<i class="fa-solid fa-coins" aria-hidden="true"></i>', value:ozet.toplamKalanBorc, sub:ozet.musteriSayisi.toLocaleString('tr-TR')+' Müşteri'},
-    {label:'Açık Sipariş', icon:'<i class="fa-solid fa-box" aria-hidden="true"></i>', cls:'neutral', value:ozet.toplamSiparis, sub:'Sevkiyat Bekleyen'},
-    {label:'Sevki Ertelenen', icon:'<i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>', cls:'warn', value:ozet.toplamEmanet, sub:'Emanet Sipariş'},
-    {label:'Alınan Tahsilat', icon:'<i class="fa-solid fa-circle-check" aria-hidden="true"></i>', cls:'success', value:ozet.toplamTahsilat, sub:'Son Dönem'},
-    {label:'Ort. Vade', icon:'<i class="fa-solid fa-calendar" aria-hidden="true"></i>', cls:'accent', value:null, display: ozet.ortalamaVade!=null ? ozet.ortalamaVade+' gün' : '—', sub:ozet.siparisliMusteriSayisi.toLocaleString('tr-TR')+' Sipariş Girilen Müşteri'},
-  ];
-  renderKpiHeroRow(items, 'ozetGrid');
+const KAYNAK_ETIKET_TANIM = {
+  logo: {label:'E-Fatura · Logo', icon:'fa-solid fa-file-invoice'},
+  qnb: {label:'E-Fatura · QNB', icon:'fa-solid fa-file-invoice'},
+  earsiv: {label:'E-Arşiv', icon:'fa-solid fa-box-archive'},
+  netsis: {label:'Netsis', icon:'fa-solid fa-calculator'},
+};
+function kaynakEtiketiGetir(kaynakKey){
+  return KAYNAK_ETIKET_TANIM[kaynakKey] || {label: kaynakKey || 'Bilinmiyor', icon:'fa-solid fa-circle-question'};
 }
 
-function renderKPIs(kpi){
-  // Tahsilat Oranı: gösterilen dönemde alınan tahsilatın, (tahsilat + ay sonu kalan borç) toplamına
-  // oranı — Sell Out/Temsilci Karnesi'ndeki halka grafik bileşeni burada da kullanılır, böylece
-  // Genel Rapor'un en üstünde de yüzdesel bir gösterge okunaklı şekilde yer alır.
-  const tahsilatOraniPayda = (kpi.toplamTahsilat||0) + (kpi.toplamBakiye||0);
-  const tahsilatOrani = tahsilatOraniPayda>0 ? (kpi.toplamTahsilat/tahsilatOraniPayda*100) : null;
-  const items = [
-    {label:'Toplam Kalan Borç', icon:'<i class="fa-solid fa-coins" aria-hidden="true"></i>', value:kpi.toplamBakiye, sub:kpi.musteriSayisi.toLocaleString('tr-TR')+' Müşteri'},
-    {label:'Ort. Vade', icon:'<i class="fa-solid fa-calendar" aria-hidden="true"></i>', cls:'neutral', value:null, display: kpi.ortalamaVade!=null ? kpi.ortalamaVade+' gün' : '—', sub:kpi.musteriSayisi.toLocaleString('tr-TR')+' Müşteri'},
-    {label:'Toplam Risk', icon:'<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>', cls:'warn', value:kpi.toplamRisk, sub:'Kalan Borç + Çek/Senet'},
-    {label:'Çek / Senet Riski', icon:'<i class="fa-solid fa-file-lines" aria-hidden="true"></i>', cls:'danger', value:kpi.toplamCekSenet, sub:'Vadesi Gelmemiş'},
-    {label:'Alınan Tahsilat', icon:'<i class="fa-solid fa-circle-check" aria-hidden="true"></i>', cls:'success', value:kpi.toplamTahsilat, sub: kpi.tahsilatEslesmeyenToplam>0 ? (TL(kpi.tahsilatEslesmeyenToplam)+' Bakiyesi Kapalı Müşteriden') : 'Son Dönem'},
-    {label:'Tahsilat Oranı', icon:'<i class="fa-solid fa-bullseye" aria-hidden="true"></i>', cls:'accent', value:null, display: fmtYuzde(tahsilatOrani), sub:'Tahsilat / (Tahsilat + Kalan Borç)'},
-  ];
-  renderKpiHeroRow(items, 'kpiGrid');
+function faturaDetayModalAc(key){
+  const f = state.rapor.faturalar.find(x=> x.faturaKey===key);
+  if(!f) return;
+
+  // KRİTİK DÜZELTME: Aynı ID'ye (faturaDetayOverlay) sahip birden fazla modal
+  // document.body'e eklenebiliyordu — örneğin şube atama sonrası "overlay.remove();
+  // faturaDetayModalAc(key);" akışında, bir önceki overlay her nedense kaldırılmadan
+  // yeni bir tane eklenirse, iki (hatta daha fazla) overlay ÜST ÜSTE birikiyordu.
+  // Bu da hem arka planın giderek karartılmasına (her overlay kendi yarı-saydam
+  // katmanını ekliyor) hem de tıklamaların ARTIK EN ÜSTTEKİ overlay'e gitmesine ama
+  // querySelector çağrılarının document.getElementById ile İLK (en eski, artık
+  // görünmeyen) overlay'i bulup ona event listener bağlamasına yol açıyordu — yani
+  // kullanıcı en üstteki (görünen) modaldaki butona bassa bile hiçbir şey olmuyordu.
+  // Çözüm: yeni modal açmadan ÖNCE, varsa TÜM eski faturaDetayOverlay'leri temizle.
+  document.querySelectorAll('#faturaDetayOverlay').forEach(eski=> eski.remove());
+
+  const manuelTanim = f.manuelDurum ? manuelDurumTanimBul(f.manuelDurum) : null;
+  const gercekDurum = f.manuelDurum ? f.orijinalDurum : f.durum;
+  const gercekDurumEtiket = f.manuelDurum ? f.orijinalDurumEtiket : f.durumEtiket;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'upload-overlay';
+  overlay.id = 'faturaDetayOverlay';
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+    <div class="upload-modal" style="max-width:420px;">
+      <div class="upload-modal-head">
+        <div class="upload-modal-title">Fatura Detayı</div>
+        <button type="button" class="upload-close" id="btnCloseFaturaDetay" aria-label="Kapat"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+
+      <div class="fd-hero">
+        <div class="fd-hero-top">
+          <div class="fd-hero-info">
+            <div class="fd-hero-fno">${escapeHtml(f.faturaNo)}</div>
+            <div class="fd-hero-unvan">${escapeHtml(f.gonderenUnvan)}</div>
+          </div>
+          <span class="badge ${durumBadgeClass(gercekDurum)}"><i class="${durumBadgeIcon(gercekDurum)}" aria-hidden="true"></i> ${escapeHtml(gercekDurumEtiket)}</span>
+        </div>
+        <div class="fd-hero-tutar">${fmtTL(f.yon==='netsis' ? f.netsisTutar : f.tutar)}</div>
+      </div>
+
+      <div class="fd-bilgi-grid">
+        <div class="fd-bilgi-hucre">
+          <div class="upload-section-label">VKN/TCKN</div>
+          <div class="fd-bilgi-deger">${escapeHtml(f.vkn ? String(f.vkn) : '—')}</div>
+        </div>
+        <div class="fd-bilgi-hucre">
+          <div class="upload-section-label">Kaynak</div>
+          <div class="fd-bilgi-deger">${escapeHtml(kaynakEtiketiGetir(f.kaynak).label)}</div>
+        </div>
+      </div>
+
+      ${manuelTanim ? `
+        <div class="manuel-aktif-uyari">
+          <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+          Bu fatura manuel olarak "<strong>${escapeHtml(manuelTanim.label)}</strong>" işaretlendi ve genel bakışta <strong>${manuelTanim.key==='iptal_edildi' ? 'Reddedildi/İptal' : 'Eşleşti'}</strong> olarak sayılıyor.
+        </div>
+      ` : ''}
+
+      <div class="fd-akis-blok">${subeAtamaBlokHtml(f)}</div>
+
+      ${f.farkDetay ? `<div class="fd-akis-blok">${farkDetayHtml(f)}</div>` : ''}
+
+      <div class="fd-akis-blok">
+        <div class="upload-section-label">Manuel durum işaretle</div>
+        <div class="manuel-durum-grid">
+          ${MANUEL_DURUM_TANIM.map(d=>`
+            <button type="button" class="manuel-durum-btn ${manuelTanim && manuelTanim.key===d.key ? 'active':''}" data-durum="${d.key}">
+              <i class="${d.icon}" aria-hidden="true"></i> ${escapeHtml(d.label)}
+            </button>
+          `).join('')}
+        </div>
+        <button type="button" class="manuel-durum-temizle" id="btnManuelDurumTemizle" ${manuelTanim ? '' : 'style="display:none;"'}>
+          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Manuel durumu kaldır
+        </button>
+      </div>
+
+      ${f.yon === 'netsis' ? `
+      <div class="fd-akis-blok">
+        <div class="upload-section-label">Netsis kaydını sil</div>
+        <div class="sube-atama-not" style="margin-bottom:10px;">Bu kayıt Netsis dökümünden geliyor ve entegratörde eşleşmedi. Kaydı gerçekten Netsis'ten sildiyseniz (artık Netsis'te yoksa), burada da kalıcı olarak silebilirsiniz — geri alınamaz.</div>
+        <button type="button" class="manuel-durum-temizle tehlike" id="btnNetsisKaydiSil">
+          <i class="fa-solid fa-trash" aria-hidden="true"></i> Bu kaydı Netsis verisinden sil
+        </button>
+      </div>
+      ` : ''}
+
+      <div class="fd-akis-blok">
+        <div class="upload-section-label">Not ekle</div>
+        <textarea id="faturaNotAlani" class="fatura-not-alani" placeholder="Örn: KEF2026 nolu fatura ile iade edildi">${escapeHtml(f.not||'')}</textarea>
+        ${f.notGuncellemeZamani ? `<div class="fatura-not-zaman">Son güncelleme: ${new Date(f.notGuncellemeZamani).toLocaleString('tr-TR')}</div>` : ''}
+      </div>
+
+      <button type="button" class="upload-build-btn" id="btnFaturaDetayKaydet">
+        <i class="fa-solid fa-check" aria-hidden="true"></i> Kaydet
+      </button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelectorAll('.manuel-durum-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const zatenAktif = btn.classList.contains('active');
+      overlay.querySelectorAll('.manuel-durum-btn').forEach(b=> b.classList.remove('active'));
+      if(!zatenAktif) btn.classList.add('active');
+      overlay.querySelector('#btnManuelDurumTemizle').style.display = overlay.querySelector('.manuel-durum-btn.active') ? '' : 'none';
+    });
+  });
+  overlay.querySelector('#btnManuelDurumTemizle').addEventListener('click', ()=>{
+    overlay.querySelectorAll('.manuel-durum-btn').forEach(b=> b.classList.remove('active'));
+    overlay.querySelector('#btnManuelDurumTemizle').style.display = 'none';
+  });
+
+  // Şube atama butonları: tıklanınca ANINDA (Kaydet'e basmayı beklemeden) kalıcı olarak
+  // yazılır ve rapor yeniden hesaplanıp modal güncel haliyle yeniden açılır — kullanıcı
+  // atamanın hemen etkili olduğunu görsün.
+  // NOT: fatura-sube-atama-btn (zincir VKN'ler için, faturaKey bazlı) ve normal
+  // sube-atama-btn (VKN bazlı) AYRI seçicilerle ele alınır — birbirine karışmasın diye
+  // :not(.fatura-sube-atama-btn) ile normal VKN bazlı butonlar filtrelenir.
+  //
+  // ÖNEMLİ: Zincir VKN'ler (örn. Migros, yüzlerce fatura) için computeRapor +
+  // saveRaporToStorage (RTDB yazımı) BİR KAÇ SANİYE sürebilir. Bu süre boyunca
+  // kullanıcı "tepki almıyorum" hissiyle tekrar tekrar tıklarsa, her tıklama yeni bir
+  // faturaDetayModalAc çağrısı + potansiyel modal üst üste binmesine yol açabiliyordu.
+  // Çözüm: tıklanan modalın TÜM butonlarını hemen devre dışı bırakıp "İşleniyor…"
+  // göstergesi ekliyoruz — işlem bitene kadar hiçbir buton tekrar tıklanamaz.
+  function modalButonlariniKilitle(){
+    overlay.querySelectorAll('button').forEach(b=> b.disabled = true);
+    overlay.style.opacity = '0.6';
+    overlay.style.pointerEvents = 'none';
+  }
+
+  async function subeIslemiCalistirVeYenidenAc(islemFn){
+    modalButonlariniKilitle();
+    try{
+      await islemFn();
+      await subeAtamasiSonrasiYenidenHesapla();
+    }catch(hata){
+      // Beklenmeyen bir hata (örn. depolama erişim sorunu, ağ hatası) — işlemi sessizce
+      // yutmuyoruz, kullanıcıya haber veriyoruz. finally bloğu yine de modalı güncel
+      // state ile yeniden açacak (atama muhtemelen yerel state'e işlenmiştir bile olsa
+      // kalıcı kayıt/senkron başarısız olmuş olabilir).
+      console.error('Şube/zincir atama işlemi sırasında hata:', hata);
+      if(typeof toastGoster === 'function') toastGoster('İşlem kaydedilirken bir sorun oluştu, tekrar deneyin', 'hata');
+    }finally{
+      overlay.remove();
+      faturaDetayModalAc(key); // aynı fatura, güncel şube bilgisiyle yeniden aç
+    }
+  }
+
+  overlay.querySelectorAll('.sube-atama-btn:not(.fatura-sube-atama-btn)').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const secilenGrup = btn.dataset.sube;
+      const zatenBuGrupMu = vknSubesiAtanmisMi(f.vkn) === secilenGrup;
+      subeIslemiCalistirVeYenidenAc(()=> vknSubesiniAta(f.vkn, zatenBuGrupMu ? null : secilenGrup)); // tekrar tıklayınca kaldır (toggle)
+    });
+  });
+  const subeTemizleBtn = overlay.querySelector('#btnSubeAtamaTemizle');
+  if(subeTemizleBtn){
+    subeTemizleBtn.addEventListener('click', ()=>{
+      subeIslemiCalistirVeYenidenAc(()=> vknSubesiniAta(f.vkn, null));
+    });
+  }
+
+  // Fatura bazlı şube atama butonları (SADECE zincir VKN'ler için gösterilir) —
+  // faturaKey'e göre atanır, VKN'ye değil; aynı VKN'nin başka faturalarını etkilemez.
+  overlay.querySelectorAll('.fatura-sube-atama-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const secilenGrup = btn.dataset.sube;
+      const zatenBuGrupMu = faturaSubesiAtanmisMi(f.faturaKey) === secilenGrup;
+      subeIslemiCalistirVeYenidenAc(()=> faturaSubesiniAta(f.faturaKey, zatenBuGrupMu ? null : secilenGrup));
+    });
+  });
+  const faturaSubeTemizleBtn = overlay.querySelector('#btnFaturaSubeAtamaTemizle');
+  if(faturaSubeTemizleBtn){
+    faturaSubeTemizleBtn.addEventListener('click', ()=>{
+      subeIslemiCalistirVeYenidenAc(()=> faturaSubesiniAta(f.faturaKey, null));
+    });
+  }
+
+  // Zincir VKN listesine ekleme/çıkarma — Kontrol grubunda görünen "Bu VKN'yi zincir
+  // olarak işaretle" ve zincir bloğundaki "listesinden çıkar" butonları.
+  const zincirEkleBtn = overlay.querySelector('#btnZincirVknEkle');
+  if(zincirEkleBtn){
+    zincirEkleBtn.addEventListener('click', ()=>{
+      subeIslemiCalistirVeYenidenAc(()=> zincirVknEkle(f.vkn));
+    });
+  }
+  const zincirCikarBtn = overlay.querySelector('#btnZincirVknCikar');
+  if(zincirCikarBtn){
+    zincirCikarBtn.addEventListener('click', ()=>{
+      subeIslemiCalistirVeYenidenAc(()=> zincirVknCikar(f.vkn));
+    });
+  }
+
+  // Netsis kaydını kalıcı olarak silme: kullanıcı Netsis'te gerçekten sildiği ama
+  // panelde hâlâ "Entegratörde bulunamadı" olarak görünmeye devam eden bir kaydı
+  // temizlemek istediğinde kullanılır. Geri alınamaz — onay istenir. Silme işlemi
+  // state.kaynaklar.netsis.rows üzerinden yapılır (ham veri), rapor sonra yeniden
+  // hesaplanır. Sadece yon==='netsis' olan (yalnızca Netsis'te bulunan) satırlarda
+  // gösterilir çünkü entegratör satırlarının "silinmesi" mantıklı değildir — onlar
+  // zaten entegratörün kendi kaynağından geliyor.
+  const netsisSilBtn = overlay.querySelector('#btnNetsisKaydiSil');
+  if(netsisSilBtn){
+    netsisSilBtn.addEventListener('click', ()=>{
+      const onay = confirm(`"${f.faturaNo}" numaralı Netsis kaydını kalıcı olarak silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz.`);
+      if(!onay) return;
+      modalButonlariniKilitle();
+      try{
+        // Bellek + UI ÖNCE güncellenir (anında hissedilir), kalıcı bulut kaydı
+        // (saveKaynaklarToStorage: RTDB) arka planda await EDİLMEDEN yürür — ekran donmaz.
+        const eskiSatirlar = (state.kaynaklar.netsis && state.kaynaklar.netsis.rows) || [];
+        const guncelSatirlar = netsisOnayiUygula(eskiSatirlar, new Set([key]));
+        state.kaynaklar.netsis = { ...state.kaynaklar.netsis, rows: guncelSatirlar };
+        subeAtamasiSonrasiYenidenHesapla(); // rapor + UI güncelle (yerel önbellek arka planda)
+        saveKaynaklarToStorage().catch(e=> console.warn('Ham veri buluta kaydedilemedi (bellekte silindi):', e));
+        if(typeof toastGoster === 'function') toastGoster('Netsis kaydı silindi', 'basarili');
+      }catch(hata){
+        console.error('Netsis kaydı silinirken hata:', hata);
+        if(typeof toastGoster === 'function') toastGoster('Kayıt silinirken bir sorun oluştu', 'hata');
+      }finally{
+        overlay.remove(); // fatura artık yok, modalı tekrar açmaya çalışmıyoruz
+      }
+    });
+  }
+
+  // ÖNERİ 7: Esc ile kapatma. Modal kaldırıldığında dinleyici de sökülür (sızıntı olmasın).
+  function modalKapat(){
+    overlay.remove();
+    document.removeEventListener('keydown', escDinle);
+  }
+  function escDinle(e){ if(e.key==='Escape') modalKapat(); }
+  document.addEventListener('keydown', escDinle);
+
+  overlay.querySelector('#btnFaturaDetayKaydet').addEventListener('click', ()=> faturaDetayKaydet(key, overlay, modalKapat));
+  overlay.querySelector('#btnCloseFaturaDetay').addEventListener('click', modalKapat);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) modalKapat(); });
 }
 
-function populateTemsilciFilter(musteriler, selectId){
-  const sel = document.getElementById(selectId || 'temsilciFilter');
-  if(!sel) return; // select DOM'da yoksa sessizce çık
-  const current = sel.value;
-  // DAYANIKLILIK: musteriler undefined/dizi değilse (ör. eksik report alanı) çökmesin.
-  const liste = Array.isArray(musteriler) ? musteriler : [];
-  const set = Array.from(new Set(liste.map(m=>m && m.temsilci).filter(Boolean))).sort();
-  sel.innerHTML = '<option value="">Tüm temsilciler</option>' + set.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
-  if(current && set.includes(current)) sel.value = current;
+// Şube ataması değiştikten sonra raporu yeniden hesaplayıp ekranı günceller — bu bir
+// "arşivleme" değil, canlı raporun anlık yeniden hesabıdır (arşiv, bir sonraki
+// "Raporu Oluştur" çağrısında bu güncel şube bilgisiyle otomatik güncellenir).
+async function subeAtamasiSonrasiYenidenHesapla(){
+  state.rapor = computeRapor(state.kaynaklar, state.manuel, state.subeAtamalari, state.zincirVknListesi, state.faturaSubeAtamalari);
+  // UI'ı ÖNCE güncelle — kullanıcı sonucu anında görsün. Yerel önbelleğe kaydetme
+  // (saveRaporToStorage) artık ağ beklemez (sadece IndexedDB) ama yine de await ETMİYORUZ:
+  // arka planda tamamlanır, ekranı bloklamaz.
+  renderKPIs();
+  renderGroupTabs();
+  renderGroupSections();
+  saveRaporToStorage().catch(e=> console.warn('Rapor önbelleğe yazılamadı:', e));
 }
-
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
