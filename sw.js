@@ -11,7 +11,7 @@
 // CACHE_NAME de APP_VERSION'dan türediği için otomatik olarak yeni bir cache alanı açılır
 // ve activate aşamasında eski sürümün cache'i silinir — statik dosyalarda manuel cache
 // temizliği gerekmez.
-const APP_VERSION = '3.1';
+const APP_VERSION = '15';
 const CACHE_NAME = 'kesan-bayi-takip-v' + APP_VERSION;
 
 // Uygulama kabuğu: ilk yüklemede önbelleğe alınır, çevrimdışı açılışı mümkün kılar.
@@ -32,6 +32,11 @@ const APP_SHELL = [
   './js/08-kanal-raporlari.js',
   './js/09-stok-gun.js',
   './js/10-uygulama-ve-gorunumler.js',
+  './js/11-prim.js',
+  './js/12-sap-kontrol-export.js',
+  './js/13-arsiv-degisiklik-raporu.js',
+  './js/14-rut-plani.js',
+  './Kitap6.xlsx',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
